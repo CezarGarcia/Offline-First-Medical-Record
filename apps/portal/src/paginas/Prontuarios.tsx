@@ -1,18 +1,15 @@
-import { Badge, Card, Stack, Text, TextInput } from '@mantine/core';
-import { IconSearch } from '@tabler/icons-react';
 import { cpf, normalizar } from '@compartilhado/formatos';
 import type { ProntuarioDaLista } from '@compartilhado/tipos';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useAtendimentos, useProntuarios } from '../api/consultas';
-import { EstadoDaConsulta, Pagina } from '../componentes/Pagina';
-import { Valor } from '../componentes/Selos';
+import { FiltroDeBusca } from '../componentes/Filtros';
+import { EstadoDaConsulta, Pagina, Quadro } from '../componentes/Pagina';
+import { Etiqueta, NomeComAvatar, Valor } from '../componentes/Selos';
 import { type Coluna, Paginacao, Tabela, usePaginacao } from '../componentes/Tabela';
 
 export function Prontuarios() {
   const prontuarios = useProntuarios();
   const atendimentos = useAtendimentos();
-  const navegar = useNavigate();
   const [busca, setBusca] = useState('');
 
   // Quantos atendimentos cada pessoa tem (a lista de atendimentos já traz a pessoa de cada um)
@@ -32,37 +29,20 @@ export function Prontuarios() {
   const { pagina, paginas, setPagina, itensDaPagina } = usePaginacao(filtrados, 20, busca);
 
   const colunas: Coluna<ProntuarioDaLista>[] = [
-    {
-      titulo: 'Paciente',
-      celula: (p) => (
-        <Text size="sm" fw={600}>
-          {p.pessoa.nome}
-        </Text>
-      ),
-    },
-    { titulo: 'CPF', celula: (p) => <Valor vazio="—">{cpf(p.pessoa.cpf)}</Valor> },
+    { titulo: 'Paciente', celula: (p) => <NomeComAvatar nome={p.pessoa.nome} detalhe={cpf(p.pessoa.cpf) ?? 'sem CPF'} /> },
     {
       titulo: 'Tipo sanguíneo',
+      semQuebra: true,
       celula: (p) => <Valor vazio="—">{p.tipoSanguineo === 'DESCONHECIDO' ? 'Desconhecido' : p.tipoSanguineo}</Valor>,
     },
     {
       titulo: 'Alergias',
-      celula: (p) =>
-        p.alergias ? (
-          <Text size="sm" c="red.8" fw={600}>
-            {p.alergias}
-          </Text>
-        ) : (
-          <Valor vazio="nenhuma informada">{null}</Valor>
-        ),
+      celula: (p) => (p.alergias ? <Etiqueta cor="rose">{p.alergias}</Etiqueta> : <Valor vazio="nenhuma informada">{null}</Valor>),
     },
     {
       titulo: 'Atendimentos',
-      celula: (p) => (
-        <Badge variant="light" color="gray">
-          {atendimentos.isPending ? '…' : (quantidade.get(p.pessoaId) ?? 0)}
-        </Badge>
-      ),
+      semQuebra: true,
+      celula: (p) => <Etiqueta cor="soft">{atendimentos.isPending ? '…' : (quantidade.get(p.pessoaId) ?? 0)}</Etiqueta>,
     },
   ];
 
@@ -75,31 +55,26 @@ export function Prontuarios() {
         void atendimentos.refetch();
       }}
       atualizando={prontuarios.isFetching || atendimentos.isFetching}
+      atualizadoEm={prontuarios.dataUpdatedAt}
     >
-      <Card withBorder padding="md">
-        <TextInput
-          label="Paciente"
-          placeholder="Nome ou CPF"
-          leftSection={<IconSearch size={16} />}
-          value={busca}
-          onChange={(e) => setBusca(e.currentTarget.value)}
-        />
-      </Card>
-      <EstadoDaConsulta consulta={prontuarios}>
-        {() => (
-          <Stack gap="sm">
+      <Quadro
+        barra={<FiltroDeBusca rotulo="Paciente" placeholder="Nome ou CPF" valor={busca} aoMudar={setBusca} className="sm:max-w-md" />}
+        rodape={prontuarios.isSuccess && <Paginacao pagina={pagina} paginas={paginas} total={filtrados.length} aoMudar={setPagina} />}
+      >
+        <EstadoDaConsulta consulta={prontuarios}>
+          {() => (
             <Tabela
+              rotulo="Prontuários"
               itens={itensDaPagina}
               colunas={colunas}
               chave={(p) => p.id}
-              aoClicar={(p) => navegar(`/prontuarios/${p.pessoaId}`)}
+              link={(p) => `/prontuarios/${p.pessoaId}`}
               vazio="Nenhum prontuário encontrado."
               larguraMinima={800}
             />
-            <Paginacao pagina={pagina} paginas={paginas} total={filtrados.length} aoMudar={setPagina} />
-          </Stack>
-        )}
-      </EstadoDaConsulta>
+          )}
+        </EstadoDaConsulta>
+      </Quadro>
     </Pagina>
   );
 }

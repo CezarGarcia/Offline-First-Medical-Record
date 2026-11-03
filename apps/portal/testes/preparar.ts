@@ -11,7 +11,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// O Mantine usa APIs do navegador que o jsdom não tem
+// Os componentes (React Aria, BoardUI) usam APIs do navegador que o jsdom não tem
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (consulta: string) => ({
@@ -33,3 +33,16 @@ class ObservadorDeTamanho {
 }
 window.ResizeObserver = ObservadorDeTamanho as unknown as typeof ResizeObserver;
 window.HTMLElement.prototype.scrollIntoView = () => {};
+
+// Web Animations: a barra de tempo dos avisos (toast) usa element.animate()
+if (!window.Element.prototype.animate) {
+  window.Element.prototype.animate = function animarDeMentira() {
+    return {
+      play() {},
+      pause() {},
+      cancel() {},
+      finish() {},
+      finished: Promise.resolve(),
+    } as unknown as Animation;
+  };
+}

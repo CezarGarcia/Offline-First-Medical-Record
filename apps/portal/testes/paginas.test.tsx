@@ -18,15 +18,18 @@ describe('Atendimentos', () => {
     new ApiFalsa().em('GET /api/atendimento', json(200, [resumo(ATENDIMENTO), OUTRO])).instalar();
     renderizarPortal('/atendimentos');
 
-    expect(await screen.findByText('João da Silva')).toBeInTheDocument();
-    expect(screen.getByText('Ana Beatriz Costa')).toBeInTheDocument();
-    expect(screen.getByText('Laranja')).toBeInTheDocument();
-    expect(screen.getByText('Vermelho')).toBeInTheDocument();
-    expect(screen.getAllByText('28/10/2026 11:20')).not.toHaveLength(0);
+    // O painel do topo (indicadores, casos graves) também mostra nomes e cores: a verificação é na tabela
+    const tabela = await screen.findByRole('grid', { name: 'Atendimentos' });
+    expect(within(tabela).getByText('João da Silva')).toBeInTheDocument();
+    expect(within(tabela).getByText('Ana Beatriz Costa')).toBeInTheDocument();
+    expect(within(tabela).getByText('Laranja')).toBeInTheDocument();
+    expect(within(tabela).getByText('Vermelho')).toBeInTheDocument();
+    expect(within(tabela).getAllByText('28/10/2026 11:20')).not.toHaveLength(0);
+    expect(screen.getByText('Casos graves recentes')).toBeInTheDocument();
 
     await userEvent.setup().type(screen.getByPlaceholderText('Nome ou CPF'), 'joao');
-    await waitFor(() => expect(screen.queryByText('Ana Beatriz Costa')).not.toBeInTheDocument());
-    expect(screen.getByText('João da Silva')).toBeInTheDocument();
+    await waitFor(() => expect(within(tabela).queryByText('Ana Beatriz Costa')).not.toBeInTheDocument());
+    expect(within(tabela).getByText('João da Silva')).toBeInTheDocument();
     expect(screen.getByText('1 item')).toBeInTheDocument();
   });
 

@@ -121,7 +121,7 @@ Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Out
 | ms-auth | Node.js (LTS), TypeScript, Fastify, node-postgres, bcrypt, `jose` (JWT RS256), migrations SQL |
 | ms-clinico | Java 21, Spring Boot 4 (Web MVC, Validation, JDBC com `JdbcClient`), Flyway, Nimbus JOSE + JWT (confere o token), springdoc-openapi |
 | ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy Core + Alembic, psycopg 3, PyJWT (confere o token), httpx (chama o ms-clinico), Jinja2 + WeasyPrint (HTML → PDF), smtplib |
-| Portal | React 19, TypeScript, Vite, Mantine 9, React Router, TanStack Query, Swagger UI. Servido pelo Nginx (D-40) |
+| Portal | React 19, TypeScript, Vite, BoardUI (Tailwind CSS v4 + React Aria, D-44), React Router, TanStack Query, Swagger UI. Servido pelo Nginx (D-40) |
 | App cliente | Electron, React, TypeScript, Vite, Mantine, better-sqlite3, `safeStorage` (cofre do Windows) |
 | Infraestrutura | Docker Compose, Nginx, PostgreSQL 18 |
 | Qualidade e entrega | Testes automatizados por serviço, coleção do Postman, GitHub Actions (gera o `.exe` do cliente) |

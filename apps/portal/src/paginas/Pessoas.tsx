@@ -1,60 +1,48 @@
-import { Card, Stack, Text, TextInput } from '@mantine/core';
-import { IconSearch } from '@tabler/icons-react';
 import { cpf, data, normalizar, telefone } from '@compartilhado/formatos';
 import { SEXO, rotulo } from '@compartilhado/rotulos';
 import type { Pessoa } from '@compartilhado/tipos';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { usePessoas } from '../api/consultas';
-import { EstadoDaConsulta, Pagina } from '../componentes/Pagina';
-import { SeloModo, Valor } from '../componentes/Selos';
+import { FiltroDeBusca } from '../componentes/Filtros';
+import { EstadoDaConsulta, Pagina, Quadro } from '../componentes/Pagina';
+import { NomeComAvatar, SeloModo, Valor } from '../componentes/Selos';
 import { type Coluna, Paginacao, Tabela, usePaginacao } from '../componentes/Tabela';
 
 const COLUNAS: Coluna<Pessoa>[] = [
-  {
-    titulo: 'Nome',
-    celula: (p) => (
-      <Text size="sm" fw={600}>
-        {p.nome}
-      </Text>
-    ),
-  },
-  { titulo: 'CPF', celula: (p) => <Valor vazio="—">{cpf(p.cpf)}</Valor> },
-  { titulo: 'Nascimento', celula: (p) => <Valor vazio="—">{data(p.dataNascimento)}</Valor> },
-  { titulo: 'Sexo', celula: (p) => <Valor vazio="—">{rotulo(SEXO, p.sexo)}</Valor> },
+  { titulo: 'Nome', celula: (p) => <NomeComAvatar nome={p.nome} detalhe={rotulo(SEXO, p.sexo)} /> },
+  { titulo: 'CPF', semQuebra: true, celula: (p) => <Valor vazio="—">{cpf(p.cpf)}</Valor> },
+  { titulo: 'Nascimento', semQuebra: true, celula: (p) => <Valor vazio="—">{data(p.dataNascimento)}</Valor> },
   {
     titulo: 'Contatos',
     celula: (p) => (
-      <Stack gap={0}>
-        <Text size="sm">{[telefone(p.telefone), p.email].filter(Boolean).join(' · ') || '—'}</Text>
+      <div className="flex flex-col">
+        <span>{[telefone(p.telefone), p.email].filter(Boolean).join(' · ') || '—'}</span>
         {p.contato?.nome && (
-          <Text size="xs" c="dimmed">
+          <span className="text-caption-1-regular text-text-tertiary">
             Familiar: {p.contato.nome}
             {p.contato.parentesco ? ` (${p.contato.parentesco})` : ''}
             {p.contato.telefone ? ` · ${telefone(p.contato.telefone)}` : ''}
             {p.contato.email ? ` · ${p.contato.email}` : ''}
-          </Text>
+          </span>
         )}
-      </Stack>
+      </div>
     ),
   },
   {
     titulo: 'Origem',
     celula: (p) => (
-      <Stack gap={2}>
-        <Text size="sm">{p.origem.criadoPorNome}</Text>
-        <Text size="xs" c="dimmed">
-          {p.origem.dispositivoNome ?? 'sem dispositivo'}
-        </Text>
-        <SeloModo modo={p.origem.modo} />
-      </Stack>
+      <div className="flex flex-col items-start gap-1">
+        <span>{p.origem.criadoPorNome}</span>
+        <span className="flex items-center gap-1.5 text-caption-1-regular text-text-tertiary">
+          {p.origem.dispositivoNome ?? 'sem dispositivo'} <SeloModo modo={p.origem.modo} />
+        </span>
+      </div>
     ),
   },
 ];
 
 export function Pessoas() {
   const consulta = usePessoas();
-  const navegar = useNavigate();
   const [busca, setBusca] = useState('');
 
   const filtradas = useMemo(() => {
@@ -69,31 +57,26 @@ export function Pessoas() {
       descricao="Pacientes cadastrados (pelos aparelhos ou direto no banco). Clique para ver o prontuário."
       aoAtualizar={() => consulta.refetch()}
       atualizando={consulta.isFetching}
+      atualizadoEm={consulta.dataUpdatedAt}
     >
-      <Card withBorder padding="md">
-        <TextInput
-          label="Buscar"
-          placeholder="Nome ou CPF"
-          leftSection={<IconSearch size={16} />}
-          value={busca}
-          onChange={(e) => setBusca(e.currentTarget.value)}
-        />
-      </Card>
-      <EstadoDaConsulta consulta={consulta}>
-        {() => (
-          <Stack gap="sm">
+      <Quadro
+        barra={<FiltroDeBusca rotulo="Buscar" placeholder="Nome ou CPF" valor={busca} aoMudar={setBusca} className="sm:max-w-md" />}
+        rodape={consulta.isSuccess && <Paginacao pagina={pagina} paginas={paginas} total={filtradas.length} aoMudar={setPagina} />}
+      >
+        <EstadoDaConsulta consulta={consulta}>
+          {() => (
             <Tabela
+              rotulo="Pessoas"
               itens={itensDaPagina}
               colunas={COLUNAS}
               chave={(p) => p.id}
-              aoClicar={(p) => navegar(`/prontuarios/${p.id}`)}
+              link={(p) => `/prontuarios/${p.id}`}
               vazio="Nenhuma pessoa encontrada."
               larguraMinima={1000}
             />
-            <Paginacao pagina={pagina} paginas={paginas} total={filtradas.length} aoMudar={setPagina} />
-          </Stack>
-        )}
-      </EstadoDaConsulta>
+          )}
+        </EstadoDaConsulta>
+      </Quadro>
     </Pagina>
   );
 }

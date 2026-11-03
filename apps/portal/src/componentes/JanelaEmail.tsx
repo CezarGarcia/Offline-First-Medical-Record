@@ -1,12 +1,20 @@
-import { Alert, Button, Group, Modal, Radio, Stack, Text, TextInput } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconMailForward } from '@tabler/icons-react';
-import { uuid7 } from '@compartilhado/ids';
-import type { AtendimentoDetalhe, EnvioEmail, TipoDestinatario } from '@compartilhado/tipos';
+import { RiMailSendLine } from '@remixicon/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/base/buttons/button';
+import { Input } from '@/components/base/input/input';
+import { Label } from '@/components/base/input/label';
+import { Modal, ModalBody, ModalFooter, ModalHeader } from '@/components/base/modal/modal';
+import { RadioGroup } from '@/components/base/radio/radio';
+import { RadioCard } from '@/components/base/radio/radio-card';
+import { SpinnerGlyph } from '@/components/base/spinner/spinner';
+import { toast } from '@/components/base/toast/toast';
+import { cx } from '@/utils/cx';
+import { uuid7 } from '@compartilhado/ids';
+import type { AtendimentoDetalhe, EnvioEmail, TipoDestinatario } from '@compartilhado/tipos';
 import { api } from '../api/cliente';
 import { mensagemDoErro } from '../api/erros';
+import { Aviso } from './Pagina';
 
 const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,6 +22,10 @@ interface PropsDaJanela {
   atendimento: AtendimentoDetalhe;
   aberta: boolean;
   aoFechar: () => void;
+}
+
+function Enviando({ className }: { className?: string }) {
+  return <SpinnerGlyph size="sm" className={cx(className, 'text-current')} />;
 }
 
 /**
@@ -42,6 +54,7 @@ export function JanelaEmail({ atendimento, aberta, aoFechar }: PropsDaJanela) {
   const emailInvalido = tipo === 'OUTRO' && !FORMATO_EMAIL.test(outro.trim());
 
   async function enviar() {
+    if (enviando) return;
     setEnviando(true);
     setErro(null);
     try {
@@ -53,10 +66,8 @@ export function JanelaEmail({ atendimento, aberta, aoFechar }: PropsDaJanela) {
         },
       });
       const envio = (await resposta.json()) as EnvioEmail;
-      notifications.show({
-        color: 'teal',
-        title: resposta.status === 201 ? 'E-mail enviado' : 'Este pedido já tinha sido enviado',
-        message: `Ficha enviada para ${envio.destinatarioEmail}.`,
+      toast.success(resposta.status === 201 ? 'E-mail enviado' : 'Este pedido já tinha sido enviado', {
+        description: `Ficha enviada para ${envio.destinatarioEmail}.`,
       });
       void consultas.invalidateQueries({ queryKey: ['envios-email'] });
       aoFechar();
@@ -68,56 +79,72 @@ export function JanelaEmail({ atendimento, aberta, aoFechar }: PropsDaJanela) {
   }
 
   return (
-    <Modal opened={aberta} onClose={aoFechar} title="Enviar a ficha por e-mail" centered size="lg">
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          A ficha em PDF vai anexada. O e-mail avisa que o conteúdo tem dados sensíveis (LGPD).
-        </Text>
-        <Radio.Group value={tipo} onChange={(valor) => setTipo(valor as TipoDestinatario)} label="Para quem">
-          <Stack gap="xs" mt="xs">
-            <Radio
-              value="PACIENTE"
-              disabled={!emailDoPaciente}
-              label="Paciente"
-              description={emailDoPaciente ?? 'Sem e-mail no cadastro da pessoa'}
-            />
-            <Radio
-              value="FAMILIAR"
-              disabled={!emailDoFamiliar}
-              label="Familiar"
-              description={
-                emailDoFamiliar
-                  ? `${atendimento.pessoa.contato?.nome ?? 'Contato'} · ${emailDoFamiliar}`
-                  : 'Sem e-mail no contato do familiar'
-              }
-            />
-            <Radio value="OUTRO" label="Outro endereço" description="Digite o e-mail abaixo" />
-          </Stack>
-        </Radio.Group>
+    <Modal
+      isOpen={aberta}
+      onOpenChange={(aberto) => {
+        if (!aberto && !enviando) aoFechar();
+      }}
+      size="lg"
+    >
+      <ModalHeader
+        title="Enviar a ficha por e-mail"
+        description="A ficha em PDF vai anexada. O e-mail avisa que o conteúdo tem dados sensíveis (LGPD)."
+        icon={RiMailSendLine}
+        closeLabel="Fechar"
+      />
+      <ModalBody className="flex flex-col gap-4">
+        <RadioGroup value={tipo} onChange={(valor) => setTipo(valor as TipoDestinatario)} className="flex flex-col gap-2">
+          <Label>Para quem</Label>
+          <RadioCard
+            value="PACIENTE"
+            isDisabled={!emailDoPaciente}
+            title="Paciente"
+            description={emailDoPaciente ?? 'Sem e-mail no cadastro da pessoa'}
+          />
+          <RadioCard
+            value="FAMILIAR"
+            isDisabled={!emailDoFamiliar}
+            title="Familiar"
+            description={
+              emailDoFamiliar
+                ? `${atendimento.pessoa.contato?.nome ?? 'Contato'} · ${emailDoFamiliar}`
+                : 'Sem e-mail no contato do familiar'
+            }
+          />
+          <RadioCard value="OUTRO" title="Outro endereço" description="Digite o e-mail abaixo" />
+        </RadioGroup>
         {tipo === 'OUTRO' && (
-          <TextInput
+          <Input
             label="E-mail"
+            type="email"
             placeholder="nome@exemplo.com"
             value={outro}
-            onChange={(e) => setOutro(e.currentTarget.value)}
-            error={outro && emailInvalido ? 'E-mail inválido' : undefined}
-            data-autofocus
+            onChange={setOutro}
+            isInvalid={Boolean(outro) && emailInvalido}
+            errorMessage="E-mail inválido"
+            autoFocus
+            className="cartao-entra"
           />
         )}
         {erro && (
-          <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />} role="alert">
+          <Aviso tipo="error" titulo="Não foi possível enviar">
             {erro} Você pode tentar de novo: o mesmo pedido não manda dois e-mails.
-          </Alert>
+          </Aviso>
         )}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={aoFechar}>
-            Cancelar
-          </Button>
-          <Button leftSection={<IconMailForward size={16} />} onClick={enviar} loading={enviando} disabled={emailInvalido}>
-            {erro ? 'Tentar de novo' : 'Enviar'}
-          </Button>
-        </Group>
-      </Stack>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={aoFechar} disabled={enviando}>
+          Cancelar
+        </Button>
+        <Button
+          leadingIcon={enviando ? Enviando : RiMailSendLine}
+          onClick={enviar}
+          disabled={emailInvalido}
+          aria-busy={enviando || undefined}
+        >
+          {erro ? 'Tentar de novo' : 'Enviar'}
+        </Button>
+      </ModalFooter>
     </Modal>
   );
 }

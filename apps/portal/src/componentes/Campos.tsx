@@ -1,6 +1,9 @@
-import { Card, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { cx } from '@/utils/cx';
+import { Cartao } from './Pagina';
 import { Valor } from './Selos';
+
+type Icone = ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
 
 export interface Campo {
   rotulo: string;
@@ -8,39 +11,69 @@ export interface Campo {
   /** Ocupa a linha inteira (textos longos). */
   largo?: boolean;
   destaque?: boolean;
+  /** Valor de alerta (alergias): o bloco fica em vermelho. */
+  alerta?: boolean;
 }
 
-/** Grade de "rótulo em cima, valor embaixo", como nas seções do PDF. */
-export function Campos({ campos, colunas = 3 }: { campos: Campo[]; colunas?: number }) {
+const COLUNAS = { 2: 'md:grid-cols-2', 3: 'md:grid-cols-2 lg:grid-cols-3', 4: 'md:grid-cols-2 lg:grid-cols-4' } as const;
+
+/** Grade de "rótulo em cima, valor embaixo", como nas seções do PDF: cada campo num bloco. */
+export function Campos({ campos, colunas = 3 }: { campos: Campo[]; colunas?: keyof typeof COLUNAS }) {
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2, md: colunas }} spacing="md" verticalSpacing="sm">
+    <dl className={cx('grid grid-cols-1 gap-2', COLUNAS[colunas])}>
       {campos.map((campo) => (
-        <Stack key={campo.rotulo} gap={2} style={campo.largo ? { gridColumn: '1 / -1' } : undefined}>
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-            {campo.rotulo}
-          </Text>
-          <Text component="div" size="sm" fw={campo.destaque ? 700 : 400} style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+        <div
+          key={campo.rotulo}
+          className={cx(
+            'flex min-w-0 flex-col gap-0.5 rounded-2lg px-3 py-2.5',
+            campo.alerta ? 'bg-status-rose-background' : 'bg-background-bloco',
+            campo.largo && 'col-span-full',
+          )}
+        >
+          <dt className={cx('text-caption-1-medium', campo.alerta ? 'text-status-rose-text' : 'text-text-tertiary')}>{campo.rotulo}</dt>
+          <dd
+            className={cx(
+              'whitespace-pre-line [overflow-wrap:anywhere]',
+              campo.destaque ? 'text-headline-medium' : 'text-body-medium',
+              campo.alerta ? 'text-status-rose-text' : 'text-text-primary',
+            )}
+          >
             <Valor>{campo.valor}</Valor>
-          </Text>
-        </Stack>
+          </dd>
+        </div>
       ))}
-    </SimpleGrid>
+    </dl>
   );
 }
 
 /** Um bloco da tela com título (Paciente, Prontuário, Triagem...). */
-export function Secao({ titulo, acoes, children }: { titulo: string; acoes?: ReactNode; children: ReactNode }) {
+export function Secao({
+  titulo,
+  icone: IconeDaSecao,
+  acoes,
+  className,
+  children,
+}: {
+  titulo: string;
+  icone?: Icone;
+  acoes?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <Card withBorder padding="lg" radius="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="center">
-          <Title order={4} c="marca.7">
-            {titulo}
-          </Title>
-          {acoes}
-        </Group>
-        {children}
-      </Stack>
-    </Card>
+    <Cartao className={cx('flex flex-col gap-4 p-5', className)}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 text-headline-medium text-text-primary">
+          {IconeDaSecao && (
+            <span className="flex size-8 items-center justify-center rounded-2lg bg-linear-to-b from-accent-500 to-accent-600 shadow-xs">
+              <IconeDaSecao className="size-[18px] text-white" aria-hidden />
+            </span>
+          )}
+          {titulo}
+        </h2>
+        {acoes}
+      </div>
+      {children}
+    </Cartao>
   );
 }

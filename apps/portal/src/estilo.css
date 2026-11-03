@@ -1,0 +1,132 @@
+/* Folha de estilo do portal: o BoardUI (Tailwind v4 + tokens) e os ajustes do MedicalField. */
+@import "./styles/globals.css";
+
+/* Azul do MedicalField (o mesmo do cabeçalho do PDF, #0b5394 no 700). O BoardUI tinge botões, seleção,
+ * foco, abas e calendário pela rampa accent-*: trocando a rampa, o sistema todo fica na cor da marca. */
+@theme {
+  --color-accent-50: #eef5fc;
+  --color-accent-100: #dbe9f8;
+  --color-accent-200: #b6d1f0;
+  --color-accent-300: #84b2e5;
+  --color-accent-400: #4f8fd6;
+  --color-accent-500: #2a72c4;
+  --color-accent-600: #1762b0;
+  --color-accent-700: #0b5394;
+  --color-accent-800: #0a4579;
+  --color-accent-900: #0c3a63;
+  --color-accent-950: #082541;
+}
+
+/* Duas superfícies do portal, como tokens semânticos (viram bg-background-cartao e bg-background-bloco):
+ *   cartao  o cartão sobre o fundo da página (branco no claro; no escuro, um degrau acima do fundo, como o
+ *           AuthCard do BoardUI, para os campos de texto, que usam o terciário, continuarem visíveis)
+ *   bloco   os blocos de dentro do cartão (rótulo + valor, sinais vitais), um degrau acima do cartão */
+:root {
+  --color-background-cartao: var(--color-background-primary-default);
+  --color-background-bloco: var(--color-background-secondary-default);
+}
+.dark {
+  --color-background-cartao: var(--color-background-secondary-default);
+  --color-background-bloco: var(--color-background-primary-default);
+}
+@theme inline {
+  --color-background-cartao: var(--color-background-cartao);
+  --color-background-bloco: var(--color-background-bloco);
+}
+
+/* Inter vem do pacote @fontsource-variable/inter (servido pelo próprio Nginx, sem Google Fonts). */
+:root {
+  --font-inter: "Inter Variable";
+}
+
+html,
+body {
+  @apply bg-background-full text-text-primary antialiased;
+}
+
+/* Entrada da página: condensa no lugar (opacidade + escala + desfoque leve), como o resto do BoardUI. */
+@keyframes pagina-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(4px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+.pagina-entra {
+  animation: pagina-entra 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Cartões de uma lista entram em sequência (o atraso vem em --ordem). */
+@keyframes cartao-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+.cartao-entra {
+  animation: cartao-entra 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--ordem, 0) * 40ms);
+}
+
+/* Pulso suave do selo de triagem grave (vermelho/laranja). */
+@keyframes selo-pulsa {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, currentColor 0%, transparent);
+  }
+}
+.selo-pulsa {
+  animation: selo-pulsa 2s ease-out infinite;
+}
+
+/* Linha clicável da tabela: o cursor e o realce mostram que abre o detalhe. */
+.bui-table tbody tr[data-href],
+.bui-table tbody tr.linha-clicavel {
+  cursor: pointer;
+}
+.bui-table tbody tr.linha-clicavel:hover {
+  background-color: var(--color-background-secondary-hover);
+}
+
+/* A linha de eletrocardiograma da tela de login se desenha uma vez. */
+@keyframes ecg-desenha {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.ecg-linha {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: ecg-desenha 1800ms cubic-bezier(0.33, 0, 0.15, 1) 300ms forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagina-entra,
+  .cartao-entra,
+  .selo-pulsa,
+  .ecg-linha {
+    animation: none;
+  }
+  .ecg-linha {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* O Swagger UI tem o próprio CSS (claro); no tema escuro ele fica num cartão claro, legível. */
+.swagger-ui .wrapper {
+  padding: 0;
+}

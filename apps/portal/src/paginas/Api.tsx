@@ -1,20 +1,25 @@
 import 'swagger-ui-react/swagger-ui.css';
 
-import { Alert, Card, Tabs, Text } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { RiCodeSSlashLine, RiFileTextLine, RiShieldUserLine, RiStethoscopeLine } from '@remixicon/react';
 import { useState } from 'react';
 import SwaggerUI from 'swagger-ui-react';
+import { Tab, TabList, TabPanel, Tabs } from '@/components/base/tabs/tabs';
 import { api } from '../api/cliente';
 import { useEspecificacao } from '../api/consultas';
-import { EstadoDaConsulta, Pagina } from '../componentes/Pagina';
+import { Aviso, Cartao, EstadoDaConsulta, Pagina } from '../componentes/Pagina';
 
 type Servico = 'ms-auth' | 'ms-clinico' | 'ms-docs';
 
-const SERVICOS: { valor: Servico; rotulo: string; descricao: string }[] = [
-  { valor: 'ms-auth', rotulo: 'ms-auth (TypeScript)', descricao: 'Login, sessão, profissionais e auditoria' },
-  { valor: 'ms-clinico', rotulo: 'ms-clinico (Java)', descricao: 'Pessoas, prontuários, atendimentos, medicamentos e sincronização' },
-  { valor: 'ms-docs', rotulo: 'ms-docs (Python)', descricao: 'PDF da ficha e envio por e-mail' },
-];
+const SERVICOS = [
+  { valor: 'ms-auth', rotulo: 'ms-auth (TypeScript)', descricao: 'Login, sessão, profissionais e auditoria', icone: RiShieldUserLine },
+  {
+    valor: 'ms-clinico',
+    rotulo: 'ms-clinico (Java)',
+    descricao: 'Pessoas, prontuários, atendimentos, medicamentos e sincronização',
+    icone: RiStethoscopeLine,
+  },
+  { valor: 'ms-docs', rotulo: 'ms-docs (Python)', descricao: 'PDF da ficha e envio por e-mail', icone: RiFileTextLine },
+] as const satisfies readonly { valor: Servico; rotulo: string; descricao: string; icone: unknown }[];
 
 /** "Try it out" usa o token de quem está logado, renovado na hora se estiver vencendo. */
 async function comToken(requisicao: Record<string, unknown>) {
@@ -32,13 +37,16 @@ function Especificacao({ servico }: { servico: Servico }) {
   return (
     <EstadoDaConsulta consulta={consulta}>
       {() => (
-        <SwaggerUI
-          spec={consulta.data}
-          requestInterceptor={comToken}
-          docExpansion="list"
-          defaultModelsExpandDepth={-1}
-          deepLinking={false}
-        />
+        // O Swagger UI tem o próprio CSS claro: fica num fundo claro também no tema escuro
+        <div className="rounded-2xl bg-white p-2 text-black">
+          <SwaggerUI
+            spec={consulta.data}
+            requestInterceptor={comToken}
+            docExpansion="list"
+            defaultModelsExpandDepth={-1}
+            deepLinking={false}
+          />
+        </div>
       )}
     </EstadoDaConsulta>
   );
@@ -51,29 +59,30 @@ export default function Api() {
       titulo="API"
       descricao="A documentação interativa (OpenAPI) dos três serviços. Cada serviço publica a própria especificação em /api/docs/<serviço>, que também exige token."
     >
-      <Alert color="blue" variant="light" icon={<IconInfoCircle size={18} />}>
-        Os botões <b>Try it out</b> fazem requisições de verdade, com o seu token de administrador. Elas aparecem nos
-        logs de acesso como qualquer outra.
-      </Alert>
-      <Card withBorder padding="md">
-        <Tabs value={servico} onChange={(valor) => valor && setServico(valor as Servico)} keepMounted={false}>
-          <Tabs.List>
+      <Aviso titulo="As requisições são de verdade">
+        Os botões <b>Try it out</b> fazem requisições com o seu token de administrador. Elas aparecem nos logs de acesso como qualquer
+        outra.
+      </Aviso>
+      <Cartao className="p-4">
+        <Tabs selectedKey={servico} onSelectionChange={(chave) => setServico(chave as Servico)}>
+          <TabList aria-label="Serviços">
             {SERVICOS.map((s) => (
-              <Tabs.Tab key={s.valor} value={s.valor}>
+              <Tab key={s.valor} id={s.valor} icon={s.icone}>
                 {s.rotulo}
-              </Tabs.Tab>
+              </Tab>
             ))}
-          </Tabs.List>
+          </TabList>
           {SERVICOS.map((s) => (
-            <Tabs.Panel key={s.valor} value={s.valor} pt="md">
-              <Text size="sm" c="dimmed" mb="xs">
+            <TabPanel key={s.valor} id={s.valor} className="flex flex-col gap-3 pt-4">
+              <p className="flex items-center gap-2 text-body-regular text-text-secondary">
+                <RiCodeSSlashLine className="size-4" aria-hidden />
                 {s.descricao}
-              </Text>
+              </p>
               <Especificacao servico={s.valor} />
-            </Tabs.Panel>
+            </TabPanel>
           ))}
         </Tabs>
-      </Card>
+      </Cartao>
     </Pagina>
   );
 }

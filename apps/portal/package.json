@@ -18,17 +18,19 @@
     "enabled": false
   },
   "dependencies": {
-    "@mantine/core": "^9.7.4",
-    "@mantine/dates": "^9.7.4",
-    "@mantine/hooks": "^9.7.4",
-    "@mantine/notifications": "^9.7.4",
-    "@tabler/icons-react": "^3.50.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@internationalized/date": "^3.12.4",
+    "@remixicon/react": "^4.9.0",
+    "@tailwindcss/vite": "^4.3.4",
     "@tanstack/react-query": "^5.105.3",
-    "dayjs": "^1.11.23",
+    "motion": "^12.43.0",
     "react": "^19.3.1",
+    "react-aria-components": "^1.22.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.5.1",
-    "swagger-ui-react": "^5.34.1"
+    "swagger-ui-react": "^5.34.1",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.4"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",
