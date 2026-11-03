@@ -1,5 +1,7 @@
 # MedicalField
 
+[![Testes](https://github.com/CezarGarcia/Offline-First-Medical-Record/actions/workflows/testes.yml/badge.svg)](https://github.com/CezarGarcia/Offline-First-Medical-Record/actions/workflows/testes.yml) [![Instalador do Windows](https://github.com/CezarGarcia/Offline-First-Medical-Record/actions/workflows/instalador-windows.yml/badge.svg)](https://github.com/CezarGarcia/Offline-First-Medical-Record/actions/workflows/instalador-windows.yml)
+
 **Prontuário Médico de Emergência com arquitetura offline-first.** Trabalho final da disciplina 4815206 – Arquiteturas de Software (Univates, 2026/B).
 
 Equipes de resgate (SAMU, ambulâncias de rodovia, equipes em desastres) muitas vezes atendem sem internet. No MedicalField, o profissional registra o paciente, o prontuário e a ficha de atendimento num **app que funciona sem conexão**. Quando a conexão volta, os dados são sincronizados com um **backend de microsserviços em três linguagens**, **sem duplicar**, **sem perder a origem** de cada registro e **resolvendo conflitos**. Os registros podem ser consultados num **portal administrativo**, exportados em **PDF** e enviados por **e-mail**.
@@ -38,6 +40,8 @@ flowchart LR
 | ms-clinico | [`servicos/ms-clinico`](servicos/ms-clinico) | Java (Spring Boot) | Pessoas, prontuários, atendimentos, medicamentos e sincronização |
 | ms-docs | [`servicos/ms-docs`](servicos/ms-docs) | Python (FastAPI) | PDF da ficha de atendimento e envio por e-mail |
 | Infraestrutura | [`infra`](infra) | Docker Compose, Nginx, PostgreSQL | Tudo que roda na VM |
+| Coleção do Postman | [`postman`](postman) | Postman / Newman | Todas as rotas, com login automático e testes; a pasta 1 é o roteiro do Postman da apresentação |
+| Integração contínua | [`.github/workflows`](.github/workflows) | GitHub Actions | A cada push: os testes de cada parte, o sistema inteiro no Docker e o instalador do Windows |
 
 ## Documentação
 
@@ -48,7 +52,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 - [Arquitetura](docs/04-arquitetura.md), [modelo de dados](docs/05-modelo-de-dados.md) e [API](docs/06-api.md): como o sistema é.
 - [Sincronização](docs/07-sincronizacao.md) e [segurança e auditoria](docs/08-seguranca-e-auditoria.md): as partes mais delicadas.
 - [Roteiro de testes](docs/11-roteiro-de-testes.md) e [implantação](docs/12-implantacao.md): como apresentar e como colocar no ar.
-- [Testes automatizados](docs/13-testes-automatizados.md): o que cada serviço testa sozinho e como rodar.
+- [Testes automatizados](docs/13-testes-automatizados.md): o que cada parte testa sozinha, como rodar e o que o GitHub Actions roda a cada push.
 
 ## Andamento
 
@@ -60,7 +64,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 | 4 | ms-docs: PDF da ficha, envio por e-mail com idempotência e histórico de envios | **Concluída** |
 | 5 | Portal Admin: consultas, auditoria, PDF, e-mail e a documentação da API (Swagger) | **Concluída** |
 | 6 | App cliente (Electron): telas, SQLite, login offline, chave, fila, sincronização | **Concluída** |
-| 7 | Coleção do Postman, testes automatizados e geração do `.exe` | Pendente |
+| 7 | Coleção do Postman, testes automatizados e geração do `.exe` | **Concluída** |
 | 8 | Implantação na VM e ensaio do roteiro de testes completo | Pendente |
 
 ## Como rodar (etapa atual)
@@ -79,6 +83,8 @@ docker compose up -d --build
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
 - O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
 - `./scripts/psql.sh` abre o banco.
+
+**Postman:** importe a coleção e o ambiente da pasta [`postman/`](postman) e preencha o endereço e a senha ([README da coleção](postman/README.md)).
 
 **App cliente** (no PC, com Node.js 22.22 ou mais novo): na pasta `apps/cliente`, `npm ci` e `npm run dev`. Na primeira vez, ele pede o endereço do servidor (`http://localhost`, ou com a porta do `HTTP_PORTA`) e o nome do dispositivo. O instalador do Windows e a segunda ambulância estão em [docs/12, seção 12.10](docs/12-implantacao.md#1210-app-cliente-no-windows); os testes, em [docs/13](docs/13-testes-automatizados.md).
 

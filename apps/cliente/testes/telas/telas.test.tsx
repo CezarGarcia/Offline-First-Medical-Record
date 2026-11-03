@@ -28,7 +28,7 @@ afterEach(async () => {
   while (abertos.length) {
     const { nucleo, pasta } = abertos.pop()!;
     await nucleo.encerrar();
-    rmSync(pasta, { recursive: true, force: true });
+    rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 });
 

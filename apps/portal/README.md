@@ -7,7 +7,7 @@ Interface web administrativa, servida pelo Nginx em `http://IP-DA-VM/`. Só entr
 - Páginas: [docs/10-telas.md, seção 10.2](../../docs/10-telas.md#102-portal-admin-navegador)
 - Rotas da API usadas: [docs/06-api.md](../../docs/06-api.md)
 - Tokens e sessão: [docs/08-seguranca-e-auditoria.md](../../docs/08-seguranca-e-auditoria.md#86-sessão-mantida)
-- Decisões: D-17, D-21, D-40 a D-42 e D-48 em [docs/03-decisoes.md](../../docs/03-decisoes.md)
+- Decisões: D-17, D-21, D-40 a D-42 e D-44 em [docs/03-decisoes.md](../../docs/03-decisoes.md)
 
 ## Como funciona
 

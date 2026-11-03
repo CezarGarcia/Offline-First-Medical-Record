@@ -302,7 +302,7 @@ export function novoAparelho(servidor = new ServidorFalso(), pasta = mkdtempSync
     },
     async fechar() {
       await nucleo.encerrar();
-      rmSync(pasta, { recursive: true, force: true });
+      rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     },
   };
   return aparelho;

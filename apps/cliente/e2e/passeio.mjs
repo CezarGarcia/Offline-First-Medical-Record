@@ -26,7 +26,7 @@ if (!existsSync(join(PASTA_DO_APP, 'out', 'main', 'index.js'))) {
   console.error('Rode "npm run build" antes.');
   process.exit(2);
 }
-rmSync(SAIDA, { recursive: true, force: true });
+rmSync(SAIDA, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 mkdirSync(SAIDA, { recursive: true });
 
 // Um perfil novo a cada execução: banco vazio, como num aparelho recém-instalado (D-29)
@@ -62,7 +62,7 @@ const require = createRequire(import.meta.url);
 const app = await _electron.launch({
   executablePath: require('electron'),
   // Como root (CI em contêiner), o Chromium exige --no-sandbox; as telas continuam com sandbox: true
-  args: [...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), PASTA_DO_APP, `--perfil=${PERFIL}`],
+  args: [...(process.getuid?.() === 0 || process.env.MEDICALFIELD_SEM_SANDBOX ? ['--no-sandbox'] : []), PASTA_DO_APP, `--perfil=${PERFIL}`],
   cwd: PASTA_DO_APP,
 });
 let pastaDoPerfil = null;
@@ -234,5 +234,5 @@ try {
   process.exitCode = 1;
 } finally {
   await app.close();
-  if (pastaDoPerfil) rmSync(pastaDoPerfil, { recursive: true, force: true });
+  if (pastaDoPerfil) rmSync(pastaDoPerfil, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }

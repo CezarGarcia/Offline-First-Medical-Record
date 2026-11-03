@@ -95,6 +95,8 @@ Variação: com `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE` (e o ms-clinico reiniciado)
 
 ## 11.6 Extra: testes pelo Postman
 
+A coleção e o ambiente estão em [`postman/`](../postman): importe os dois no Postman, escolha o ambiente **MedicalField** e preencha `baseUrl` (o endereço da VM), `senha` (a `DEMO_SENHA`) e, para os passos de e-mail, `emailDeTeste`. A pasta **1. Roteiro do Postman** tem os passos abaixo, na ordem, cada um com os testes do resultado esperado (aparecem na aba **Test Results**). O login é automático: depois do C2 e do C8, os tokens já ficam guardados ([README da coleção](../postman/README.md)).
+
 | # | Requisição | Resultado esperado |
 |---|---|---|
 | C1 | `GET /api/medicamento` **sem token** | `401 NAO_AUTENTICADO` |
