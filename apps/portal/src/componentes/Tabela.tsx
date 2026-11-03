@@ -1,5 +1,8 @@
-import { Group, Pagination, Table, Text } from '@mantine/core';
+import { RiInboxLine } from '@remixicon/react';
 import { type ReactNode, useEffect, useState } from 'react';
+import { Pagination } from '@/components/base/pagination/pagination';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@/components/base/table/table';
+import { cx } from '@/utils/cx';
 
 export interface Coluna<T> {
   titulo: string;
@@ -10,52 +13,53 @@ export interface Coluna<T> {
 }
 
 interface PropsDaTabela<T> {
+  /** Nome da tabela para leitores de tela ("Atendimentos"). */
+  rotulo: string;
   itens: T[];
   colunas: Coluna<T>[];
   chave: (item: T) => string;
-  aoClicar?: (item: T) => void;
+  /** Endereço que a linha abre (a ficha, o prontuário). Ctrl/⌘+clique abre em outra aba. */
+  link?: (item: T) => string;
   vazio?: string;
   larguraMinima?: number;
 }
 
-/** Tabela simples com rolagem horizontal; a linha pode ser clicável (abre o detalhe). */
-export function Tabela<T>({ itens, colunas, chave, aoClicar, vazio = 'Nada encontrado.', larguraMinima = 900 }: PropsDaTabela<T>) {
-  if (itens.length === 0) {
-    return (
-      <Text c="dimmed" ta="center" py="xl">
-        {vazio}
-      </Text>
-    );
-  }
+/** Quando a lista está vazia: ícone e texto no meio da tabela. */
+function Vazio({ texto }: { texto: string }) {
   return (
-    <Table.ScrollContainer minWidth={larguraMinima}>
-      <Table striped highlightOnHover={Boolean(aoClicar)} verticalSpacing="sm" bg="white">
-        <Table.Thead>
-          <Table.Tr>
-            {colunas.map((coluna) => (
-              <Table.Th key={coluna.titulo} style={coluna.largura ? { width: coluna.largura } : undefined}>
-                {coluna.titulo}
-              </Table.Th>
-            ))}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {itens.map((item) => (
-            <Table.Tr
-              key={chave(item)}
-              onClick={aoClicar ? () => aoClicar(item) : undefined}
-              style={aoClicar ? { cursor: 'pointer' } : undefined}
-            >
-              {colunas.map((coluna) => (
-                <Table.Td key={coluna.titulo} style={coluna.semQuebra ? { whiteSpace: 'nowrap' } : undefined}>
-                  {coluna.celula(item)}
-                </Table.Td>
-              ))}
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-background-tertiary-default">
+        <RiInboxLine className="size-6 text-foreground-icon-tertiary" aria-hidden />
+      </span>
+      <p className="text-body-medium text-text-secondary">{texto}</p>
+    </div>
+  );
+}
+
+/** Tabela do BoardUI (React Aria) com rolagem horizontal; a linha pode abrir um endereço. */
+export function Tabela<T>({ rotulo, itens, colunas, chave, link, vazio = 'Nada encontrado.', larguraMinima = 900 }: PropsDaTabela<T>) {
+  const colunasComId = colunas.map((coluna) => ({ ...coluna, id: coluna.titulo }));
+  return (
+    <Table aria-label={rotulo} style={{ minWidth: itens.length ? larguraMinima : undefined }} className="[&_th]:border-t-0">
+      <TableHeader columns={colunasComId}>
+        {(coluna) => (
+          <TableColumn
+            id={coluna.id}
+            isRowHeader={coluna.id === colunasComId[0]?.id}
+            style={coluna.largura ? { width: coluna.largura } : undefined}
+          >
+            {coluna.titulo}
+          </TableColumn>
+        )}
+      </TableHeader>
+      <TableBody items={itens.map((item) => ({ id: chave(item), item }))} renderEmptyState={() => <Vazio texto={vazio} />}>
+        {({ id, item }) => (
+          <TableRow id={id} columns={colunasComId} href={link?.(item)} className={cx('cartao-entra', link && 'linha-clicavel')}>
+            {(coluna) => <TableCell className={cx(coluna.semQuebra && 'whitespace-nowrap')}>{coluna.celula(item)}</TableCell>}
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -89,11 +93,11 @@ export function Paginacao({
   aoMudar: (pagina: number) => void;
 }) {
   return (
-    <Group justify="space-between">
-      <Text size="sm" c="dimmed">
-        {total === 1 ? '1 item' : `${total} itens`}
-      </Text>
-      {paginas > 1 && <Pagination total={paginas} value={pagina} onChange={aoMudar} size="sm" />}
-    </Group>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <span className="text-body-medium text-text-secondary tabular-nums">{total === 1 ? '1 item' : `${total} itens`}</span>
+      {paginas > 1 && (
+        <Pagination page={pagina} totalPages={paginas} onChange={aoMudar} className="w-auto flex-1 justify-end sm:flex-none" />
+      )}
+    </div>
   );
 }

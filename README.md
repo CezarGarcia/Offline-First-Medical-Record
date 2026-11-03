@@ -32,7 +32,7 @@ flowchart LR
 | Componente | Pasta | Linguagem / tecnologia | O que faz |
 |---|---|---|---|
 | App cliente | [`apps/cliente`](apps/cliente) | Electron, React, TypeScript, SQLite | Uso em campo, online e offline, com a chave "Simular Conectividade" |
-| Portal Admin | [`apps/portal`](apps/portal) | React, TypeScript, Mantine | Consulta de atendimentos, prontuários, cadastros, logs e conflitos; PDF e e-mail da ficha. Servido pelo Nginx |
+| Portal Admin | [`apps/portal`](apps/portal) | React, TypeScript, BoardUI (Tailwind + React Aria) | Consulta de atendimentos, prontuários, cadastros, logs e conflitos; PDF e e-mail da ficha. Servido pelo Nginx |
 | Código compartilhado | [`apps/compartilhado`](apps/compartilhado) | TypeScript | Tipos da API, rótulos e formatação usados pelo portal e pelo app cliente |
 | ms-auth | [`servicos/ms-auth`](servicos/ms-auth) | TypeScript (Node.js) | Login, sessão, tokens, profissionais e auditoria |
 | ms-clinico | [`servicos/ms-clinico`](servicos/ms-clinico) | Java (Spring Boot) | Pessoas, prontuários, atendimentos, medicamentos e sincronização |

@@ -1,17 +1,13 @@
 /** Ferramentas dos testes: uma API falsa (no lugar do fetch), o portal montado em memória e dados de exemplo. */
-import { MantineProvider } from '@mantine/core';
-import { DatesProvider } from '@mantine/dates';
-import { Notifications } from '@mantine/notifications';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { RouterProvider } from 'react-router/dom';
 import { createMemoryRouter } from 'react-router';
 import { vi } from 'vitest';
 import type { AtendimentoDetalhe, AtendimentoResumo, RespostaLogin } from '@compartilhado/tipos';
+import { Provedores } from '../src/App';
 import { criarClienteDeConsultas } from '../src/api/consultas';
 import { armazemDaSessao } from '../src/api/sessao';
 import { rotasDoPortal } from '../src/rotas';
-import { tema } from '../src/tema';
 
 // ---------------------------------------------------------------- respostas
 
@@ -80,14 +76,9 @@ export function renderizarPortal(caminho: string) {
   const consultas = criarClienteDeConsultas();
   const roteador = createMemoryRouter(rotasDoPortal(consultas), { initialEntries: [caminho] });
   const resultado = render(
-    <MantineProvider theme={tema}>
-      <DatesProvider settings={{ locale: 'pt-br' }}>
-        <Notifications />
-        <QueryClientProvider client={consultas}>
-          <RouterProvider router={roteador} />
-        </QueryClientProvider>
-      </DatesProvider>
-    </MantineProvider>,
+    <Provedores consultas={consultas}>
+      <RouterProvider router={roteador} />
+    </Provedores>,
   );
   return { ...resultado, roteador };
 }

@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0b5394" />
+    <script>
+      // Aplica o tema escolhido (claro/escuro) antes da primeira pintura, sem piscar
+      try {
+        if (localStorage.getItem('boardui:theme') === 'dark') document.documentElement.classList.add('dark');
+      } catch {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>MedicalField · Portal Admin</title>
   </head>

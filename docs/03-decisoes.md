@@ -49,6 +49,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-41](#d-41--código-comum-do-portal-e-do-cliente-numa-pasta-sem-pacote-npm) | Código comum do portal e do cliente numa pasta, sem pacote npm |
 | [D-42](#d-42--listas-clínicas-filtradas-no-navegador-logs-e-e-mails-paginados-no-servidor) | Listas clínicas filtradas no navegador; logs e e-mails paginados no servidor |
 | [D-43](#d-43--conta-do-gmail-uma-só-do-projeto-de-preferência) | Conta do Gmail: uma só do projeto, de preferência |
+| [D-44](#d-44--portal-com-boardui-tailwind-css-v4--react-aria-no-lugar-do-mantine) | Portal com BoardUI (Tailwind CSS v4 + React Aria) no lugar do Mantine |
 
 ---
 
@@ -179,6 +180,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 
 - **Decisão:** portal e cliente usam React, TypeScript, Vite e a biblioteca de componentes Mantine, e compartilham as definições de tipos.
 - **Por quê:** formulários, tabelas e datas prontos, com bom visual e pouco esforço. A mesma base nas duas interfaces.
+- **Atualização:** no portal, o Mantine foi trocado pelo BoardUI ([D-44](#d-44--portal-com-boardui-tailwind-css-v4--react-aria-no-lugar-do-mantine)). React, TypeScript, Vite e os tipos compartilhados continuam.
 
 ### D-22 — Monorepo em português, com fim de linha LF
 
@@ -311,3 +313,9 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
   - Com uma conta do projeto, um vazamento expõe só os e-mails do sistema, e o remetente que o professor vê é o do sistema, não o endereço pessoal do aluno.
 - **Consequências:** com uma conta pessoal, os e-mails saem com o endereço pessoal. Depois da apresentação, apague a senha de app em Conta Google → Segurança → Senhas de app (isso não mexe na senha da conta).
 
+### D-44 — Portal com BoardUI (Tailwind CSS v4 + React Aria) no lugar do Mantine
+
+- **Decisão:** a interface do portal usa os componentes do [BoardUI](https://www.boardui.com/pt-br): Tailwind CSS v4 com os tokens semânticos dele, componentes acessíveis do React Aria e ícones Remix Icon. Os componentes ficam como código-fonte do projeto em `apps/portal/src/components` (instalados com `npx boardui@latest add <nome>` ou pelo MCP do BoardUI) e as telas os usam por meio de `src/componentes` (Página, Tabela, Filtros, Selos...).
+- **Por quê:** o visual com Mantine ficou estático e cru. O BoardUI traz um painel moderno (menu flutuante recolhível, cartões de indicadores, cartão de paciente, feed de alertas), animações consistentes (entrada com desfoque, esqueletos de carregamento, avisos), tema escuro automático pelos tokens e busca de telas com Ctrl+K. Como o código é do projeto, dá para ajustar o que precisar (cartões com dados reais, link do React Router, textos em português).
+- **Alternativas descartadas:** continuar com o Mantine e só mudar o tema (não resolve a falta de painel e de movimento); os modelos Pro do BoardUI (pagos; os componentes gratuitos bastam).
+- **Consequências:** saem `@mantine/*`, `@tabler/icons-react` e `dayjs` do portal. Os textos fixos dos componentes (calendário, paginação, avisos) passam por `src/traducao.ts`; datas e calendário seguem o `pt-BR` do React Aria. A fonte Inter vai no build (pacote `@fontsource-variable/inter`), sem depender do Google Fonts. As cores da triagem continuam as do PDF (são cores clínicas, não do tema). O app cliente (etapa 6) ainda não foi feito: a escolha da biblioteca dele fica para essa etapa.

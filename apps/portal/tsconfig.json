@@ -16,6 +16,7 @@
     "noEmit": true,
     "types": ["vite/client", "node"],
     "paths": {
+      "@/*": ["./src/*"],
       "@compartilhado/*": ["../compartilhado/src/*"]
     }
   },
