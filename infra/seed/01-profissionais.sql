@@ -1,4 +1,4 @@
--- Dados de demonstração do roteiro de testes (docs/11-roteiro-de-testes.md, seção 11.2).
+-- Dados de demonstração, parte 1: profissionais (docs/11-roteiro-de-testes.md, seção 11.2).
 -- Rodado por scripts/popular-demo.sh, que passa a senha das contas na variável "senha".
 -- Pode rodar mais de uma vez: o que já existe não é duplicado.
 
@@ -18,7 +18,6 @@ INSERT INTO auth.profissional (nome, tipo_registro, registro, perfil, senha_hash
   ('Carlos Pereira',      'SOCORRISTA', 'SOC-0001',  'OPERACIONAL', crypt(:'senha', gen_salt('bf', 10)))
 ON CONFLICT DO NOTHING;
 
--- Dados clínicos de demonstração: etapa 3 (ms-clinico)
 
 SELECT nome, tipo_registro, registro, perfil
   FROM auth.profissional

@@ -6,7 +6,7 @@ Tudo que foi pedido, tudo que foi decidido e como o sistema funciona. Para quem 
 |---|---|---|
 | 1 | [Enunciado](01-enunciado.md) | O que o professor pediu, organizado, e como interpretamos cada ambiguidade |
 | 2 | [Escopo e requisitos](02-requisitos.md) | Requisitos funcionais e não funcionais numerados, o que fica de fora e o cruzamento com o roteiro de testes |
-| 3 | [Registro de decisões](03-decisoes.md) | Cada decisão (D-01 a D-30), com o motivo e as alternativas descartadas |
+| 3 | [Registro de decisões](03-decisoes.md) | Cada decisão (D-01 em diante), com o motivo e as alternativas descartadas |
 | 4 | [Arquitetura](04-arquitetura.md) | Desenho, componentes, comunicação, portas, padrões de projeto e tecnologias |
 | 5 | [Modelo de dados](05-modelo-de-dados.md) | Banco central (PostgreSQL) e banco local (SQLite), tabela por tabela |
 | 6 | [API](06-api.md) | Todas as rotas, formatos, erros e idempotência |

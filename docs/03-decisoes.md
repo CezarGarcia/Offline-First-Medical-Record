@@ -37,6 +37,9 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-29](#d-29--duas-instâncias-do-cliente-no-mesmo-pc) | Duas instâncias do cliente no mesmo PC |
 | [D-30](#d-30--senha-em-bcrypt-por-causa-do-cadastro-manual) | Senha em bcrypt por causa do cadastro manual |
 | [D-31](#d-31--senha-das-contas-de-demonstração-fora-do-repositório) | Senha das contas de demonstração fora do repositório |
+| [D-32](#d-32--no-ms-clinico-o-token-é-conferido-por-um-filtro-próprio) | No ms-clinico, o token é conferido por um filtro próprio |
+| [D-33](#d-33--sql-explícito-no-ms-clinico-sem-jpa) | SQL explícito no ms-clinico, sem JPA |
+| [D-34](#d-34--folga-de-1-hora-para-datas-no-futuro) | Folga de 1 hora para datas no futuro |
 
 ---
 
@@ -219,4 +222,21 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 - **Decisão:** a senha das contas de demonstração é definida em `DEMO_SENHA`, no `infra/.env` da VM, e usada pelo `infra/scripts/popular-demo.sh`. Ela não aparece em nenhum documento.
 - **Por quê:** o repositório é público e a VM fica na internet. Com a senha publicada, qualquer pessoa poderia entrar no sistema como administrador e, por exemplo, usar o envio de e-mail do projeto.
 - **Consequências:** na apresentação, usa-se a senha que foi definida no `.env`. O roteiro de testes cita "a de `DEMO_SENHA`".
+
+### D-32 — No ms-clinico, o token é conferido por um filtro próprio
+
+- **Decisão:** o ms-clinico confere o JWT com um filtro de servlet próprio, usando a biblioteca Nimbus JOSE + JWT (a mesma que o Spring Security usa por baixo), em vez de configurar o Spring Security inteiro.
+- **Por quê:** o serviço não tem nenhuma rota pública, então a regra é simples: sem token válido, `401`. Com um filtro próprio, a ordem fica explícita (log de acesso por fora de tudo, depois a autenticação) e a resposta de erro sai no mesmo formato dos outros serviços sem adaptações.
+- **Consequências:** as rotas de admin são marcadas com `@SomenteAdmin` e conferidas por um interceptor.
+
+### D-33 — SQL explícito no ms-clinico, sem JPA
+
+- **Decisão:** o acesso ao banco usa SQL escrito à mão, com o `JdbcClient` do Spring, dentro das classes `Repositorio*` (padrão Repository). As tabelas são criadas pelo Flyway.
+- **Por quê:** as regras centrais dependem de recursos do Postgres que ficam mais claros em SQL: `INSERT ... ON CONFLICT DO NOTHING` (idempotência), `SELECT ... FOR UPDATE` (unificação sem corrida), `jsonb` (carimbos e diferenças) e transação `REPEATABLE READ` (receber dados).
+- **Alternativas descartadas:** JPA/Hibernate, que esconderia exatamente essas partes.
+
+### D-34 — Folga de 1 hora para datas no futuro
+
+- **Decisão:** o servidor recusa datas (registro, atendimento, horário de medicamento) mais de 1 hora no futuro. O app cliente continua não deixando digitar data no futuro.
+- **Por quê:** o relógio de um aparelho pode estar alguns minutos adiantado. Sem folga, um registro feito offline seria recusado de vez na sincronização e ficaria preso na fila.
 

@@ -50,7 +50,7 @@ Se a pessoa já tem prontuário (no aparelho), o app mostra o existente em vez d
 
 | Campo | Obrigatório | Regras |
 |---|---|---|
-| Data/hora | sim | Já vem com a hora atual. Não pode estar no futuro |
+| Data/hora | sim | Já vem com a hora atual. Não pode estar no futuro (o servidor tolera até 1 hora de adiantamento, por causa de relógio de aparelho fora de hora, D-34) |
 | Local da ocorrência | não | Ex.: `BR-386, km 350` |
 | Tipo de ocorrência | sim | Clínica, Trauma, Obstétrica, Psiquiátrica, Outro |
 | Queixa principal | sim | O que o paciente relata ou o que se observa |

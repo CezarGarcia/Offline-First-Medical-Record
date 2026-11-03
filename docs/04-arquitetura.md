@@ -103,7 +103,7 @@ O enunciado sugere três padrões e pede mais três de livre escolha.
 
 | Padrão | Onde | Para quê |
 |---|---|---|
-| **Repository** (sugerido) | App cliente: `RepositorioLocal` (SQLite) e `RepositorioRemoto` (API), atrás das mesmas interfaces; no servidor, os repositórios do Spring Data | As telas não sabem de onde vêm os dados; trocar o armazenamento não mexe na interface |
+| **Repository** (sugerido) | App cliente: `RepositorioLocal` (SQLite) e `RepositorioRemoto` (API), atrás das mesmas interfaces. No ms-clinico, as classes `Repositorio*` concentram todo o SQL de cada tabela | As telas e os serviços não sabem de onde vêm os dados; trocar o armazenamento não mexe no resto |
 | **Strategy** (sugerido) | ms-clinico: `EstrategiaDeMesclagem` com `MaisRecenteVence` e `ServidorVence` | Regra de resolução de conflitos trocável por configuração |
 | **Observer** (sugerido) | App cliente: `EstadoConectividade` avisa o motor de sincronização, a sessão e a tela quando a chave muda | Disparar o envio da fila sozinho quando a conexão volta |
 | **Command** (escolhido) | App cliente: cada item da outbox (`CriarPessoa`, `CriarProntuario`, `CriarAtendimento`, `EnviarEmail`) é um comando com `executar()` | A fila guarda e executa operações de tipos diferentes do mesmo jeito, na ordem certa |
@@ -119,7 +119,7 @@ Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Out
 | Parte | Tecnologias principais |
 |---|---|
 | ms-auth | Node.js (LTS), TypeScript, Fastify, node-postgres, bcrypt, `jose` (JWT RS256), migrations SQL |
-| ms-clinico | Java 21, Spring Boot (Web, Validation, Security como *resource server* JWT, Data JPA/JDBC), Flyway, springdoc-openapi |
+| ms-clinico | Java 21, Spring Boot 4 (Web MVC, Validation, JDBC com `JdbcClient`), Flyway, Nimbus JOSE + JWT (confere o token), springdoc-openapi |
 | ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy + Alembic, PyJWT, httpx, WeasyPrint (PDF), smtplib |
 | Portal | React, TypeScript, Vite, Mantine, Swagger UI |
 | App cliente | Electron, React, TypeScript, Vite, Mantine, better-sqlite3, `safeStorage` (cofre do Windows) |

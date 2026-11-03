@@ -2,7 +2,8 @@
 #
 # Etapa 1: banco central (PostgreSQL) + gateway/portal (Nginx).
 # Etapa 2: ms-auth (TypeScript).
-# ms-clinico e ms-docs entram nas próximas etapas.
+# Etapa 3: ms-clinico (Java).
+# ms-docs entra na próxima etapa.
 #
 # Uso (dentro desta pasta infra/):
 #   cp .env.example .env            # e troque as senhas
@@ -71,6 +72,38 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+    networks: [interna]
+
+  ms-clinico:
+    build: ../servicos/ms-clinico
+    image: medicalfield/ms-clinico
+    container_name: medicalfield-ms-clinico
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ms-auth:
+        # O ms-auth cria as tabelas de auditoria, onde o log de acesso é gravado
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORTA: "5432"
+      DB_NOME: medicalfield
+      DB_USUARIO: ms_clinico
+      DB_SENHA: ${MS_CLINICO_DB_PASSWORD:?defina MS_CLINICO_DB_PASSWORD no arquivo .env}
+      JWT_CHAVE_PUBLICA_ARQUIVO: /run/secrets/jwt-publica.pem
+      ESTRATEGIA_CONFLITO: ${ESTRATEGIA_CONFLITO:-MAIS_RECENTE_VENCE}
+      TZ: UTC
+    secrets:
+      - source: jwt_publica
+        target: jwt-publica.pem
+    healthcheck:
+      # Teste de porta, não de rota HTTP: nenhuma rota fica aberta sem token (D-19)
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
     networks: [interna]
 
   nginx:

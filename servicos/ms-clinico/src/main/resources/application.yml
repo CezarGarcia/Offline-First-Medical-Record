@@ -1,0 +1,42 @@
+server:
+  port: ${PORTA:8080}
+  shutdown: graceful
+  error:
+    whitelabel:
+      enabled: false
+
+spring:
+  application:
+    name: ms-clinico
+  main:
+    banner-mode: off
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORTA:5432}/${DB_NOME:medicalfield}
+    username: ${DB_USUARIO:ms_clinico}
+    password: ${DB_SENHA}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    # O schema já existe (criado pelo infra/postgres/init); cada serviço só mexe no seu
+    schemas: clinico
+    default-schema: clinico
+    create-schemas: false
+  mvc:
+    problemdetails:
+      enabled: false
+  web:
+    resources:
+      # Sem arquivos estáticos: rota desconhecida vira 404 no formato padrão
+      add-mappings: false
+
+springdoc:
+  api-docs:
+    # Autenticada como todas as rotas (D-19); o Portal Admin mostra no Swagger UI
+    path: /api/docs/ms-clinico
+
+medicalfield:
+  jwt:
+    chave-publica-arquivo: ${JWT_CHAVE_PUBLICA_ARQUIVO:/run/secrets/jwt-publica.pem}
+  conflito:
+    # MAIS_RECENTE_VENCE (padrão) ou SERVIDOR_VENCE
+    estrategia: ${ESTRATEGIA_CONFLITO:MAIS_RECENTE_VENCE}

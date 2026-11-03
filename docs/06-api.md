@@ -393,7 +393,7 @@ Usada pelo cliente no "receber dados". Sem `desde`, devolve tudo. Com `desde`, d
 }
 ```
 
-O cliente guarda o `cursor` e manda na próxima vez.
+O cliente guarda o `cursor` (data/hora ISO 8601 do servidor) e manda na próxima vez. Um `desde` em formato inválido recebe `400 VALIDACAO`.
 
 ### `GET /api/conflito` (admin)
 
