@@ -55,6 +55,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-47](#d-47--telas-testadas-com-o-núcleo-de-verdade-o-electron-num-passeio-automático) | Telas testadas com o núcleo de verdade; o Electron, num passeio automático |
 | [D-48](#d-48--no-github-actions-o-sistema-inteiro-sobe-junto-com-um-e-mail-de-teste) | No GitHub Actions, o sistema inteiro sobe junto, com um e-mail de teste |
 | [D-49](#d-49--senhas-do-banco-simples-com-o-banco-fechado-para-a-internet) | Senhas do banco simples, com o banco fechado para a internet |
+| [D-50](#d-50--na-vm-o-docker-é-usado-com-sudo) | Na VM, o Docker é usado com `sudo` |
 
 ---
 
@@ -381,3 +382,13 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
   - A porta do banco **não pode** ser aberta para fora (ex.: `0.0.0.0` no lugar de `127.0.0.1` no `docker-compose.yml`), porque a senha está num repositório público. O `verificar.sh` acusa se isso acontecer.
   - Do PC, o banco é acessado pelo túnel SSH ([12.6](12-implantacao.md#126-acessar-o-banco)).
   - Para usar outras senhas, basta trocá-las no `.env` antes da primeira subida; depois, a troca só vale com o banco recriado.
+
+### D-50 — Na VM, o Docker é usado com `sudo`
+
+- **Decisão:** na VM do projeto, o usuário não entra no grupo `docker`. Os scripts de `infra/scripts/` percebem quando o Docker só responde com `sudo` (e o `sudo` não pede senha) e passam a chamar `sudo docker` sozinhos. À mão, usa-se `sudo docker ...`.
+- **Por quê:**
+  - O sudo da VM libera tudo, sem senha, menos mexer em contas, grupos e no próprio sudo: o `usermod -aG docker` é recusado. É uma regra da Univates, e não deve ser contornada (com outro comando que faça a mesma coisa, por exemplo).
+  - Estar no grupo `docker` equivale a ter acesso de administrador; o `sudo docker` dá o mesmo resultado dentro da regra, e fica registrado no log do sistema.
+  - Os scripts continuam rodando como o usuário: o `.env`, as chaves e os backups ficam com ele, e dá para editar o `.env` sem `sudo`.
+- **Alternativas descartadas:** rodar os scripts inteiros com `sudo` (os arquivos criados ficariam do `root`, e o `git pull` passaria a criar arquivos do `root` no repositório); Docker *rootless* (o Ubuntu 26.04 restringe os *namespaces* de que ele precisa, e ele não abre a porta 80 sem mais configuração).
+- **Consequências:** num PC com o usuário no grupo `docker` (ou no GitHub Actions), nada muda: os scripts chamam `docker` direto. As linhas `$ ...` que os scripts mostram já vêm com o `sudo` quando ele é usado. Testado num Ubuntu 26.04 com o mesmo sudo da VM (sudo-rs) e a mesma regra.

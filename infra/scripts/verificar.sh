@@ -111,7 +111,7 @@ case "$porta_banco" in
   *) problema "a porta do banco está aberta para fora ($porta_banco). Com as senhas do .env.example, ela tem de ficar em 127.0.0.1 (D-49)" ;;
 esac
 raiz="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /)"
-livre_mb="$(df -Pm "$raiz" 2>/dev/null | awk 'NR == 2 {print $4}')"
+livre_mb="$(df -Pm "$raiz" 2>/dev/null | awk 'NR == 2 {print $4}' || true)"
 if [[ -n "$livre_mb" ]]; then
   if ((livre_mb < 1024)); then
     problema "só $((livre_mb / 1024)) GB livres no disco do Docker. Libere espaço: docker image prune -f"

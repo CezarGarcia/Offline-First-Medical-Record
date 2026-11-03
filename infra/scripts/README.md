@@ -2,7 +2,9 @@
 
 Para instalar, conferir, preparar a apresentação e mostrar o sistema funcionando, sem decorar comandos do Docker. Rodam de qualquer pasta do repositório (ex.: `./infra/scripts/verificar.sh`) e usam o `infra/.env`. Os que apagam dados pedem confirmação. Detalhes em [docs/12, seções 12.13 e 12.14](../../docs/12-implantacao.md#1213-scripts-de-operação).
 
-Cada script mostra, numa linha que começa com `$`, o comando que roda por baixo. Para fazer à mão, rode esse comando na pasta `infra/`; a lista completa está em [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
+Na VM do projeto o usuário não pode entrar no grupo `docker`: os scripts percebem e chamam `sudo docker` sozinhos (D-50). Rode-os **sem** `sudo` na frente.
+
+Cada script mostra, numa linha que começa com `$`, o comando que roda por baixo (com o `sudo`, quando ele é usado). Para fazer à mão, rode esse comando na pasta `infra/`; a lista completa está em [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
 
 | Script | Para quê | Quando |
 |---|---|---|

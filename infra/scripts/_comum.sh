@@ -9,6 +9,17 @@ cd "$INFRA"
 # Os serviços que o projeto constrói (os outros vêm prontos do Docker Hub)
 SERVICOS_COM_BUILD=(ms-auth ms-clinico ms-docs nginx)
 
+# Docker com sudo (D-50). Na VM do projeto, o usuário não pode entrar no grupo docker (a Univates bloqueia o
+# usermod), mas tem sudo sem senha. Então, se o Docker só responde com sudo, todo "docker" dos scripts vira
+# "sudo docker". Os arquivos (.env, backups) continuam do usuário. "command docker" pula esta função.
+COM_SUDO=0
+if [[ $EUID -ne 0 ]] && command -v docker >/dev/null && ! command docker info >/dev/null 2>&1 &&
+  command -v sudo >/dev/null && sudo -n docker info >/dev/null 2>&1; then
+  COM_SUDO=1
+  docker() { sudo docker "$@"; }
+  export -f docker
+fi
+
 if [[ -t 1 ]]; then
   _verde=$'\033[32m' _vermelho=$'\033[31m' _amarelo=$'\033[33m' _negrito=$'\033[1m' _cinza=$'\033[2m' _fim=$'\033[0m'
 else
@@ -19,7 +30,11 @@ falha() { printf '  %s✗%s %s\n' "$_vermelho" "$_fim" "$*"; }
 aviso() { printf '  %s!%s %s\n' "$_amarelo" "$_fim" "$*"; }
 titulo() { printf '\n%s%s%s\n' "$_negrito" "$*" "$_fim"; }
 # O comando que o script roda por baixo: para fazer à mão, é só rodá-lo na pasta infra/ (docs/12, seção 12.15)
-por_baixo() { printf '  %s$ %s%s\n' "$_cinza" "$*" "$_fim"; }
+por_baixo() {
+  local comando="$*"
+  ((COM_SUDO)) && [[ "$comando" == docker* ]] && comando="sudo $comando"
+  printf '  %s$ %s%s\n' "$_cinza" "$comando" "$_fim"
+}
 erro() {
   printf '%sErro:%s %s\n' "$_vermelho" "$_fim" "$*" >&2
   exit 1
@@ -53,7 +68,7 @@ exigir_docker() {
   command -v docker >/dev/null || erro "o Docker não está instalado (docs/12, seção 12.2)."
   docker compose version >/dev/null 2>&1 || erro "falta o Docker Compose v2 (pacote docker-compose-v2, docs/12, seção 12.2)."
   if ! docker info >/dev/null 2>&1; then
-    erro "sem permissão para usar o Docker. Rode: sudo usermod -aG docker \$USER, saia do SSH e entre de novo."
+    erro "sem permissão para usar o Docker. Rode: sudo usermod -aG docker \$USER, saia do SSH e entre de novo (se o usermod for bloqueado, como na VM do projeto, os scripts usam o sudo sozinhos quando ele não pede senha; senão, rode o script com sudo na frente)."
   fi
 }
 

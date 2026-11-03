@@ -6,8 +6,7 @@
 #   ./infra/scripts/popular-demo.sh
 #
 # A senha das contas de demonstração vem de DEMO_SENHA, no infra/.env.
-set -euo pipefail
-cd "$(dirname "$0")/.."
+source "$(dirname "$0")/_comum.sh"
 
 DEMO_SENHA="$(grep -E '^DEMO_SENHA=' .env 2>/dev/null | tail -1 | cut -d= -f2- || true)"
 # Aceita o valor com ou sem aspas no .env

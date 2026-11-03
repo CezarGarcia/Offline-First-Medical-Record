@@ -23,12 +23,13 @@ Docker, Compose e Git, uma vez só (pacotes do próprio Ubuntu; o Git já vem na
 ```bash
 sudo apt update
 sudo apt install -y docker.io docker-compose-v2 docker-buildx git
-sudo usermod -aG docker $USER
 ```
 
 - `docker.io` é o Docker; `docker-compose-v2`, o comando `docker compose`; `docker-buildx`, o construtor de imagens que o Compose prefere (sem ele, o build também funciona).
-- Depois, **saia do SSH e entre de novo**: o grupo `docker` só vale numa sessão nova. Sem isso, os comandos dão `permission denied ... docker.sock`.
-- Confira com `docker compose version` (deve mostrar `v2.x`) e `docker run --rm hello-world`.
+- Confira com `sudo docker run --rm hello-world`.
+- **Usar o Docker sem `sudo`** pede o usuário no grupo `docker`: `sudo usermod -aG docker $USER` e entrar de novo no SSH. **Na VM do projeto isso é bloqueado** (o sudo da Univates libera tudo, sem senha, menos mexer em contas, grupos e no próprio sudo), e não se deve contornar. Então lá o Docker é usado com `sudo` (D-50):
+  - os scripts (`./infra/scripts/...`) percebem isso sozinhos e chamam `sudo docker`. Rode-os **sem** `sudo` na frente, para o `.env` e os backups continuarem sendo do seu usuário;
+  - à mão, todo comando `docker` vai com `sudo` na frente: `sudo docker compose ps` ([12.15](#1215-fazendo-à-mão-sem-os-scripts)).
 - Não use o Docker do *snap* (`snap install docker`, que o Ubuntu oferece quando o comando não existe): ele só enxerga pastas dentro do `home` e se atualiza sozinho.
 - Na VM do projeto (Ubuntu 26.04, 03/11/2026), o `apt` oferece o Docker 29.1 e o Compose 2.40.
 
@@ -93,6 +94,8 @@ O que cada resultado permite:
 | `nslookup IP-DA-VM` | Existe um nome reverso (`…univates.br`), mas a consulta do nome não volta para o IP | A VM não tem um domínio utilizável para certificado |
 | `https://IP-DA-VM` | Nada responde | Não existe HTTPS hoje |
 | Saída para o Gmail (teste da [12.8](#128-e-mail-gmail)) | Portas 587 e 465 liberadas | O e-mail pode sair pelo SMTP do Gmail, sem precisar de outro provedor |
+| `sudo -l` | Tudo liberado, sem senha, menos mexer em contas e grupos (`usermod`, `adduser`...) e no sudoers | O usuário não entra no grupo `docker`: o Docker é usado com `sudo` (D-50) |
+| `sudo apt install docker.io ...` ([12.2](#122-pré-requisitos-na-vm)) | Docker 29.1.3; `sudo docker run --rm hello-world` funciona | |
 
 Conclusão: o sistema roda em HTTP na porta 80 (D-24). Se quisermos HTTPS, o caminho é o da segunda linha da tabela acima: um subdomínio gratuito (DuckDNS) apontando para o IP, mais um certificado do Let's Encrypt validado pela porta 80, que já abre de fora ([12.9](#129-https-opcional)).
 
@@ -113,15 +116,15 @@ nano infra/.env                # defina a DEMO_SENHA e o e-mail (12.8)
 
 O `instalar.sh` faz, nesta ordem: confere o Docker; recusa continuar sem a `DEMO_SENHA`; gera as chaves dos tokens; **constrói as imagens uma de cada vez** (compilar as quatro juntas pode passar da memória de uma VM pequena); sobe tudo e espera cada serviço ficar saudável; carrega os dados de demonstração; e roda o `verificar.sh`. Pode rodar de novo sem problema. Na VM do projeto (1 processador), a primeira construção pode levar uns 20 a 30 minutos; as seguintes aproveitam o que já foi baixado e compilado.
 
-Sem o script, à mão, é o mesmo que:
+Sem o script, à mão, é o mesmo que (na VM do projeto, com `sudo` antes de cada `docker`, D-50):
 
 ```bash
 cd ~/offline-first-medical-record/infra
 cp .env.example .env
 nano .env                      # defina a DEMO_SENHA (e o e-mail)
 ./scripts/gerar-chaves-jwt.sh  # chaves dos tokens (uma vez só)
-docker compose build ms-auth && docker compose build ms-clinico && docker compose build ms-docs && docker compose build nginx
-docker compose up -d --wait
+sudo docker compose build ms-auth && sudo docker compose build ms-clinico && sudo docker compose build ms-docs && sudo docker compose build nginx
+sudo docker compose up -d --wait
 ./scripts/popular-demo.sh
 ```
 
@@ -153,7 +156,7 @@ Usuário `postgres`, senha `postgres`, banco `medicalfield`, porta **5433** (os 
 | Jeito | Comando ou passos | Senha |
 |---|---|---|
 | Na VM, pelo script (mais fácil) | `./infra/scripts/psql.sh` (a partir da pasta do repositório) | não pede |
-| Na VM, pelo Docker | `docker compose exec db psql -U postgres -d medicalfield` (na pasta `infra/`) | não pede |
+| Na VM, pelo Docker | `sudo docker compose exec db psql -U postgres -d medicalfield` (na pasta `infra/`) | não pede |
 | Na VM, com o `psql` do sistema | `psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield` | `postgres` |
 | No PC, pelo DBeaver (túnel SSH) | ver abaixo | `postgres` + a do SSH |
 
@@ -283,7 +286,7 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 | Sintoma | Causa provável | Solução |
 |---|---|---|
 | `bad interpreter: /bin/bash^M` | Script salvo com CRLF (Windows) | O `.gitattributes` evita. Se acontecer: `git config core.autocrlf false`, apagar o arquivo e `git checkout` de novo |
-| `permission denied ... docker.sock` | Usuário fora do grupo `docker` | `sudo usermod -aG docker $USER` e entrar de novo no SSH |
+| `permission denied ... docker.sock` | Usuário fora do grupo `docker` (na VM do projeto, sempre: D-50) | À mão, `sudo` na frente do `docker`. Os scripts já usam o `sudo` sozinhos. Fora da VM do projeto: `sudo usermod -aG docker $USER` e entrar de novo no SSH |
 | PDF ou e-mail respondem `503 SERVICO_INDISPONIVEL` | O ms-docs está no ar, mas não conseguiu falar com o ms-clinico | `docker compose ps` e `docker compose logs ms-clinico` |
 | E-mail responde `502 FALHA_ENVIO_EMAIL` | Problema no envio (configuração, senha, porta) | Ver a tabela de mensagens em [12.8](#128-e-mail-gmail). O pedido fica registrado com o motivo e pode ser repetido |
 | `address already in use` na porta 80 | Outro programa usa a 80 (ex.: Apache) | `sudo ss -tlnp \| grep ':80 '`; parar o outro programa ou mudar `HTTP_PORTA` |
@@ -355,6 +358,8 @@ Os scripts só juntam comandos curtos do Docker e do psql. Se o professor pedir 
 ```bash
 cd ~/offline-first-medical-record/infra
 ```
+
+**Na VM do projeto, todo comando `docker` vai com `sudo` na frente** (o usuário não pode entrar no grupo `docker`, D-50): `sudo docker compose ps`, `sudo docker compose logs -f ms-clinico`, e assim por diante. A tabela abaixo mostra os comandos sem o `sudo`, como num PC com o Docker Desktop. Os scripts já mostram o comando com o `sudo` quando ele é preciso.
 
 Os nomes dos serviços são os do `docker-compose.yml`: `db`, `ms-auth`, `ms-clinico`, `ms-docs` e `nginx`.
 
