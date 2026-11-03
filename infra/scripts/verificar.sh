@@ -74,6 +74,7 @@ if banco_no_ar; then
     read -r profissionais medicamentos pessoas prontuarios atendimentos emails <<<"$contagem"
     ok "$profissionais profissionais, $medicamentos medicamentos, $pessoas pessoas, $prontuarios prontuários, $atendimentos atendimentos, $emails e-mails enviados"
     ((profissionais >= 4)) || problema "faltam as contas de demonstração: ./infra/scripts/popular-demo.sh"
+    ((medicamentos > 0 && pessoas >= 2 && atendimentos >= 2)) || problema "faltam os dados clínicos de demonstração (medicamentos, pessoas, atendimentos): ./infra/scripts/popular-demo.sh"
     if ((pessoas > 2 || atendimentos > 2)); then
       atencao "há registros além dos de demonstração (de ensaios?). O roteiro espera 2 prontuários e 2 atendimentos nos passos 3 e 4: para recomeçar, ./infra/scripts/zerar.sh"
     fi

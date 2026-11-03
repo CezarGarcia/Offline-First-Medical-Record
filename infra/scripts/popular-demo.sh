@@ -25,11 +25,13 @@ psql_demo() {
 echo "== Profissionais"
 psql_demo -v senha="$DEMO_SENHA" -f - < seed/01-profissionais.sql
 
-if [[ "$(psql_demo -At -c "SELECT to_regclass('clinico.pessoa') IS NOT NULL")" == "t" ]]; then
-  echo "== Medicamentos, pacientes, prontuários e atendimentos"
-  psql_demo -f - < seed/02-clinico.sql
-else
-  echo "O ms-clinico ainda não criou as tabelas dele: dados clínicos não carregados (suba o ms-clinico e rode de novo)."
+# </dev/null: sem isso, o "docker compose exec" fica esperando o que se digita no terminal e o script trava
+tabelas_clinicas="$(psql_demo -At -c "SELECT to_regclass('clinico.pessoa') IS NOT NULL" </dev/null)"
+if [[ "$tabelas_clinicas" != "t" ]]; then
+  echo "O ms-clinico ainda não criou as tabelas dele: dados clínicos não carregados (./infra/scripts/servico.sh logs ms-clinico; depois rode de novo)." >&2
+  exit 1
 fi
+echo "== Medicamentos, pacientes, prontuários e atendimentos"
+psql_demo -f - < seed/02-clinico.sql
 
 echo "Dados de demonstração carregados."
