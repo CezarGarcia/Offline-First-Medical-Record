@@ -1,0 +1,22 @@
+# Fim de linha LF em todo o repositório.
+# Importante porque o desenvolvimento também acontece no Windows: um script .sh
+# com CRLF quebra quando roda no Linux/Docker ("bad interpreter").
+* text=auto eol=lf
+
+# Arquivos próprios do Windows mantêm CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binários
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.icns  binary
+*.pdf   binary
+*.ttf   binary
+*.woff  binary
+*.woff2 binary
+*.jar   binary

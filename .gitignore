@@ -1,0 +1,38 @@
+# Dependências e saídas de build
+node_modules/
+dist/
+build/
+out/
+release/
+target/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+*.log
+
+# Segredos e configurações locais (NUNCA versionar)
+.env
+.env.*
+!.env.example
+infra/secrets/*
+!infra/secrets/.gitkeep
+*.pem
+*.key
+
+# IDEs e sistema operacional
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Bancos SQLite gerados em testes locais
+*.db
+*.sqlite
+*.sqlite3

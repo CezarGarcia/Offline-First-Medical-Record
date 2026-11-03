@@ -1,0 +1,60 @@
+# MedicalField — infraestrutura do servidor (a VM da Univates faz o papel da "nuvem").
+#
+# Etapa 1: banco central (PostgreSQL) + gateway/portal (Nginx).
+# Os microsserviços (ms-auth, ms-clinico, ms-docs) entram nas próximas etapas.
+#
+# Uso (dentro desta pasta infra/):
+#   cp .env.example .env     # e troque as senhas
+#   docker compose up -d
+#
+# Detalhes: docs/12-implantacao.md
+name: medicalfield
+
+services:
+  db:
+    image: postgres:18
+    container_name: medicalfield-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: medicalfield
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+      # Usados só pelo script de inicialização (postgres/init) para criar os usuários dos serviços
+      MS_AUTH_DB_PASSWORD: ${MS_AUTH_DB_PASSWORD:?defina MS_AUTH_DB_PASSWORD no arquivo .env}
+      MS_CLINICO_DB_PASSWORD: ${MS_CLINICO_DB_PASSWORD:?defina MS_CLINICO_DB_PASSWORD no arquivo .env}
+      MS_DOCS_DB_PASSWORD: ${MS_DOCS_DB_PASSWORD:?defina MS_DOCS_DB_PASSWORD no arquivo .env}
+      TZ: UTC
+    volumes:
+      # No Postgres 18 o volume é a pasta /var/lib/postgresql (os dados ficam em 18/docker)
+      - pgdata:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Só a própria VM acessa (127.0.0.1): o banco NÃO fica exposto na internet.
+      # Porta 5433 para não colidir com um Postgres já instalado na VM (porta padrão 5432).
+      - "127.0.0.1:${DB_PORTA_LOCAL:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medicalfield"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [interna]
+
+  nginx:
+    image: nginx:1.29-alpine
+    container_name: medicalfield-nginx
+    restart: unless-stopped
+    ports:
+      # Única porta pública do sistema: portal + API (/api/...)
+      - "${HTTP_PORTA:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Página provisória; na etapa 5 é substituída pelo build do Portal Admin
+      - ./nginx/html:/usr/share/nginx/html:ro
+    networks: [interna]
+
+volumes:
+  pgdata:
+
+networks:
+  interna:
