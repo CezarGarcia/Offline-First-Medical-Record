@@ -16,7 +16,7 @@ permissions:
 jobs:
   servicos:
     name: Serviços (ms-auth, ms-clinico, ms-docs)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -89,7 +89,7 @@ jobs:
 
   apps:
     name: Portal e app cliente
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -123,7 +123,7 @@ jobs:
 
   pilha:
     name: Sistema inteiro (Docker + Postman + app cliente)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7

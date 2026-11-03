@@ -14,6 +14,7 @@ O que cada serviço testa sozinho, como rodar e o que fica para o roteiro manual
 | Portal Admin | Vitest + Testing Library | 27 | [`apps/portal/testes/`](../apps/portal/testes) | As telas de verdade, num navegador simulado (jsdom), com uma API falsa no lugar do `fetch`. Não precisa de banco nem de serviço no ar |
 | App cliente | Vitest + Testing Library | 49 + 3 | [`apps/cliente/testes/`](../apps/cliente/testes) | O núcleo local de verdade (SQLite numa pasta temporária) com um servidor falso; as telas no jsdom com esse núcleo atrás de uma ponte falsa (D-47). Mais 3 de integração contra o servidor de verdade, que só rodam com o endereço e a senha |
 | App cliente (passeio) | Playwright + Electron | 1 roteiro | [`apps/cliente/e2e/`](../apps/cliente/e2e) | O app de verdade, com o *preload*, o IPC e a CSP, contra o servidor de verdade |
+| Coleção do Postman | Newman | 50 requisições, 86 verificações | [`postman/`](../postman) | O sistema inteiro, pelo Nginx, como o professor vai testar ([11.6](11-roteiro-de-testes.md#116-extra-testes-pelo-postman)) |
 
 **Regras comuns às suítes dos três serviços** (o portal não usa banco: a API é falsa):
 
@@ -85,6 +86,14 @@ MEDICALFIELD_URL=http://127.0.0.1 MEDICALFIELD_SENHA=<DEMO_SENHA> npm run e2e
 ```
 
 O endereço é o do Nginx (troque a porta se o `HTTP_PORTA` do `.env` não for 80). O `MEDICALFIELD_EMAIL_TESTE` é opcional: sem ele, a integração pula o envio de e-mail. O passeio salva uma foto de cada tela em `apps/cliente/e2e/telas/`.
+
+**Coleção do Postman**, contra a pilha no ar (com os dados de demonstração). Ela também cria registros de teste a cada execução; o `emailDeTeste` é opcional (sem ele, os passos de e-mail são pulados). Os detalhes estão no [README da coleção](../postman/README.md):
+
+```bash
+npx newman run postman/MedicalField.postman_collection.json -e postman/MedicalField.postman_environment.json --env-var baseUrl=http://localhost --env-var senha=<DEMO_SENHA> --env-var emailDeTeste=<um e-mail>
+```
+
+**E-mail sem conta de e-mail:** o `infra/docker-compose.teste.yml` sobe o Mailpit, um servidor de e-mail de teste que guarda as mensagens (com o PDF anexado) e mostra tudo em `http://localhost:8025`. As linhas do `.env` estão no começo do arquivo. É o que o GitHub Actions usa (13.6).
 
 Resultado da última rodada (etapa 6): **186 testes, todos passando** (26 + 35 + 46 + 27 + 49 + 3 de integração) e o passeio completo pelo app.
 
@@ -160,13 +169,28 @@ Além dos testes automáticos, as telas foram conferidas num navegador de verdad
 | Servidor de e-mail | Servidor SMTP de verdade, rodando dentro do teste (`aiosmtpd`), que guarda as mensagens e pode recusar ou demorar | O adaptador SMTP da produção é testado de ponta a ponta, sem mandar e-mail para ninguém |
 | Banco | O PostgreSQL de verdade do `infra/` | As regras centrais estão no banco |
 
-A integração de verdade entre os serviços (Nginx → ms-docs → ms-clinico, tokens do ms-auth, logs dos três no mesmo lugar) foi conferida rodando a stack inteira no Docker durante o desenvolvimento. Na etapa 7, a coleção do Postman passa a fazer isso de forma repetível.
+A integração de verdade entre os serviços (Nginx → ms-docs → ms-clinico, tokens do ms-auth, logs dos três no mesmo lugar) é conferida a cada push pelo GitHub Actions, com a pilha inteira no Docker e a coleção do Postman ([13.6](#136-no-github-actions)).
 
 ---
 
-## 13.5 O que não é automatizado (ainda)
+## 13.5 O que não é automatizado
 
-- **O sistema inteiro junto:** roteiro manual ([11](11-roteiro-de-testes.md)) e, na etapa 7, a coleção do Postman rodando sozinha (D-28).
-- **O envio pelo Gmail de verdade:** só na VM, com a conta do projeto ([12.8](12-implantacao.md#128-e-mail-gmail)). O teste automático usa o mesmo adaptador, contra um servidor SMTP local.
-- **O instalador do Windows:** gerado e conferido na etapa 7, no GitHub Actions. O passeio roda o app sem instalar.
-- **Execução automática a cada push:** na etapa 7, o GitHub Actions roda as suítes (com um Postgres de serviço) e gera o `.exe` do cliente.
+- **A apresentação em si:** o roteiro manual ([11](11-roteiro-de-testes.md)), com o professor olhando o portal, o banco e a caixa de e-mail. Quase todos os passos dele também rodam sozinhos: a coleção do Postman (11.6), a integração do app cliente (11.3 a 11.5) e o passeio.
+- **O envio pelo Gmail de verdade:** só na VM, com a conta do projeto ([12.8](12-implantacao.md#128-e-mail-gmail)). Os testes automáticos usam o mesmo adaptador SMTP, contra um servidor de e-mail de teste.
+- **A VM:** a implantação de verdade e o ensaio completo do roteiro ficam para a etapa 8 ([12](12-implantacao.md)). O GitHub Actions sobe o mesmo Docker Compose, mas numa máquina dele.
+
+---
+
+## 13.6 No GitHub Actions
+
+A cada push, em qualquer branch, e em cada *pull request* (D-28, D-48). O resultado aparece na aba **Actions** do repositório e no selo do README.
+
+| Workflow | Job | O que roda |
+|---|---|---|
+| **Testes** ([`testes.yml`](../.github/workflows/testes.yml)) | Serviços | Sobe o Postgres e o ms-auth pelo Docker Compose (com senhas e chaves JWT geradas na hora) e roda as suítes do ms-auth, do ms-clinico e do ms-docs (esta dentro da imagem da produção) |
+| | Portal e app cliente | Tipos, testes e build do portal e do app cliente |
+| | Sistema inteiro | Sobe **tudo** com o mesmo `docker-compose.yml` da VM, mais o Mailpit no lugar do Gmail, e carrega os dados de demonstração. Com o sistema no ar: a coleção do Postman (Newman), a conferência de que o e-mail chegou com o PDF, a integração do app cliente contra o servidor e o passeio pelo Electron numa tela virtual. As fotos das telas ficam no artefato **telas-do-app-cliente** |
+| **Instalador do Windows** ([`instalador-windows.yml`](../.github/workflows/instalador-windows.yml)) | Instalador | Numa máquina **Windows**: testes do app cliente, o instalador (`electron-builder`), a instalação sem perguntas, a conferência dos dois atalhos (o normal e o da Ambulância 02) e o app instalado aberto (teste de fumaça, `e2e/fumaca.mjs`). O `.exe` fica no artefato **MedicalField-Setup** por 30 dias |
+| | Publicar | Só numa tag de versão (`v1.0.0`...): cria a versão na página **Releases**, com o instalador anexado ([12.10](12-implantacao.md#1210-app-cliente-no-windows)) |
+
+O do Windows roda quando o push muda o app cliente ou o código compartilhado, na `main` e nas branches de etapa, e também pode ser disparado à mão (**Actions** → **Instalador do Windows** → **Run workflow**).

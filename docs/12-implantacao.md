@@ -214,7 +214,15 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 
 ## 12.10 App cliente no Windows
 
-- **Instalar:** baixar `MedicalField-Setup-<versão>.exe` na página **Releases** do repositório (o GitHub Actions gera a cada versão, D-28, na etapa 7) e executar. Na primeira vez aparece "O Windows protegeu o computador": clicar em **Mais informações** → **Executar assim mesmo** (o `.exe` não tem assinatura digital). O instalador é por usuário (não pede administrador) e deixa escolher a pasta.
+- **Instalar:** baixar `MedicalField-Setup-<versão>.exe` na página **Releases** do repositório (o GitHub Actions gera a cada versão, D-28) e executar. Na primeira vez aparece "O Windows protegeu o computador": clicar em **Mais informações** → **Executar assim mesmo** (o `.exe` não tem assinatura digital). O instalador é por usuário (não pede administrador) e deixa escolher a pasta.
+- **Publicar uma versão:** criar uma tag de versão e mandar para o GitHub. O workflow **Instalador do Windows** gera o `.exe` numa máquina Windows, instala, abre o app para conferir e cria a versão em **Releases** com o instalador anexado (uns 10 minutos). A versão do app passa a ser a da tag:
+
+  ```bash
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+
+  Sem tag, cada push que muda o app cliente na `main` também gera o instalador: ele fica na execução do workflow (aba **Actions** → a execução → **Artifacts** → `MedicalField-Setup`), por 30 dias.
 - **Gerar o instalador no próprio Windows** (sem esperar o GitHub Actions): Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci`, `npm run build` e `npm run instalador`. O `.exe` sai em `apps/cliente/release/`.
 - **Primeira abertura:** informar o endereço do servidor (`http://IP-DA-VM`) e o nome do dispositivo (ex.: `Ambulância 01`). Os dois podem ser trocados depois, na tela **Sobre**.
 - **Segunda ambulância** (D-29): o instalador já cria o atalho **MedicalField (Ambulância 02)** na área de trabalho e no menu Iniciar. Ele abre o mesmo programa com `--perfil=ambulancia-02`, ou seja, outra instância, com banco e configuração próprios (na primeira abertura, configure o nome `Ambulância 02`). Para mais aparelhos, copie o atalho e troque o perfil em Propriedades → Destino (ex.: ` --perfil=ambulancia-03`, depois das aspas).
@@ -228,6 +236,7 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 - O mesmo `docker compose` funciona no PC com o Docker Desktop (Windows). Para não brigar com outros programas, dá para mudar `HTTP_PORTA` no `.env` (ex.: `8088`).
 - Portal direto do código, com recarga automática: Node.js 22.22 ou mais novo e, na pasta `apps/portal`, `npm ci` e `MEDICALFIELD_API=http://localhost npm run dev` (abre em `http://localhost:5173`; ver o [README do portal](../apps/portal/README.md)).
 - App cliente direto do código: Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci` e `npm run dev` (abre a janela do app com recarga automática das telas). Para usar outro perfil: `npm run dev -- -- --perfil=ambulancia-02`. Os testes, a integração e o passeio estão em [13.2](13-testes-automatizados.md#132-como-rodar); o resto, no [README do app](../apps/cliente/README.md).
+- **E-mail sem conta de e-mail:** com o `infra/docker-compose.teste.yml`, o ms-docs manda para o Mailpit, um servidor de e-mail de teste que guarda as mensagens e mostra tudo em `http://localhost:8025`, com o PDF anexado. As linhas do `.env` e o comando estão no começo desse arquivo. Não use na VM da apresentação.
 - O `.gitattributes` força fim de linha LF. Assim os scripts `.sh` editados no Windows continuam funcionando no Linux.
 
 ---

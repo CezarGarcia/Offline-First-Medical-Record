@@ -84,7 +84,7 @@ Isso isola a interface das regras de dados, que é exatamente a sugestão do **R
 |---|---|---|
 | App cliente → Nginx | HTTP/JSON + `Authorization: Bearer` | Só com a chave em Online. Envia `X-Dispositivo-Id` e `X-Dispositivo-Nome` |
 | Portal → Nginx | HTTP/JSON + Bearer | Mesmo endereço do portal (sem CORS) |
-| Postman → Nginx | HTTP/JSON + Bearer | Coleção em `postman/` (etapa 7) |
+| Postman → Nginx | HTTP/JSON + Bearer | Coleção em `postman/`, com login automático |
 | Nginx → serviços | HTTP na rede interna do Docker | Caminho repassado sem mudança; IP real em `X-Real-IP` |
 | ms-docs → ms-clinico | HTTP interno, repassando o token de quem pediu | O ms-clinico registra esse acesso no log também |
 | Serviços → PostgreSQL | Conexão com o usuário do próprio serviço | Cada um só enxerga o seu schema; log de acesso só com `INSERT` |
@@ -135,10 +135,10 @@ Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Out
 | ms-auth | Node.js (LTS), TypeScript, Fastify, node-postgres, bcrypt, `jose` (JWT RS256), migrations SQL |
 | ms-clinico | Java 21, Spring Boot 4 (Web MVC, Validation, JDBC com `JdbcClient`), Flyway, Nimbus JOSE + JWT (confere o token), springdoc-openapi |
 | ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy Core + Alembic, psycopg 3, PyJWT (confere o token), httpx (chama o ms-clinico), Jinja2 + WeasyPrint (HTML → PDF), smtplib |
-| Portal | React 19, TypeScript, Vite, BoardUI (Tailwind CSS v4 + React Aria, D-48), React Router, TanStack Query, Swagger UI. Servido pelo Nginx (D-40) |
+| Portal | React 19, TypeScript, Vite, BoardUI (Tailwind CSS v4 + React Aria, D-44), React Router, TanStack Query, Swagger UI. Servido pelo Nginx (D-40) |
 | App cliente | Electron 45 (Node.js 24), React 19, TypeScript, electron-vite, Mantine 9, TanStack Query, SQLite pelo `node:sqlite` do próprio Electron (D-45), `safeStorage` (cofre do Windows), electron-builder (instalador NSIS) |
 | Infraestrutura | Docker Compose, Nginx, PostgreSQL 18 |
-| Qualidade e entrega | Testes automatizados por serviço, coleção do Postman, GitHub Actions (gera o `.exe` do cliente) |
+| Qualidade e entrega | Testes automatizados por parte, coleção do Postman (Newman), GitHub Actions com o sistema inteiro no Docker e o Mailpit como e-mail de teste, e o `.exe` do cliente gerado e testado no Windows (D-48) |
 
 As versões exatas ficam nos arquivos de build de cada parte (`package.json` e `package-lock.json`, `pom.xml`, `pyproject.toml` e `requirements.txt`).
 
@@ -164,5 +164,6 @@ offline-first-medical-record/
 │   ├── compartilhado/     tipos da API, rótulos e formatação (portal e cliente, D-41)
 │   ├── portal/            Portal Admin (React); o Dockerfile gera a imagem do Nginx com o portal
 │   └── cliente/           App cliente (Electron)
-└── postman/               coleção e ambiente (etapa 7)
+├── postman/               coleção e ambiente do Postman (roda também pelo Newman)
+└── .github/workflows/     testes a cada push e o instalador do Windows (D-48)
 ```

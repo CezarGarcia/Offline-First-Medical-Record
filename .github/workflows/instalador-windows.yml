@@ -100,7 +100,7 @@ jobs:
     name: Publicar na página Releases
     if: startsWith(github.ref, 'refs/tags/v')
     needs: instalador
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:

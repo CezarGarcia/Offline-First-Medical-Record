@@ -49,10 +49,11 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-41](#d-41--código-comum-do-portal-e-do-cliente-numa-pasta-sem-pacote-npm) | Código comum do portal e do cliente numa pasta, sem pacote npm |
 | [D-42](#d-42--listas-clínicas-filtradas-no-navegador-logs-e-e-mails-paginados-no-servidor) | Listas clínicas filtradas no navegador; logs e e-mails paginados no servidor |
 | [D-43](#d-43--conta-do-gmail-uma-só-do-projeto-de-preferência) | Conta do Gmail: uma só do projeto, de preferência |
+| [D-44](#d-44--portal-com-boardui-tailwind-css-v4--react-aria-no-lugar-do-mantine) | Portal com BoardUI (Tailwind CSS v4 + React Aria) no lugar do Mantine |
 | [D-45](#d-45--sqlite-do-próprio-electron-nodesqlite-sem-better-sqlite3) | SQLite do próprio Electron (`node:sqlite`), sem better-sqlite3 |
 | [D-46](#d-46--servidor-recusou-a-sessão-o-app-continua-e-pede-a-senha) | Servidor recusou a sessão: o app continua e pede a senha |
 | [D-47](#d-47--telas-testadas-com-o-núcleo-de-verdade-o-electron-num-passeio-automático) | Telas testadas com o núcleo de verdade; o Electron, num passeio automático |
-| [D-48](#d-48--portal-com-boardui-tailwind-css-v4--react-aria-no-lugar-do-mantine) | Portal com BoardUI (Tailwind CSS v4 + React Aria) no lugar do Mantine |
+| [D-48](#d-48--no-github-actions-o-sistema-inteiro-sobe-junto-com-um-e-mail-de-teste) | No GitHub Actions, o sistema inteiro sobe junto, com um e-mail de teste |
 
 ---
 
@@ -183,7 +184,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 
 - **Decisão:** portal e cliente usam React, TypeScript, Vite e a biblioteca de componentes Mantine, e compartilham as definições de tipos.
 - **Por quê:** formulários, tabelas e datas prontos, com bom visual e pouco esforço. A mesma base nas duas interfaces.
-- **Atualização:** no portal, o Mantine foi trocado pelo BoardUI ([D-48](#d-48--portal-com-boardui-tailwind-css-v4--react-aria-no-lugar-do-mantine)). React, TypeScript, Vite e os tipos compartilhados continuam.
+- **Atualização:** no portal, o Mantine foi trocado pelo BoardUI ([D-44](#d-44--portal-com-boardui-tailwind-css-v4--react-aria-no-lugar-do-mantine)). React, TypeScript, Vite e os tipos compartilhados continuam.
 
 ### D-22 — Monorepo em português, com fim de linha LF
 
@@ -220,6 +221,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 
 - **Decisão:** testes automatizados nas partes críticas (sincronização, idempotência, unificação, login offline, middleware de log); coleção do Postman com login automático; o GitHub Actions gera o instalador `.exe` do cliente numa máquina Windows.
 - **Por quê:** o projeto precisa funcionar perfeitamente na apresentação, e o `.exe` precisa ser gerado no Windows.
+- **Consequências:** os testes estão em [13](13-testes-automatizados.md), a coleção em [`postman/`](../postman) e o que roda no GitHub Actions em D-48.
 
 ### D-29 — Duas instâncias do cliente no mesmo PC
 
@@ -316,6 +318,13 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
   - Com uma conta do projeto, um vazamento expõe só os e-mails do sistema, e o remetente que o professor vê é o do sistema, não o endereço pessoal do aluno.
 - **Consequências:** com uma conta pessoal, os e-mails saem com o endereço pessoal. Depois da apresentação, apague a senha de app em Conta Google → Segurança → Senhas de app (isso não mexe na senha da conta).
 
+### D-44 — Portal com BoardUI (Tailwind CSS v4 + React Aria) no lugar do Mantine
+
+- **Decisão:** a interface do portal usa os componentes do [BoardUI](https://www.boardui.com/pt-br): Tailwind CSS v4 com os tokens semânticos dele, componentes acessíveis do React Aria e ícones Remix Icon. Os componentes ficam como código-fonte do projeto em `apps/portal/src/components` (instalados com `npx boardui@latest add <nome>` ou pelo MCP do BoardUI) e as telas os usam por meio de `src/componentes` (Página, Tabela, Filtros, Selos...).
+- **Por quê:** o visual com Mantine ficou estático e cru. O BoardUI traz um painel moderno (menu flutuante recolhível, cartões de indicadores, cartão de paciente, feed de alertas), animações consistentes (entrada com desfoque, esqueletos de carregamento, avisos), tema escuro automático pelos tokens e busca de telas com Ctrl+K. Como o código é do projeto, dá para ajustar o que precisar (cartões com dados reais, link do React Router, textos em português).
+- **Alternativas descartadas:** continuar com o Mantine e só mudar o tema (não resolve a falta de painel e de movimento); os modelos Pro do BoardUI (pagos; os componentes gratuitos bastam).
+- **Consequências:** saem `@mantine/*`, `@tabler/icons-react` e `dayjs` do portal. Os textos fixos dos componentes (calendário, paginação, avisos) passam por `src/traducao.ts`; datas e calendário seguem o `pt-BR` do React Aria. A fonte Inter vai no build (pacote `@fontsource-variable/inter`), sem depender do Google Fonts. As cores da triagem continuam as do PDF (são cores clínicas, não do tema). O app cliente continua com o Mantine (D-21): a troca foi só no portal.
+
 ### D-45 — SQLite do próprio Electron (`node:sqlite`), sem better-sqlite3
 
 - **Decisão:** o banco local usa o módulo `node:sqlite` (`DatabaseSync`), que já vem no Node.js do Electron 45 (Node.js 24 com SQLite 3.53), em vez do pacote `better-sqlite3`.
@@ -345,9 +354,17 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 - **Por quê:** a ponte falsa testa as telas e o núcleo juntos, sem simular o comportamento do núcleo à mão (o risco de testar uma tela contra um núcleo que não existe). O passeio pega o que o jsdom não vê: o *preload*, o IPC, a CSP e o empacotamento.
 - **Consequências:** a lista e os comandos estão em [13](13-testes-automatizados.md). A integração e o passeio criam registros no servidor: são para a pilha local, não para a VM da apresentação.
 
-### D-48 — Portal com BoardUI (Tailwind CSS v4 + React Aria) no lugar do Mantine
+### D-48 — No GitHub Actions, o sistema inteiro sobe junto, com um e-mail de teste
 
-- **Decisão:** a interface do portal usa os componentes do [BoardUI](https://www.boardui.com/pt-br): Tailwind CSS v4 com os tokens semânticos dele, componentes acessíveis do React Aria e ícones Remix Icon. Os componentes ficam como código-fonte do projeto em `apps/portal/src/components` (instalados com `npx boardui@latest add <nome>` ou pelo MCP do BoardUI) e as telas os usam por meio de `src/componentes` (Página, Tabela, Filtros, Selos...).
-- **Por quê:** o visual com Mantine ficou estático e cru. O BoardUI traz um painel moderno (menu flutuante recolhível, cartões de indicadores, cartão de paciente, feed de alertas), animações consistentes (entrada com desfoque, esqueletos de carregamento, avisos), tema escuro automático pelos tokens e busca de telas com Ctrl+K. Como o código é do projeto, dá para ajustar o que precisar (cartões com dados reais, link do React Router, textos em português).
-- **Alternativas descartadas:** continuar com o Mantine e só mudar o tema (não resolve a falta de painel e de movimento); os modelos Pro do BoardUI (pagos; os componentes gratuitos bastam).
-- **Consequências:** saem `@mantine/*`, `@tabler/icons-react` e `dayjs` do portal. Os textos fixos dos componentes (calendário, paginação, avisos) passam por `src/traducao.ts`; datas e calendário seguem o `pt-BR` do React Aria. A fonte Inter vai no build (pacote `@fontsource-variable/inter`), sem depender do Google Fonts. As cores da triagem continuam as do PDF (são cores clínicas, não do tema). O app cliente continua com o Mantine (D-21): a troca foi só no portal.
+- **Decisão:** a cada push, o GitHub Actions roda:
+  - as suítes de cada parte: os três serviços contra o Postgres do Docker Compose, o portal e o app cliente;
+  - o **sistema inteiro**, com o mesmo `docker-compose.yml` da VM e o Mailpit (um servidor de e-mail de teste) no lugar do Gmail. Com tudo no ar, roda a coleção do Postman (pelo Newman), a integração do app cliente e o passeio pelo Electron;
+  - o **instalador do Windows**, gerado numa máquina Windows, instalado sem perguntas e aberto (teste de fumaça). Numa tag `v*`, ele vai para a página Releases.
+- **Por quê:**
+  - Cada suíte testa uma parte; só a pilha inteira pega o que fica entre elas: as rotas do Nginx, o token de um serviço valendo no outro, a coleção que o professor vai usar.
+  - Com o mesmo Compose da VM, a implantação também é testada a cada push.
+  - O Mailpit guarda as mensagens: dá para conferir que a ficha chegou com o PDF anexado, sem conta de e-mail nem senha no CI.
+  - O `.exe` precisa ser gerado e testado no Windows, que é onde ele roda.
+- **Alternativas descartadas:** só os testes de cada serviço (a integração ficaria para a apresentação); os *service containers* do GitHub só com o Postgres (testaria outro arranjo, não o da VM); mandar e-mail de verdade no CI (precisaria da senha de app no GitHub).
+- **Consequências:** as senhas do CI são geradas a cada execução e não aparecem no log. As fotos das telas do passeio e o instalador ficam guardados em cada execução. Detalhes em [13, seção 13.6](13-testes-automatizados.md#136-no-github-actions).
+
