@@ -39,3 +39,7 @@ Thumbs.db
 
 # Fotos do passeio pelo app cliente (npm run e2e)
 apps/cliente/e2e/telas/
+apps/portal/e2e/telas/
+
+# Backups do banco (infra/scripts/backup.sh): dados de saúde, nunca no Git
+infra/backups/

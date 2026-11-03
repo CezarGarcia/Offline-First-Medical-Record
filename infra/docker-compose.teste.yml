@@ -1,13 +1,15 @@
 # Servidor de e-mail de teste (Mailpit) no lugar do Gmail: guarda as mensagens sem mandar para ninguém.
 # É o que o GitHub Actions usa (docs/13). Serve também para testar o envio no PC, sem conta de e-mail.
 #
-# Uso (dentro de infra/), com estas linhas no .env:
+# Uso: estas linhas no infra/.env. A primeira faz todo "docker compose" (e os scripts de infra/scripts)
+# usar também este arquivo, sem precisar do -f:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.teste.yml
 #   SMTP_HOST=smtp-teste
 #   SMTP_PORTA=1025
 #   SMTP_SEGURANCA=NENHUMA
 #   SMTP_REMETENTE="MedicalField Teste <medicalfield@exemplo.com>"
 #
-#   docker compose -f docker-compose.yml -f docker-compose.teste.yml up -d --build
+# e então, dentro de infra/: docker compose up -d --build (ou ./scripts/instalar.sh)
 #
 # As mensagens recebidas (com o PDF anexado) aparecem em http://localhost:8025, só nesta máquina.
 # Não use na VM da apresentação: lá o e-mail tem de chegar de verdade (docs/12, seção 12.8).
@@ -16,6 +18,11 @@ services:
     image: axllent/mailpit:v1.33.0
     container_name: medicalfield-smtp-teste
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "127.0.0.1:8025:8025"
     networks: [interna]

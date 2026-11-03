@@ -98,12 +98,23 @@ Conclusão: o sistema roda em HTTP na porta 80 (D-24). Se quisermos HTTPS, o cam
 
 ```bash
 git clone https://github.com/CezarGarcia/offline-first-medical-record.git
+cd offline-first-medical-record
+./infra/scripts/instalar.sh    # 1ª vez: cria o infra/.env, com senhas novas para o banco, e para
+nano infra/.env                # defina a DEMO_SENHA e o e-mail (12.8)
+./infra/scripts/instalar.sh    # agora instala tudo e confere
+```
+
+O `instalar.sh` faz, nesta ordem: confere o Docker; recusa continuar se ainda houver alguma senha de exemplo no `.env`; gera as chaves dos tokens; **constrói as imagens uma de cada vez** (compilar as quatro juntas pode passar da memória de uma VM pequena); sobe tudo e espera cada serviço ficar saudável; carrega os dados de demonstração; e roda o `verificar.sh`. Pode rodar de novo sem problema.
+
+Sem o script, à mão, é o mesmo que:
+
+```bash
 cd offline-first-medical-record/infra
 cp .env.example .env
 nano .env                      # troque TODAS as senhas
 ./scripts/gerar-chaves-jwt.sh  # chaves dos tokens (uma vez só)
 docker compose up -d --build
-docker compose ps
+./scripts/popular-demo.sh
 ```
 
 - Se o repositório for privado, o `git clone` pede usuário e um **token de acesso do GitHub** (não a senha da conta).
@@ -118,12 +129,10 @@ docker compose ps
 
 ```bash
 cd offline-first-medical-record
-git pull
-cd infra
-docker compose up -d --build
+./infra/scripts/atualizar.sh
 ```
 
-Os dados ficam no volume `medicalfield_pgdata` e **não se perdem** numa atualização. As migrations de cada serviço rodam sozinhas quando ele sobe.
+Ele baixa o código (`git pull`), reconstrói as imagens uma de cada vez, sobe a versão nova, apaga as imagens antigas (que só ocupam disco) e roda o `verificar.sh`. Os dados ficam no volume `medicalfield_pgdata` e **não se perdem** numa atualização. As migrations de cada serviço rodam sozinhas quando ele sobe.
 
 ---
 
@@ -256,4 +265,50 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 | Cliente diz "servidor inacessível" | Endereço errado, porta bloqueada ou VM fora do ar | Abrir `http://IP-DA-VM` no navegador do mesmo PC. O endereço do app fica em **Sobre** |
 | Cliente pede "Faça login online para sincronizar" | A sessão do servidor venceu (7 dias), foi encerrada, ou o app foi reaberto depois de um login offline | Clicar em **Entrar online** na barra e digitar a senha. Nada se perde (D-46) |
 | Ao abrir o atalho, a janela que já estava aberta vem para a frente | Cada perfil abre uma janela só | Para outra ambulância, use o atalho do outro perfil |
-| E-mail responde `FALHA_ENVIO_EMAIL` | Senha de app errada ou porta SMTP bloqueada | Conferir o `.env` e o teste de porta de [12.8](#128-e-mail-gmail) |
+| E-mail responde `FALHA_ENVIO_EMAIL` | Senha de app errada ou porta SMTP bloqueada | Conferir o `.env` e o teste de porta de [12.8](#128-e-mail-gmail). O `./infra/scripts/testar-email.sh <seu e-mail>` mostra a mensagem do erro |
+| O build para com `killed` ou `exit code 137` | Falta de memória (o Maven e o build do portal são os que mais pedem) | Criar um swap de 2 GB e rodar de novo: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile` (para ficar depois de reiniciar: `echo '/swapfile none swap sw 0 0' \| sudo tee -a /etc/fstab`) |
+| Login das contas de demonstração recusado | A `DEMO_SENHA` do `.env` mudou depois de carregar os dados, ou a conta ficou bloqueada por senhas erradas | `./infra/scripts/popular-demo.sh`: regrava a senha do `.env`, desbloqueia e reativa as quatro contas |
+| O roteiro mostra registros a mais nos passos 2 a 4 | Sobrou o que foi criado nos ensaios | `./infra/scripts/zerar.sh` (e, no notebook, `apagar-dados-locais.cmd`) |
+
+---
+
+## 12.13 Scripts de operação
+
+Ficam em [`infra/scripts/`](../infra/scripts) e rodam de qualquer pasta do repositório. Os que apagam dados pedem que se digite uma palavra (`ZERAR`, `RESTAURAR`) para confirmar. Todos usam o `infra/.env`, inclusive o `COMPOSE_FILE`: num PC com o Mailpit (12.11), o mesmo script funciona sem mudar nada.
+
+| Script | O que faz |
+|---|---|
+| `instalar.sh` | Primeira instalação (12.4) |
+| `atualizar.sh` | Versão nova, mantendo os dados (12.5) |
+| `verificar.sh` | Checklist: containers, rotas pelo Nginx, login das contas de demonstração, quantidade de dados, e-mail, disco, memória e a hora. Não muda nada. Termina com "Tudo pronto", ou com a lista do que falta |
+| `zerar.sh` | Apaga **todos** os dados e recarrega os de demonstração (o começo do roteiro). Antes, faz um backup. Os logs de auditoria não podem ser apagados um a um (D-04), então o banco inteiro é recriado |
+| `popular-demo.sh` | Carrega os dados de demonstração. Também regrava a senha das quatro contas com a `DEMO_SENHA` de agora, desbloqueia e reativa |
+| `testar-email.sh <e-mail>` | Manda de verdade a ficha de um atendimento de demonstração para o endereço, pelo mesmo caminho do portal. Se falhar, mostra a mensagem do ms-docs |
+| `medicamento.sh [nome] [apresentação] [unidade]` | O passo 9 do roteiro: insere o medicamento direto no banco (padrão: Cetoprofeno) e mostra o `INSERT 0 1`. Se ele já existir, avisa e não duplica |
+| `estrategia.sh [MAIS_RECENTE_VENCE\|SERVIDOR_VENCE]` | Mostra ou troca a estratégia de unificação de duplicados e reinicia o ms-clinico |
+| `servico.sh estado\|parar\|iniciar\|reiniciar\|logs [serviço]` | Derruba, religa ou reinicia um serviço, ou mostra os logs (com `Ctrl+C` para sair). Ao parar, diz o que deixa de funcionar |
+| `backup.sh [nome]` | Guarda o banco inteiro em `infra/backups/` (fora do Git) |
+| `restaurar.sh <arquivo>` | Volta o banco para um backup (apaga o que existe hoje) |
+| `psql.sh` | Abre o banco central no psql; `-c "..."` roda um comando só |
+| `gerar-chaves-jwt.sh` | Gera as chaves dos tokens (uma vez; o `instalar.sh` já roda) |
+
+No notebook (Windows): [`apps/cliente/scripts/apagar-dados-locais.cmd`](../apps/cliente/scripts/apagar-dados-locais.cmd) apaga os dados do app cliente deste computador (os perfis `padrao` e `ambulancia-02`), com o app fechado. Na próxima abertura, ele pede o endereço do servidor e o nome do dispositivo, e o primeiro login precisa ser online.
+
+---
+
+## 12.14 Antes da apresentação
+
+Na VM, no dia (ou na véspera):
+
+1. `./infra/scripts/atualizar.sh`, se houve mudança no código desde a instalação.
+2. `./infra/scripts/zerar.sh`: os passos 2 a 4 do roteiro esperam só os dados de demonstração (2 prontuários e 2 atendimentos), sem os registros dos ensaios.
+3. `./infra/scripts/testar-email.sh <a caixa que será aberta na apresentação>`: confere o Gmail de ponta a ponta.
+4. `./infra/scripts/verificar.sh`: tem de terminar em "Tudo pronto" (ou só com avisos que você entenda).
+
+No notebook:
+
+1. `apagar-dados-locais.cmd`, para o app começar sem os registros dos ensaios.
+2. Abrir o **MedicalField**, configurar o endereço da VM e o nome `Ambulância 01`, e **entrar online** com a Dra. Ana. O login offline só vale para quem entrou online no aparelho nos últimos 7 dias.
+3. Fazer o mesmo no atalho **MedicalField (Ambulância 02)**, com o nome `Ambulância 02` e o Enf. Bruno, se for mostrar o conflito (11.4).
+4. Deixar a chave em **Online**, sem pendentes na fila.
+

@@ -14,6 +14,7 @@ O que cada serviço testa sozinho, como rodar e o que fica para o roteiro manual
 | Portal Admin | Vitest + Testing Library | 27 | [`apps/portal/testes/`](../apps/portal/testes) | As telas de verdade, num navegador simulado (jsdom), com uma API falsa no lugar do `fetch`. Não precisa de banco nem de serviço no ar |
 | App cliente | Vitest + Testing Library | 49 + 3 | [`apps/cliente/testes/`](../apps/cliente/testes) | O núcleo local de verdade (SQLite numa pasta temporária) com um servidor falso; as telas no jsdom com esse núcleo atrás de uma ponte falsa (D-47). Mais 3 de integração contra o servidor de verdade, que só rodam com o endereço e a senha |
 | App cliente (passeio) | Playwright + Electron | 1 roteiro | [`apps/cliente/e2e/`](../apps/cliente/e2e) | O app de verdade, com o *preload*, o IPC e a CSP, contra o servidor de verdade |
+| Portal Admin (passeio) | Playwright + Chromium | 1 roteiro | [`apps/portal/e2e/`](../apps/portal/e2e) | O portal de verdade (a imagem do Nginx), contra o servidor de verdade: os passos do portal no roteiro |
 | Coleção do Postman | Newman | 50 requisições, 86 verificações | [`postman/`](../postman) | O sistema inteiro, pelo Nginx, como o professor vai testar ([11.6](11-roteiro-de-testes.md#116-extra-testes-pelo-postman)) |
 
 **Regras comuns às suítes dos três serviços** (o portal não usa banco: a API é falsa):
@@ -86,6 +87,13 @@ MEDICALFIELD_URL=http://127.0.0.1 MEDICALFIELD_SENHA=<DEMO_SENHA> npm run e2e
 ```
 
 O endereço é o do Nginx (troque a porta se o `HTTP_PORTA` do `.env` não for 80). O `MEDICALFIELD_EMAIL_TESTE` é opcional: sem ele, a integração pula o envio de e-mail. O passeio salva uma foto de cada tela em `apps/cliente/e2e/telas/`.
+
+**Passeio pelo Portal Admin**, contra a pilha no ar, num Chromium (o Playwright baixa com `npx playwright-core install chromium`, se a máquina não tiver). Manda um e-mail de verdade se o servidor usar o Gmail: rode com o Mailpit (abaixo). As fotos ficam em `apps/portal/e2e/telas/`:
+
+```bash
+cd apps/portal
+MEDICALFIELD_URL=http://localhost MEDICALFIELD_SENHA=<DEMO_SENHA> npm run e2e
+```
 
 **Coleção do Postman**, contra a pilha no ar (com os dados de demonstração). Ela também cria registros de teste a cada execução; o `emailDeTeste` é opcional (sem ele, os passos de e-mail são pulados). Os detalhes estão no [README da coleção](../postman/README.md):
 
@@ -189,7 +197,7 @@ A cada push, em qualquer branch, e em cada *pull request* (D-28, D-48). O result
 |---|---|---|
 | **Testes** ([`testes.yml`](../.github/workflows/testes.yml)) | Serviços | Sobe o Postgres e o ms-auth pelo Docker Compose (com senhas e chaves JWT geradas na hora) e roda as suítes do ms-auth, do ms-clinico e do ms-docs (esta dentro da imagem da produção) |
 | | Portal e app cliente | Tipos, testes e build do portal e do app cliente |
-| | Sistema inteiro | Sobe **tudo** com o mesmo `docker-compose.yml` da VM, mais o Mailpit no lugar do Gmail, e carrega os dados de demonstração. Com o sistema no ar: a coleção do Postman (Newman), a conferência de que o e-mail chegou com o PDF, a integração do app cliente contra o servidor e o passeio pelo Electron numa tela virtual. As fotos das telas ficam no artefato **telas-do-app-cliente** |
+| | Sistema inteiro | Instala como na VM, pelo `infra/scripts/instalar.sh` (o mesmo `docker-compose.yml`, mais o Mailpit no lugar do Gmail). Com o sistema no ar: a coleção do Postman (Newman), a conferência de que o e-mail chegou com o PDF, o passeio pelo portal (Chromium), a integração do app cliente contra o servidor e o passeio pelo Electron numa tela virtual. Depois, os **scripts da apresentação** ([12.13](12-implantacao.md#1213-scripts-de-operação)): o passo 9 (e a repetição que não duplica), o teste de e-mail, a troca de estratégia, um serviço derrubado e religado (`503` no meio), backup, zerar (volta aos 2 atendimentos de demonstração) e restaurar (volta ao que era). As fotos das telas ficam no artefato **telas-dos-passeios** |
 | **Instalador do Windows** ([`instalador-windows.yml`](../.github/workflows/instalador-windows.yml)) | Instalador | Numa máquina **Windows**: testes do app cliente, o instalador (`electron-builder`), a instalação sem perguntas, a conferência dos dois atalhos (o normal e o da Ambulância 02) e o app instalado aberto (teste de fumaça, `e2e/fumaca.mjs`). O `.exe` fica no artefato **MedicalField-Setup** por 30 dias |
 | | Publicar | Só numa tag de versão (`v1.0.0`...): cria a versão na página **Releases**, com o instalador anexado ([12.10](12-implantacao.md#1210-app-cliente-no-windows)) |
 

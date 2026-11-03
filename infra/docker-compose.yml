@@ -5,19 +5,29 @@
 # Etapa 3: ms-clinico (Java).
 # Etapa 4: ms-docs (Python).
 # Etapa 5: Portal Admin (React), servido pelo Nginx.
+# Etapa 7: testes no GitHub Actions; o Mailpit (e-mail de teste) fica em docker-compose.teste.yml.
 #
 # Uso (dentro desta pasta infra/):
 #   cp .env.example .env            # e troque as senhas
 #   ./scripts/gerar-chaves-jwt.sh   # uma vez só
 #   docker compose up -d --build
 #
-# Detalhes: docs/12-implantacao.md
+# Detalhes: docs/12-implantacao.md. Scripts de operação (instalar, verificar, zerar...): infra/scripts/
 name: medicalfield
+
+# Logs dos containers com tamanho limitado (3 arquivos de 10 MB por serviço): sem isso, eles crescem
+# sem fim e, numa VM que fica semanas no ar, podem encher o disco
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   db:
     image: postgres:18
     container_name: medicalfield-db
+    logging: *logs
     restart: unless-stopped
     environment:
       POSTGRES_DB: medicalfield
@@ -47,6 +57,7 @@ services:
     build: ../servicos/ms-auth
     image: medicalfield/ms-auth
     container_name: medicalfield-ms-auth
+    logging: *logs
     restart: unless-stopped
     depends_on:
       db:
@@ -79,6 +90,7 @@ services:
     build: ../servicos/ms-clinico
     image: medicalfield/ms-clinico
     container_name: medicalfield-ms-clinico
+    logging: *logs
     restart: unless-stopped
     depends_on:
       db:
@@ -111,6 +123,7 @@ services:
     build: ../servicos/ms-docs
     image: medicalfield/ms-docs
     container_name: medicalfield-ms-docs
+    logging: *logs
     restart: unless-stopped
     depends_on:
       db:
@@ -157,6 +170,7 @@ services:
       dockerfile: portal/Dockerfile
     image: medicalfield/nginx
     container_name: medicalfield-nginx
+    logging: *logs
     restart: unless-stopped
     ports:
       # Única porta pública do sistema: portal + API (/api/...)
@@ -164,6 +178,13 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    healthcheck:
+      # O portal abre (a tela de login é estática, não depende de token)
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     networks: [interna]
 
 volumes:

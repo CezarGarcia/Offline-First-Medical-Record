@@ -122,7 +122,7 @@ jobs:
           npm run build
 
   pilha:
-    name: Sistema inteiro (Docker + Postman + app cliente)
+    name: Sistema inteiro (Docker + Postman + portal + app cliente + scripts)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -133,6 +133,7 @@ jobs:
           cd infra
           gerar() { openssl rand -hex 16; }
           {
+            echo "COMPOSE_FILE=docker-compose.yml:docker-compose.teste.yml"
             echo "POSTGRES_PASSWORD=$(gerar)"
             echo "MS_AUTH_DB_PASSWORD=$(gerar)"
             echo "MS_CLINICO_DB_PASSWORD=$(gerar)"
@@ -148,16 +149,10 @@ jobs:
           DEMO_SENHA="$(grep '^DEMO_SENHA=' .env | cut -d= -f2-)"
           echo "::add-mask::$DEMO_SENHA"
           echo "DEMO_SENHA=$DEMO_SENHA" >> "$GITHUB_ENV"
-          ./scripts/gerar-chaves-jwt.sh
 
-      - name: Subir tudo (Postgres, três serviços, Nginx com o portal e o Mailpit)
-        working-directory: infra
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.teste.yml up -d --build --wait
-          docker compose -f docker-compose.yml -f docker-compose.teste.yml ps
-
-      - name: Dados de demonstração
-        run: ./infra/scripts/popular-demo.sh
+      - name: Instalar como na VM (instalar.sh), com o Mailpit no lugar do Gmail
+        # Chaves, imagens uma de cada vez, tudo no ar, dados de demonstração e o verificar.sh
+        run: ./infra/scripts/instalar.sh
 
       - name: Coleção do Postman (Newman)
         run: >-
@@ -177,7 +172,20 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/cliente/package-lock.json
+          cache-dependency-path: |
+            apps/portal/package-lock.json
+            apps/cliente/package-lock.json
+
+      - name: Passeio pelo Portal Admin (Chromium)
+        working-directory: apps/portal
+        env:
+          MEDICALFIELD_URL: http://localhost:8080
+          MEDICALFIELD_SENHA: ${{ env.DEMO_SENHA }}
+          MEDICALFIELD_EMAIL_TESTE: portal@exemplo.com
+        run: |
+          npm ci
+          npx playwright-core install --with-deps chromium
+          npm run e2e
 
       - name: App cliente contra o servidor de verdade (integração)
         working-directory: apps/cliente
@@ -201,16 +209,39 @@ jobs:
           npm run build
           xvfb-run -a -s '-screen 0 1400x1000x24' npm run e2e
 
-      - name: Fotos das telas do passeio
+      - name: Scripts da apresentação (passo 9, e-mail, backup, zerar e restaurar)
+        run: |
+          contar() { ./infra/scripts/psql.sh -At -c "SELECT count(*) FROM clinico.atendimento"; }
+          # A saída vai para uma variável antes do grep (o bash do Actions roda com pipefail)
+          saida="$(./infra/scripts/medicamento.sh)" && grep -qx 'INSERT 0 1' <<<"$saida"
+          saida="$(./infra/scripts/medicamento.sh)" && grep -qx 'INSERT 0 0' <<<"$saida"
+          ./infra/scripts/testar-email.sh scripts@exemplo.com
+          ./infra/scripts/estrategia.sh SERVIDOR_VENCE
+          ./infra/scripts/estrategia.sh MAIS_RECENTE_VENCE
+          ./infra/scripts/servico.sh parar ms-docs
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/documentos/email)" = 503
+          ./infra/scripts/servico.sh iniciar ms-docs
+          antes="$(contar)"
+          ./infra/scripts/backup.sh ci
+          ./infra/scripts/zerar.sh --sim
+          ./infra/scripts/verificar.sh
+          test "$(contar)" = 2
+          ./infra/scripts/restaurar.sh "$(ls -t infra/backups/*-ci.dump | head -1)" --sim
+          test "$(contar)" = "$antes"
+          ./infra/scripts/verificar.sh
+
+      - name: Fotos das telas dos passeios
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: telas-do-app-cliente
-          path: apps/cliente/e2e/telas/
+          name: telas-dos-passeios
+          path: |
+            apps/portal/e2e/telas/
+            apps/cliente/e2e/telas/
           if-no-files-found: ignore
           retention-days: 14
 
       - name: Logs dos containers (se algo falhou)
         if: failure()
         working-directory: infra
-        run: docker compose -f docker-compose.yml -f docker-compose.teste.yml logs --no-color --tail 200
+        run: docker compose logs --no-color --tail 200

@@ -8,10 +8,10 @@ O roteiro do enunciado (17 passos), com a ação exata e o resultado esperado de
 
 Antes da apresentação:
 
-1. Na VM, o sistema está no ar (`docker compose ps` mostra tudo `Up`) e os **dados de demonstração** estão carregados (`./infra/scripts/popular-demo.sh`).
-2. No notebook, o **app cliente** está instalado, com o endereço da VM configurado e o dispositivo chamado `Ambulância 01`. Para o roteiro extra 11.4, a segunda instância (`Ambulância 02`) também está configurada.
+1. Na VM, o sistema está no ar e só com os **dados de demonstração**: `./infra/scripts/zerar.sh` volta ao começo do roteiro, e `./infra/scripts/verificar.sh` confere tudo (containers, rotas, contas, dados, e-mail). O passo a passo completo está em [12.14](12-implantacao.md#1214-antes-da-apresentação).
+2. No notebook, o **app cliente** está instalado, com o endereço da VM configurado e o dispositivo chamado `Ambulância 01`, sem os dados dos ensaios (`apps/cliente/scripts/apagar-dados-locais.cmd`), e a Dra. Ana já **entrou online** nele nos últimos 7 dias (é o que permite o login offline). Para o roteiro extra 11.4, a segunda instância (atalho `MedicalField (Ambulância 02)`) também está configurada.
 3. No notebook, um navegador aberto no portal (`http://IP-DA-VM/`), o Postman com a coleção do projeto e acesso ao banco (DBeaver com túnel SSH, ou um terminal SSH na VM).
-4. Uma **caixa de e-mail que possa ser aberta na hora**, cadastrada como e-mail do contato familiar de uma pessoa de demonstração, ou digitada na opção "Outro".
+4. Uma **caixa de e-mail que possa ser aberta na hora**, cadastrada como e-mail do contato familiar de uma pessoa de demonstração, ou digitada na opção "Outro". O `./infra/scripts/testar-email.sh <essa caixa>` confere o envio antes de começar.
 5. A chave do app em **Online**, e nenhum pendente na fila.
 
 ## 11.2 Contas e dados de demonstração
@@ -56,6 +56,8 @@ INSERT INTO clinico.medicamento (nome, apresentacao, unidade_padrao)
 VALUES ('Cetoprofeno', 'Frasco-ampola 100 mg', 'MG');
 ```
 
+Ou, num comando só, na VM: `./infra/scripts/medicamento.sh`. Ele mostra o SQL e o `INSERT 0 1`, e não duplica o medicamento se o passo for repetido num segundo ensaio.
+
 > **Passo 10:** o enunciado diz "listar atendimentos" logo depois de inserir um medicamento. Provavelmente queria dizer "listar medicamentos". Mostramos as duas listas, para cobrir as duas leituras (ambiguidade A7 em [01](01-enunciado.md#110-ambiguidades-e-como-interpretamos)).
 
 ---
@@ -76,7 +78,7 @@ Mostra a **unificação de duplicados** com a estratégia `MAIS_RECENTE_VENCE` (
 | A8 | Portal | Prontuário da pessoa | **Dois atendimentos**, um de cada ambulância |
 | A9 | Portal | **Conflitos** | Duas entradas (pessoa e prontuário), com cada diferença: valor mantido, valor descartado, estratégia e dispositivo de origem |
 
-Variação: com `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE` (e o ms-clinico reiniciado), o mesmo roteiro mantém os valores da Ambulância 01 nos campos em conflito.
+Variação: com `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE`, o mesmo roteiro mantém os valores da Ambulância 01 nos campos em conflito. Na VM, `./infra/scripts/estrategia.sh SERVIDOR_VENCE` troca e reinicia o ms-clinico; `./infra/scripts/estrategia.sh MAIS_RECENTE_VENCE` volta.
 
 ---
 
@@ -124,3 +126,18 @@ A coleção e o ambiente estão em [`postman/`](../postman): importe os dois no 
    UPDATE auditoria.log_acesso SET status_code = 200;
    ```
    Resultado esperado: **erro**. Os logs não podem ser alterados nem apagados.
+
+---
+
+## 11.8 Extra: um serviço fora do ar
+
+Mostra que cada parte cai sozinha, sem derrubar as outras, e que o app cliente não perde nada. Na VM:
+
+| # | Ação | Resultado esperado |
+|---|---|---|
+| D1 | `./infra/scripts/servico.sh parar ms-docs` | No portal, **Baixar PDF** e **Enviar por e-mail** respondem "O serviço responsável por esta rota está fora do ar" (`503`). Atendimentos, prontuários e logs continuam abrindo |
+| D2 | No app cliente (Online), registrar um atendimento e pedir o envio por e-mail | O atendimento sincroniza. O pedido de e-mail recebe `503` e fica na fila, com o erro e a próxima tentativa marcada (espera crescente: 5 s, 10 s, 20 s…), e a barra avisa "Servidor inacessível" |
+| D3 | `./infra/scripts/servico.sh iniciar ms-docs` | Na próxima tentativa (ou na hora, com **Sincronizar**), o e-mail sai e aparece em **E-mails enviados** |
+| D4 | `./infra/scripts/servico.sh parar nginx` | Portal e API fora do ar. O app cliente, com a chave em Online, mostra "Servidor inacessível: tentando de novo…" e guarda o que for registrado |
+| D5 | `./infra/scripts/servico.sh iniciar nginx` | Na próxima tentativa (ou com **Sincronizar**), o app cliente volta a sincronizar e a fila esvazia |
+

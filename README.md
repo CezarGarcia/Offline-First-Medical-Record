@@ -72,12 +72,12 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 Pré-requisitos: Docker com Compose. Na VM, ver [docs/12-implantacao.md](docs/12-implantacao.md).
 
 ```bash
-cd infra
-cp .env.example .env            # e troque as senhas (inclusive a DEMO_SENHA)
-./scripts/gerar-chaves-jwt.sh   # uma vez só
-docker compose up -d --build
-./scripts/popular-demo.sh       # contas de demonstração
+./infra/scripts/instalar.sh     # 1ª vez: cria o infra/.env (senhas novas para o banco) e para
+nano infra/.env                 # defina a DEMO_SENHA (e o e-mail, docs/12 seção 12.8)
+./infra/scripts/instalar.sh     # constrói, sobe, carrega os dados de demonstração e confere
 ```
+
+Os scripts de operação ficam em [`infra/scripts/`](infra/scripts): `verificar.sh` (checklist antes da apresentação), `zerar.sh` (volta ao começo do roteiro), `testar-email.sh`, `medicamento.sh` (passo 9), `estrategia.sh`, `servico.sh` (derrubar e religar uma parte), `backup.sh` e `restaurar.sh`, `atualizar.sh`. Ver [docs/12, seção 12.13](docs/12-implantacao.md#1213-scripts-de-operação).
 
 - `http://localhost/` abre o Portal Admin (entre com o administrador de demonstração).
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
