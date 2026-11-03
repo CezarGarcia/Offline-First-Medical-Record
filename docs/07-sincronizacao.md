@@ -71,6 +71,7 @@ Para cada item `PENDENTE` (cujo horário de nova tentativa já passou):
 | `400`, `403`, `404`, `422` | erro definitivo | Item `ERRO`, com o código e a mensagem. **Segue para o próximo item.** Itens que dependiam dele também vão falhar com `422` e aparecer em erro |
 | `500` | temporário, até 3 vezes | Depois da 3ª tentativa vira erro definitivo, para um item com problema não travar a fila inteira |
 | `408`, `429`, `502`, `503`, `504`, erro de rede, tempo esgotado | temporário | **Para a fila** (para não furar a ordem) e agenda nova tentativa com espera crescente: 5 s, 10 s, 20 s, 40 s… até 5 min |
+| `502 FALHA_ENVIO_EMAIL` (só no `ENVIAR_EMAIL`) | temporário, até 3 vezes, **sem parar a fila** | O servidor de e-mail falhou, mas o resto do sistema está no ar. Nada depende de um e-mail, então o item ganha nova tentativa agendada (mesma espera crescente) e o envio **segue para o próximo item**. Depois da 3ª tentativa vira `ERRO`, com a mensagem do servidor (D-39) |
 | Chave foi para Offline no meio | interrompido | Cancela a requisição. O item volta para `PENDENTE`. Reenviar depois é seguro (idempotência) |
 
 Outros detalhes:
@@ -90,7 +91,7 @@ Outros detalhes:
 |---|---|---|
 | Pessoa, prontuário, atendimento | `id` do registro | `JA_EXISTIA` (ou `UNIFICADO`, se tinha sido unificado) |
 | Itens de medicamento do atendimento | `id` de cada item | vão junto com o atendimento |
-| Pedido de e-mail | `id` da solicitação | o mesmo resultado; não manda outro e-mail |
+| Pedido de e-mail | `id` da solicitação | o mesmo resultado (`200`); não manda outro e-mail. Se da vez anterior deu erro, tenta de novo com o destinatário da primeira vez (D-36) |
 | Logs do cliente | `id` de cada log | contados como `repetidos` |
 
 **Por que isso importa, num exemplo:** o cliente envia um atendimento, o servidor grava, mas a resposta se perde (a conexão caiu no meio). O cliente não sabe se deu certo e reenvia. Sem idempotência, o atendimento apareceria duas vezes no portal. Com ela, o servidor responde `JA_EXISTIA` e o cliente marca o item como concluído.

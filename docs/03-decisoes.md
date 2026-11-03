@@ -40,6 +40,11 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-32](#d-32--no-ms-clinico-o-token-é-conferido-por-um-filtro-próprio) | No ms-clinico, o token é conferido por um filtro próprio |
 | [D-33](#d-33--sql-explícito-no-ms-clinico-sem-jpa) | SQL explícito no ms-clinico, sem JPA |
 | [D-34](#d-34--folga-de-1-hora-para-datas-no-futuro) | Folga de 1 hora para datas no futuro |
+| [D-35](#d-35--pdf-em-htmlcss-com-weasyprint-banco-com-sqlalchemy-core-e-alembic) | PDF em HTML/CSS com WeasyPrint; banco com SQLAlchemy Core e Alembic |
+| [D-36](#d-36--pedido-de-e-mail-o-primeiro-pedido-vale-e-um-id-nunca-manda-dois-e-mails) | Pedido de e-mail: o primeiro pedido vale, e um ID nunca manda dois e-mails |
+| [D-37](#d-37--número-da-ficha--os-8-últimos-caracteres-do-id) | Número da ficha = os 8 últimos caracteres do ID |
+| [D-38](#d-38--sem-smtp-configurado-o-envio-falha-de-verdade) | Sem SMTP configurado, o envio falha de verdade |
+| [D-39](#d-39--falha-de-e-mail-não-trava-a-fila-do-cliente) | Falha de e-mail não trava a fila do cliente |
 
 ---
 
@@ -240,3 +245,37 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 - **Decisão:** o servidor recusa datas (registro, atendimento, horário de medicamento) mais de 1 hora no futuro. O app cliente continua não deixando digitar data no futuro.
 - **Por quê:** o relógio de um aparelho pode estar alguns minutos adiantado. Sem folga, um registro feito offline seria recusado de vez na sincronização e ficaria preso na fila.
 
+### D-35 — PDF em HTML/CSS com WeasyPrint; banco com SQLAlchemy Core e Alembic
+
+- **Decisão:** no ms-docs, a ficha é escrita em HTML + CSS (um modelo Jinja2 com uma macro por seção) e convertida em PDF pelo WeasyPrint. O banco é acessado com o SQLAlchemy Core (SQL explícito, sem ORM), e a tabela é criada por uma migration do Alembic que o próprio serviço aplica ao subir.
+- **Por quê:** HTML e CSS são fáceis de ler e de ajustar (grade de campos, tabelas, a cor da triagem), e o WeasyPrint entende CSS de página: A4, margens, rodapé em todas as páginas e "página X de Y". SQLAlchemy Core + Alembic é o par padrão do Python para SQL explícito e migrations versionadas, no mesmo espírito do D-33.
+- **Alternativas descartadas:** ReportLab (desenha o PDF por coordenadas: mais código para o mesmo resultado); SQLAlchemy ORM (uma tabela só não justifica).
+- **Consequências:** a imagem Docker do ms-docs instala o Pango e as fontes Liberation e DejaVu. Os PDFs são gerados um por vez dentro do serviço, porque o Pango não garante uso em várias threads ao mesmo tempo; cada um leva menos de 1 segundo.
+
+### D-36 — Pedido de e-mail: o primeiro pedido vale, e um ID nunca manda dois e-mails
+
+- **Decisão:** o `id` do pedido, gerado pelo cliente, é a chave de idempotência. Durante todo o envio o servidor trava esse ID no banco (`pg_advisory_xact_lock`).
+  - Se o pedido já foi enviado, a resposta devolve o registro (`200`) sem mandar de novo.
+  - Se da vez anterior deu erro, o servidor tenta de novo **com o atendimento e o destinatário da primeira vez**; o corpo novo é ignorado.
+  - Só fica registrado o pedido que chegou a tentar o envio (status `ENVIADO` ou `ERRO`). Validação, `404` e `422` não gravam nada.
+- **Por quê:** a fila do cliente reenvia o mesmo item até dar certo, inclusive depois de um tempo esgotado em que o servidor chegou a enviar. Sem a trava, dois reenvios ao mesmo tempo mandariam dois e-mails. Manter o destinatário da primeira vez segue a regra geral do D-09 ("o primeiro envio vale").
+- **Alternativas descartadas:** gravar o pedido como `PENDENTE` antes de enviar e depois tratar os pendentes presos. Seriam mais estados e mais casos de borda, sem ganho para quem usa.
+- **Consequências:** `201` quer dizer que o e-mail saiu nesta requisição; `200`, que já tinha saído antes. Se o serviço cair entre o envio e a gravação, a transação é desfeita e o próximo reenvio manda de novo. No pior caso o destinatário recebe duas vezes, nunca nenhuma.
+
+### D-37 — Número da ficha = os 8 últimos caracteres do ID
+
+- **Decisão:** o número que aparece na ficha e no nome do arquivo são os 8 últimos caracteres do ID do atendimento, em maiúsculas (ex.: `Nº 9F3A1C2B` e `ficha-atendimento-9F3A1C2B.pdf`). O ID completo aparece no rodapé da ficha.
+- **Por quê:** o ID é um UUID v7, que começa pela hora em que foi criado. Dois atendimentos do mesmo minuto teriam o mesmo começo; o final é aleatório.
+- **Consequências:** substitui o "início do ID" que constava antes na API (6.10) e na ficha (9.5).
+
+### D-38 — Sem SMTP configurado, o envio falha de verdade
+
+- **Decisão:** se o `infra/.env` não tiver `SMTP_HOST`, o ms-docs sobe normalmente (o PDF funciona), mas todo pedido de e-mail fica registrado com erro e a rota responde `502 FALHA_ENVIO_EMAIL`, dizendo que o envio não está configurado. Não existe modo de "envio de mentira".
+- **Por quê:** um e-mail que parece enviado e não foi é pior que um erro claro, porque o cliente marcaria o item como concluído.
+- **Consequências:** nos testes automáticos e no desenvolvimento usa-se um servidor SMTP de teste local (aiosmtpd), através do mesmo adaptador SMTP da produção.
+
+### D-39 — Falha de e-mail não trava a fila do cliente
+
+- **Decisão:** no app cliente, um item `ENVIAR_EMAIL` que recebe `502 FALHA_ENVIO_EMAIL` não para a fila. Ele ganha uma nova tentativa agendada e o envio segue para o próximo item. Depois da 3ª tentativa vira `ERRO`, com a mensagem do servidor e o botão **Tentar de novo**.
+- **Por quê:** nenhum outro item depende de um e-mail, então pular adiante não fura a ordem. Já um problema persistente no servidor de e-mail (senha errada, porta bloqueada, SMTP não configurado) travaria a sincronização dos atendimentos novos se o `502` parasse a fila, como acontece com os outros erros temporários.
+- **Consequências:** complementa a tabela de respostas do envio em [07-sincronizacao.md](07-sincronizacao.md#74-envio-push).

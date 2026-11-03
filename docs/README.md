@@ -16,6 +16,7 @@ Tudo que foi pedido, tudo que foi decidido e como o sistema funciona. Para quem 
 | 10 | [Telas](10-telas.md) | App cliente e Portal Admin, tela por tela |
 | 11 | [Roteiro de testes](11-roteiro-de-testes.md) | Os 17 passos do enunciado com o resultado esperado, mais roteiros extras |
 | 12 | [Implantação e operação](12-implantacao.md) | VM, Docker, banco, e-mail, HTTPS, instalação do cliente e problemas comuns |
+| 13 | [Testes automatizados](13-testes-automatizados.md) | O que cada serviço testa sozinho, como rodar e o que fica para o roteiro manual |
 
 ## Entregáveis exigidos pelo enunciado
 
@@ -24,10 +25,11 @@ Tudo que foi pedido, tudo que foi decidido e como o sistema funciona. Para quem 
 | Modelo de arquitetura: desenho + tecnologias | [04-arquitetura.md](04-arquitetura.md) |
 | Documentação das APIs e endpoints | [06-api.md](06-api.md) (+ Swagger no portal e coleção do Postman, nas próximas etapas) |
 | Modelagem dos bancos de dados | [05-modelo-de-dados.md](05-modelo-de-dados.md) |
-| Roteiro de testes | [11-roteiro-de-testes.md](11-roteiro-de-testes.md) |
+| Roteiro de testes | [11-roteiro-de-testes.md](11-roteiro-de-testes.md) (+ testes automatizados em [13-testes-automatizados.md](13-testes-automatizados.md)) |
 
 ## Como manter esta documentação
 
 - Mudou uma decisão? Atualize o [registro de decisões](03-decisoes.md) (não apague a antiga: registre a nova e diga o que ela substitui) e os documentos afetados.
 - Mudou uma rota ou uma tabela? Atualize [06-api.md](06-api.md) ou [05-modelo-de-dados.md](05-modelo-de-dados.md) **no mesmo commit** da mudança no código.
+- Mudou ou criou um teste automatizado que muda o que é coberto? Atualize a tabela do serviço em [13-testes-automatizados.md](13-testes-automatizados.md).
 - Os diagramas são Mermaid, desenhados pelo próprio GitHub a partir do texto.

@@ -1,0 +1,109 @@
+alembic==1.20.1
+    # via ms-docs (pyproject.toml)
+annotated-doc==0.0.5
+    # via fastapi
+annotated-types==0.8.0
+    # via pydantic
+anyio==4.16.0
+    # via
+    #   httpx
+    #   starlette
+brotli==1.2.1
+    # via fonttools
+certifi==2026.10.23
+    # via
+    #   httpcore
+    #   httpx
+cffi==2.1.1
+    # via
+    #   cryptography
+    #   weasyprint
+click==8.5.0
+    # via uvicorn
+cryptography==50.0.2
+    # via pyjwt
+cssselect2==0.10.1
+    # via weasyprint
+fastapi==0.162.0
+    # via ms-docs (pyproject.toml)
+fonttools==4.68.0
+    # via weasyprint
+h11==0.16.0
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
+httpx==0.28.1
+    # via ms-docs (pyproject.toml)
+idna==3.20
+    # via
+    #   anyio
+    #   httpx
+jinja2==3.1.6
+    # via ms-docs (pyproject.toml)
+mako==1.4.3
+    # via alembic
+markupsafe==3.0.4
+    # via
+    #   jinja2
+    #   mako
+opentelemetry-api==1.45.2
+    # via fastapi
+pillow==13.0.0
+    # via weasyprint
+psycopg==3.3.7
+    # via ms-docs (pyproject.toml)
+psycopg-binary==3.3.7
+    # via psycopg
+pycparser==3.12
+    # via cffi
+pydantic==2.14.2
+    # via fastapi
+pydantic-core==2.50.2
+    # via pydantic
+pydyf==0.13.0
+    # via weasyprint
+pyjwt==2.15.1
+    # via ms-docs (pyproject.toml)
+pyphen==0.18.1
+    # via weasyprint
+sqlalchemy==2.1.6
+    # via
+    #   ms-docs (pyproject.toml)
+    #   alembic
+starlette==1.10.0
+    # via fastapi
+tinycss2==1.5.1
+    # via
+    #   cssselect2
+    #   weasyprint
+tinyhtml5==2.1.0
+    # via weasyprint
+typing-extensions==4.16.0
+    # via
+    #   alembic
+    #   anyio
+    #   fastapi
+    #   opentelemetry-api
+    #   pydantic
+    #   pydantic-core
+    #   sqlalchemy
+    #   typing-inspection
+typing-inspection==0.4.4
+    # via
+    #   fastapi
+    #   pydantic
+tzdata==2026.6
+    # via ms-docs (pyproject.toml)
+uvicorn==0.54.0
+    # via ms-docs (pyproject.toml)
+weasyprint==70.0
+    # via ms-docs (pyproject.toml)
+webencodings==0.6.1
+    # via
+    #   cssselect2
+    #   tinycss2
+    #   tinyhtml5
+zopfli==0.4.3
+    # via fonttools

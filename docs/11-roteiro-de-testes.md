@@ -106,12 +106,17 @@ Variação: com `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE` (e o ms-clinico reiniciado)
 | C7 | `GET /api/log/acesso` com o token da Dra. Ana | `403 PROIBIDO` (rota de admin) |
 | C8 | `POST /api/auth/login` (admin) → `GET /api/log/acesso` | `200`. As chamadas anteriores aparecem, inclusive a `401` do C1, com IP, profissional, método, rota, status e tempo |
 | C9 | `GET /api/prontuario/{id da pessoa}` e `GET /api/atendimento/{id da pessoa}` | O prontuário e os atendimentos da pessoa |
+| C10 | `GET /api/documentos/ficha/{id do atendimento}/pdf` | `200`, o PDF da ficha (no Postman: **Send and Download**) |
+| C11 | `POST /api/documentos/ficha/{id do atendimento}/email` com um `id` fixo e `{"tipo": "OUTRO", "email": "<seu e-mail>"}` em `destinatario` | `201`, `status: ENVIADO`. O e-mail chega com o PDF anexado |
+| C12 | Repetir exatamente a mesma requisição | `200`, o mesmo registro, e **nenhum e-mail novo** (idempotência) |
+| C13 | `GET /api/documentos/email` com o token do admin | `200`, com o envio do C11 no topo |
 
 ---
 
 ## 11.7 Extra: auditoria
 
 1. No portal, **Logs de acesso**, filtrar pelo serviço `ms-clinico` e pela rota `/api/atendimento`: aparecem os envios do passo 14, com o IP do notebook, o ID da Dra. Ana, `POST`, `201` e o tempo em ms.
+   Filtrando pelo serviço `ms-docs`, aparecem o PDF e o e-mail dos passos 16 e 17. Sem o filtro de serviço, cada um aparece junto de uma linha do `ms-clinico` no mesmo instante (`GET /api/atendimento/detalhe/...`, user-agent `ms-docs`): é o ms-docs buscando a ficha em nome de quem pediu, com o mesmo profissional e o mesmo IP.
 2. No banco, tentar alterar um log:
    ```sql
    UPDATE auditoria.log_acesso SET status_code = 200;

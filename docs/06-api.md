@@ -183,8 +183,8 @@ Todos os serviços respondem erros no mesmo formato:
 | 422 | `PACIENTE_SEM_EMAIL`, `FAMILIAR_SEM_EMAIL` | Envio de e-mail para quem não tem e-mail cadastrado |
 | 423 | `CONTA_BLOQUEADA` | 5 senhas erradas seguidas. A resposta inclui `bloqueadoAte` |
 | 500 | `ERRO_INTERNO` | Falha inesperada |
-| 502 | `FALHA_ENVIO_EMAIL` | O servidor de e-mail recusou ou não respondeu |
-| 503 | `SERVICO_INDISPONIVEL` | Serviço fora do ar (resposta do Nginx) |
+| 502 | `FALHA_ENVIO_EMAIL` | O servidor de e-mail recusou, não respondeu, ou o envio não está configurado |
+| 503 | `SERVICO_INDISPONIVEL` | Serviço fora do ar (resposta do Nginx), ou um serviço do qual a rota depende não respondeu (o ms-docs sem o ms-clinico) |
 
 O app cliente usa esta tabela para decidir o que fazer com cada item da fila ([7.4](07-sincronizacao.md#74-envio-push)).
 
@@ -425,7 +425,15 @@ Lista as unificações, da mais recente para a mais antiga:
 
 ### `GET /api/documentos/ficha/{id}/pdf`
 
-Gera o PDF da ficha do atendimento `{id}` e devolve como arquivo (`application/pdf`, nome `ficha-atendimento-<início do id>.pdf`). O ms-docs busca os dados no ms-clinico (`GET /api/atendimento/detalhe/{id}`) repassando o token de quem pediu. `404 NAO_ENCONTRADO` se o atendimento não existe (ou ainda não foi sincronizado).
+Gera o PDF da ficha do atendimento `{id}` e devolve como arquivo: `application/pdf`, nome `ficha-atendimento-<número>.pdf`, onde o número são os 8 últimos caracteres do ID em maiúsculas (D-37). A resposta vem com `Cache-Control: no-store`, para nenhum cache guardar dado de saúde. O conteúdo do PDF está em [9.5](09-ficha-e-dominio.md#95-o-pdf-da-ficha).
+
+O ms-docs busca os dados no ms-clinico (`GET /api/atendimento/detalhe/{id}`) pela rede interna, repassando o token de quem pediu. A chamada interna leva também o IP (`X-Real-IP`) e o dispositivo (`X-Dispositivo-Id`) de quem pediu, com `User-Agent: ms-docs`. Assim, no log de acesso do ms-clinico, ela aparece com o mesmo profissional e o mesmo IP.
+
+| Erro | Quando |
+|---|---|
+| `400 VALIDACAO` | `{id}` não é um UUID |
+| `404 NAO_ENCONTRADO` | O atendimento não existe (ou ainda não foi sincronizado) |
+| `503 SERVICO_INDISPONIVEL` | O ms-clinico não respondeu |
 
 ### `POST /api/documentos/ficha/{id}/email`
 
@@ -436,10 +444,17 @@ Gera o PDF da ficha do atendimento `{id}` e devolve como arquivo (`application/p
 }
 ```
 
-- `destinatario.tipo`: `PACIENTE` (usa o e-mail da pessoa), `FAMILIAR` (usa o e-mail do contato) ou `OUTRO` (exige `destinatario.email`).
-- `id`: chave de idempotência gerada por quem pede. Se esse pedido já foi enviado, a resposta repete o resultado sem mandar outro e-mail. Se da vez anterior deu erro, tenta de novo.
+- `destinatario.tipo`:
+  - `PACIENTE` usa o e-mail da pessoa;
+  - `FAMILIAR` usa o e-mail do contato;
+  - `OUTRO` exige `destinatario.email`, e esse campo só é aceito com `OUTRO`.
+- `id`: chave de idempotência, gerada por quem pede (D-36).
+  - Se esse pedido já foi enviado, a resposta repete o resultado (`200`) sem mandar outro e-mail.
+  - Se da vez anterior deu erro, o servidor tenta de novo com o atendimento e o destinatário **da primeira vez**; o corpo novo é ignorado.
+  - Sem `id`, o servidor gera um (sem proteção contra repetição).
+- O e-mail leva a ficha em PDF anexada. Assunto e texto estão em [9.6](09-ficha-e-dominio.md#96-o-e-mail).
 
-Resposta `201` (primeiro envio) ou `200` (repetição):
+Resposta `201` (o e-mail saiu nesta requisição) ou `200` (repetição: já tinha saído antes, nada foi reenviado):
 
 ```json
 {
@@ -448,15 +463,35 @@ Resposta `201` (primeiro envio) ou `200` (repetição):
   "status": "ENVIADO",
   "destinatarioTipo": "FAMILIAR",
   "destinatarioEmail": "maria@exemplo.com",
-  "enviadoEm": "2026-11-03T13:45:10Z"
+  "erro": null,
+  "tentativas": 1,
+  "solicitadoPorId": "0193f2a0-1111-7000-8000-000000000002",
+  "dispositivoId": "0193f2a0-2222-7000-8000-000000000001",
+  "solicitadoEm": "2026-11-03T13:45:08.512Z",
+  "ultimaTentativaEm": "2026-11-03T13:45:09.877Z",
+  "enviadoEm": "2026-11-03T13:45:09.877Z"
 }
 ```
 
-Erros: `404 NAO_ENCONTRADO` (atendimento), `422 PACIENTE_SEM_EMAIL` / `FAMILIAR_SEM_EMAIL`, `400 VALIDACAO` (e-mail inválido em `OUTRO`), `502 FALHA_ENVIO_EMAIL`.
+| Erro | Quando | Fica registrado? |
+|---|---|---|
+| `400 VALIDACAO` | Corpo inválido: tipo desconhecido, `OUTRO` sem e-mail ou com e-mail inválido, e-mail informado com outro tipo, campo a mais | não |
+| `404 NAO_ENCONTRADO` | O atendimento não existe (ou ainda não foi sincronizado) | não |
+| `422 PACIENTE_SEM_EMAIL` / `FAMILIAR_SEM_EMAIL` | O destinatário escolhido não tem e-mail no cadastro | não |
+| `502 FALHA_ENVIO_EMAIL` | O servidor de e-mail recusou, não respondeu, ou o envio não está configurado no servidor (D-38). A mensagem diz qual foi | **sim**, com `status: ERRO` e o motivo em `erro`. Repetir com o mesmo `id` tenta de novo |
+| `503 SERVICO_INDISPONIVEL` | O ms-clinico não respondeu | não |
 
 ### `GET /api/documentos/email` (admin)
 
-Histórico de envios, do mais recente para o mais antigo. Filtro opcional: `atendimentoId`.
+Histórico de envios, do pedido mais recente para o mais antigo.
+
+| Parâmetro | Padrão | Descrição |
+|---|---|---|
+| `atendimentoId` | — | Só os envios de um atendimento |
+| `pagina` | `1` | A partir de 1 |
+| `tamanho` | `50` | De 1 a 200 |
+
+Resposta: `{ "itens": [ ...envios, no formato acima... ], "pagina": 1, "tamanho": 50, "total": 3 }`, o mesmo formato de página das listagens de log do ms-auth.
 
 ---
 

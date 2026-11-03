@@ -1,0 +1,140 @@
+{#
+  Seções da Ficha de Atendimento. Cada macro é uma etapa do FichaPdfBuilder (construtor.py);
+  "documento" junta as seções na página final. Valores ausentes chegam como None.
+#}
+
+{% macro valor_ou_vazio(valor, vazio="não informado") -%}
+  {% if valor is none or valor == "" %}<span class="vazio">{{ vazio }}</span>{% else %}{{ valor }}{% endif %}
+{%- endmacro %}
+
+{% macro cabecalho(numero, data_hora) -%}
+<header class="cabecalho">
+  <div class="marca">
+    <div class="nome-sistema">MedicalField</div>
+    <h1>Ficha de Atendimento Pré-Hospitalar</h1>
+  </div>
+  <div class="identificacao">
+    <div class="numero">Nº <span class="numero-valor">{{ numero }}</span></div>
+    <div class="quando">{{ valor_ou_vazio(data_hora, "data não informada") }}</div>
+  </div>
+</header>
+{%- endmacro %}
+
+{% macro secao_campos(titulo, campos) -%}
+<section class="secao">
+  <h2>{{ titulo }}</h2>
+  <div class="campos">
+    {% for campo in campos %}
+    <div class="campo colunas-{{ campo.colunas }}{% if campo.destaque %} destaque{% endif %}">
+      <div class="rotulo">{{ campo.rotulo }}</div>
+      <div class="valor">{{ valor_ou_vazio(campo.valor) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro triagem(protocolo, cor, significado, fundo, texto) -%}
+<section class="secao">
+  <h2>Triagem</h2>
+  <div class="triagem">
+    <div class="etiqueta" style="background-color: {{ fundo }}; color: {{ texto }};">{{ valor_ou_vazio(cor, "sem cor") }}</div>
+    <div class="explicacao">
+      <div class="protocolo">Protocolo {{ valor_ou_vazio(protocolo) }}</div>
+      {% if significado %}<div class="significado">{{ significado }}</div>{% endif %}
+    </div>
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro avaliacao(glasgow, vitais) -%}
+<section class="secao">
+  <h2>Avaliação</h2>
+  <div class="avaliacao">
+    <div class="bloco">
+      <h3>Escala de Glasgow</h3>
+      {% if glasgow %}
+      <table class="tabela">
+        <tbody>
+          {% for item, pontos, descricao in glasgow.itens %}
+          <tr><th>{{ item }}</th><td class="pontos">{{ pontos }}</td><td>{{ descricao }}</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr><th>Total</th><td class="pontos">{{ glasgow.total }}</td><td>{{ glasgow.gravidade }}</td></tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <p class="vazio">Não avaliada.</p>
+      {% endif %}
+    </div>
+    <div class="bloco">
+      <h3>Sinais vitais</h3>
+      <table class="tabela">
+        <tbody>
+          {% for sinal, valor in vitais %}
+          <tr><th>{{ sinal }}</th><td>{{ valor_ou_vazio(valor, "não medido") }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro medicamentos(itens) -%}
+<section class="secao">
+  <h2>Medicamentos administrados</h2>
+  {% if itens %}
+  <table class="tabela lista">
+    <thead>
+      <tr><th>Medicamento</th><th>Dose</th><th>Via</th><th>Horário</th><th>Observação</th></tr>
+    </thead>
+    <tbody>
+      {% for item in itens %}
+      <tr>
+        <td class="nome">{{ item.nome }}</td>
+        <td>{{ item.dose }}</td>
+        <td>{{ valor_ou_vazio(item.via, "—") }}</td>
+        <td>{{ valor_ou_vazio(item.horario, "—") }}</td>
+        <td>{{ valor_ou_vazio(item.observacao, "—") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vazio">Nenhum medicamento administrado.</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{% macro rodape(campos) -%}
+<section class="secao rastreabilidade">
+  <h2>Responsável e rastreabilidade</h2>
+  <div class="campos">
+    {% for campo in campos %}
+    <div class="campo colunas-{{ campo.colunas }}{% if campo.destaque %} destaque{% endif %}">
+      <div class="rotulo">{{ campo.rotulo }}</div>
+      <div class="valor">{{ valor_ou_vazio(campo.valor) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{%- endmacro %}
+
+{% macro documento(titulo, secoes) -%}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>{{ titulo }}</title>
+  <meta name="author" content="MedicalField">
+  <meta name="generator" content="MedicalField ms-docs">
+</head>
+<body>
+  {% for secao in secoes %}
+  {{ secao }}
+  {% endfor %}
+</body>
+</html>
+{%- endmacro %}

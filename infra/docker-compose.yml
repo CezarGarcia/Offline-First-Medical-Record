@@ -3,7 +3,7 @@
 # Etapa 1: banco central (PostgreSQL) + gateway/portal (Nginx).
 # Etapa 2: ms-auth (TypeScript).
 # Etapa 3: ms-clinico (Java).
-# ms-docs entra na próxima etapa.
+# Etapa 4: ms-docs (Python).
 #
 # Uso (dentro desta pasta infra/):
 #   cp .env.example .env            # e troque as senhas
@@ -104,6 +104,49 @@ services:
       timeout: 3s
       retries: 12
       start_period: 20s
+    networks: [interna]
+
+  ms-docs:
+    build: ../servicos/ms-docs
+    image: medicalfield/ms-docs
+    container_name: medicalfield-ms-docs
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ms-auth:
+        # O ms-auth cria as tabelas de auditoria, onde o log de acesso é gravado
+        condition: service_healthy
+    environment:
+      PORTA: "8000"
+      DB_HOST: db
+      DB_PORTA: "5432"
+      DB_NOME: medicalfield
+      DB_USUARIO: ms_docs
+      DB_SENHA: ${MS_DOCS_DB_PASSWORD:?defina MS_DOCS_DB_PASSWORD no arquivo .env}
+      JWT_CHAVE_PUBLICA_ARQUIVO: /run/secrets/jwt-publica.pem
+      # A ficha é buscada no ms-clinico pela rede interna, com o token de quem pediu
+      MS_CLINICO_URL: http://ms-clinico:8080
+      # E-mail (docs/12-implantacao.md, seção 12.8). Sem SMTP_HOST o envio fica desligado.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORTA: ${SMTP_PORTA:-587}
+      SMTP_SEGURANCA: ${SMTP_SEGURANCA:-}
+      SMTP_USUARIO: ${SMTP_USUARIO:-}
+      SMTP_SENHA: ${SMTP_SENHA:-}
+      SMTP_REMETENTE: ${SMTP_REMETENTE:-}
+      # Horário das datas no PDF e no e-mail (no banco tudo fica em UTC, D-23)
+      FUSO_HORARIO: America/Sao_Paulo
+      TZ: UTC
+    secrets:
+      - source: jwt_publica
+        target: jwt-publica.pem
+    healthcheck:
+      # Teste de porta, não de rota HTTP: nenhuma rota fica aberta sem token (D-19)
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
     networks: [interna]
 
   nginx:

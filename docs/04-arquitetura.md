@@ -103,12 +103,12 @@ O enunciado sugere três padrões e pede mais três de livre escolha.
 
 | Padrão | Onde | Para quê |
 |---|---|---|
-| **Repository** (sugerido) | App cliente: `RepositorioLocal` (SQLite) e `RepositorioRemoto` (API), atrás das mesmas interfaces. No ms-clinico, as classes `Repositorio*` concentram todo o SQL de cada tabela | As telas e os serviços não sabem de onde vêm os dados; trocar o armazenamento não mexe no resto |
+| **Repository** (sugerido) | App cliente: `RepositorioLocal` (SQLite) e `RepositorioRemoto` (API), atrás das mesmas interfaces. No ms-clinico, as classes `Repositorio*` concentram todo o SQL de cada tabela; no ms-docs, o `RepositorioEnvios` | As telas e os serviços não sabem de onde vêm os dados; trocar o armazenamento não mexe no resto |
 | **Strategy** (sugerido) | ms-clinico: `EstrategiaDeMesclagem` com `MaisRecenteVence` e `ServidorVence` | Regra de resolução de conflitos trocável por configuração |
 | **Observer** (sugerido) | App cliente: `EstadoConectividade` avisa o motor de sincronização, a sessão e a tela quando a chave muda | Disparar o envio da fila sozinho quando a conexão volta |
 | **Command** (escolhido) | App cliente: cada item da outbox (`CriarPessoa`, `CriarProntuario`, `CriarAtendimento`, `EnviarEmail`) é um comando com `executar()` | A fila guarda e executa operações de tipos diferentes do mesmo jeito, na ordem certa |
-| **Adapter** (escolhido) | ms-docs: interface `EnvioDeEmail` com `SmtpAdapter` (Gmail) e um adaptador de console para desenvolvimento | Trocar o provedor de e-mail sem mexer no resto |
-| **Builder** (escolhido) | ms-docs: `FichaPdfBuilder` monta o PDF por partes (cabeçalho, paciente, triagem, sinais vitais, medicamentos, desfecho) | Montar um documento complexo passo a passo e de forma legível |
+| **Adapter** (escolhido) | ms-docs: interface `EnvioDeEmail` com o `EnvioPorSmtp`, que adapta o `smtplib` (Gmail), e o `EnvioDesativado`, usado quando o SMTP não foi configurado | Trocar o provedor de e-mail (por exemplo, por uma API HTTP) sem mexer nas rotas nem na idempotência |
+| **Builder** (escolhido) | ms-docs: `FichaPdfBuilder` monta o PDF por partes (cabeçalho, paciente, prontuário, ocorrência, triagem, avaliação, medicamentos, desfecho, rastreabilidade) e o `MontadorDaFicha` (o "diretor") chama as partes na ordem | Montar um documento complexo passo a passo e de forma legível |
 
 Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Outbox** (fila de pendentes), **Database per Service** (um schema e um usuário por serviço) e **Offline-First**.
 
@@ -120,13 +120,13 @@ Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Out
 |---|---|
 | ms-auth | Node.js (LTS), TypeScript, Fastify, node-postgres, bcrypt, `jose` (JWT RS256), migrations SQL |
 | ms-clinico | Java 21, Spring Boot 4 (Web MVC, Validation, JDBC com `JdbcClient`), Flyway, Nimbus JOSE + JWT (confere o token), springdoc-openapi |
-| ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy + Alembic, PyJWT, httpx, WeasyPrint (PDF), smtplib |
+| ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy Core + Alembic, psycopg 3, PyJWT (confere o token), httpx (chama o ms-clinico), Jinja2 + WeasyPrint (HTML → PDF), smtplib |
 | Portal | React, TypeScript, Vite, Mantine, Swagger UI |
 | App cliente | Electron, React, TypeScript, Vite, Mantine, better-sqlite3, `safeStorage` (cofre do Windows) |
 | Infraestrutura | Docker Compose, Nginx, PostgreSQL 18 |
 | Qualidade e entrega | Testes automatizados por serviço, coleção do Postman, GitHub Actions (gera o `.exe` do cliente) |
 
-As versões exatas ficam nos arquivos de build de cada parte (`package.json`, `pom.xml`, `pyproject.toml`).
+As versões exatas ficam nos arquivos de build de cada parte (`package.json` e `package-lock.json`, `pom.xml`, `pyproject.toml` e `requirements.txt`).
 
 ---
 

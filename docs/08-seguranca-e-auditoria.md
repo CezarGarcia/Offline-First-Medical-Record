@@ -145,7 +145,7 @@ O enunciado exige um middleware/interceptor em **todos os serviços backend** qu
 |---|---|
 | ms-auth (TypeScript, Fastify) | Ganchos `onRequest` (marca o início) e `onResponse` (grava) |
 | ms-clinico (Java, Spring Boot) | Filtro de servlet (`OncePerRequestFilter`) em volta de toda a cadeia, incluindo a segurança |
-| ms-docs (Python, FastAPI) | Middleware HTTP do Starlette |
+| ms-docs (Python, FastAPI) | Middleware ASGI em volta de todo o app (inclusive da autenticação e do tratamento de erros), que grava numa thread separada |
 
 Funcionamento (igual nos três):
 

@@ -1,0 +1,111 @@
+{
+  "id": "0193f000-0000-7000-8000-000000000301",
+  "prontuarioId": "0193f000-0000-7000-8000-000000000201",
+  "dataHora": "2026-10-28T14:20:00Z",
+  "localOcorrencia": "Av. Benjamin Constant, centro de Lajeado",
+  "tipoOcorrencia": "CLINICA",
+  "queixaPrincipal": "Dor no peito há cerca de uma hora",
+  "triagem": {
+    "protocolo": "MANCHESTER",
+    "cor": "LARANJA"
+  },
+  "glasgow": {
+    "ocular": 4,
+    "verbal": 5,
+    "motora": 6,
+    "total": 15
+  },
+  "sinaisVitais": {
+    "paSistolica": 150,
+    "paDiastolica": 95,
+    "frequenciaCardiaca": 102,
+    "frequenciaRespiratoria": 20,
+    "spo2": 95,
+    "temperatura": 36.6,
+    "glicemia": 130
+  },
+  "medicamentos": [
+    {
+      "id": "0193f000-0000-7000-8000-000000000401",
+      "medicamentoId": "01a1a16c-e8b4-79bf-94b4-e9b2eedfce8c",
+      "nome": "Ácido acetilsalicílico (AAS)",
+      "dose": 200.0,
+      "unidade": "MG",
+      "via": "ORAL",
+      "horario": "2026-10-28T14:28:00Z",
+      "observacao": "Mastigar"
+    }
+  ],
+  "procedimentos": "Monitorização cardíaca; oxigênio 2 L/min",
+  "desfecho": {
+    "tipo": "ENCAMINHADO_HOSPITAL",
+    "destino": "Hospital Regional"
+  },
+  "observacoes": null,
+  "origem": {
+    "criadoPorId": "01a19f72-fbfc-7470-bcdc-2fd43a92fcf8",
+    "criadoPorNome": "Dra. Ana Souza",
+    "criadoPorRegistro": "CRM 12345-RS",
+    "criadoEm": "2026-10-28T14:40:00Z",
+    "dispositivoId": "0193f000-0000-7000-8000-00000000a001",
+    "dispositivoNome": "Ambulância 01",
+    "modo": "ONLINE"
+  },
+  "sincronizacao": {
+    "sincronizadoPorId": "01a19f72-fbfc-7470-bcdc-2fd43a92fcf8",
+    "recebidoEm": "2026-10-28T14:41:12Z",
+    "atualizadoEm": "2026-10-28T14:41:12Z"
+  },
+  "pessoa": {
+    "id": "0193f000-0000-7000-8000-000000000101",
+    "nome": "João da Silva",
+    "cpf": "52998224725",
+    "dataNascimento": "1980-05-10",
+    "sexo": "MASCULINO",
+    "telefone": "51999990000",
+    "email": "joao.silva@exemplo.com",
+    "contato": {
+      "nome": "Maria da Silva",
+      "parentesco": "Esposa",
+      "telefone": "51988880000",
+      "email": "maria.silva@exemplo.com"
+    },
+    "origem": {
+      "criadoPorId": "01a19f72-fbfc-7470-bcdc-2fd43a92fcf8",
+      "criadoPorNome": "Dra. Ana Souza",
+      "criadoPorRegistro": "CRM 12345-RS",
+      "criadoEm": "2026-10-28T14:35:00Z",
+      "dispositivoId": "0193f000-0000-7000-8000-00000000a001",
+      "dispositivoNome": "Ambulância 01",
+      "modo": "ONLINE"
+    },
+    "sincronizacao": {
+      "sincronizadoPorId": "01a19f72-fbfc-7470-bcdc-2fd43a92fcf8",
+      "recebidoEm": "2026-10-28T14:41:12Z",
+      "atualizadoEm": "2026-10-28T14:41:12Z"
+    }
+  },
+  "prontuario": {
+    "id": "0193f000-0000-7000-8000-000000000201",
+    "pessoaId": "0193f000-0000-7000-8000-000000000101",
+    "tipoSanguineo": "O+",
+    "alergias": "Dipirona",
+    "comorbidades": "Hipertensão",
+    "medicamentosUsoContinuo": "Losartana 50 mg",
+    "observacoes": null,
+    "origem": {
+      "criadoPorId": "01a19f72-fbfc-7470-bcdc-2fd43a92fcf8",
+      "criadoPorNome": "Dra. Ana Souza",
+      "criadoPorRegistro": "CRM 12345-RS",
+      "criadoEm": "2026-10-28T14:36:00Z",
+      "dispositivoId": "0193f000-0000-7000-8000-00000000a001",
+      "dispositivoNome": "Ambulância 01",
+      "modo": "ONLINE"
+    },
+    "sincronizacao": {
+      "sincronizadoPorId": "01a19f72-fbfc-7470-bcdc-2fd43a92fcf8",
+      "recebidoEm": "2026-10-28T14:41:12Z",
+      "atualizadoEm": "2026-10-28T14:41:12Z"
+    }
+  }
+}

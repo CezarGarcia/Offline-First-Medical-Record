@@ -47,6 +47,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 - [Arquitetura](docs/04-arquitetura.md), [modelo de dados](docs/05-modelo-de-dados.md) e [API](docs/06-api.md): como o sistema é.
 - [Sincronização](docs/07-sincronizacao.md) e [segurança e auditoria](docs/08-seguranca-e-auditoria.md): as partes mais delicadas.
 - [Roteiro de testes](docs/11-roteiro-de-testes.md) e [implantação](docs/12-implantacao.md): como apresentar e como colocar no ar.
+- [Testes automatizados](docs/13-testes-automatizados.md): o que cada serviço testa sozinho e como rodar.
 
 ## Andamento
 
@@ -55,7 +56,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 | 1 | Repositório, documentação e infraestrutura base (PostgreSQL + Nginx) | **Concluída** |
 | 2 | ms-auth: login, sessão, profissionais, logs e o middleware de log | **Concluída** |
 | 3 | ms-clinico: cadastros, idempotência, unificação de duplicados, "receber dados" e dados de demonstração | **Concluída** |
-| 4 | ms-docs: PDF e e-mail | Pendente |
+| 4 | ms-docs: PDF da ficha, envio por e-mail com idempotência e histórico de envios | **Concluída** |
 | 5 | Portal Admin | Pendente |
 | 6 | App cliente (Electron): telas, SQLite, login offline, chave, fila, sincronização | Pendente |
 | 7 | Coleção do Postman, testes automatizados e geração do `.exe` | Pendente |
@@ -74,8 +75,8 @@ docker compose up -d --build
 ```
 
 - `http://localhost/` mostra a página provisória do portal.
-- Login (`POST /api/auth/login`, ms-auth) e todas as rotas clínicas (ms-clinico) já funcionam, com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
-- As rotas dos serviços que ainda não existem respondem `503 SERVICO_INDISPONIVEL`.
+- Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
+- O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
 - `./scripts/psql.sh` abre o banco.
 
 ## Convenções

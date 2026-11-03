@@ -1,0 +1,229 @@
+/* Ficha de Atendimento em A4 (WeasyPrint). Layout descrito em docs/09-ficha-e-dominio.md, seção 9.5. */
+
+@page {
+  size: A4;
+  margin: 12mm 14mm 16mm 14mm;
+
+  @bottom-left {
+    content: "Documento com dados pessoais sensíveis (LGPD). Uso restrito.";
+    font-size: 7.5pt;
+    color: #6b7280;
+  }
+  @bottom-right {
+    content: "Ficha Nº " string(numero) " · página " counter(page) " de " counter(pages);
+    font-size: 7.5pt;
+    color: #6b7280;
+  }
+}
+
+html {
+  font-family: "Liberation Sans", "DejaVu Sans", Arial, Helvetica, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.3;
+  color: #1f2937;
+}
+
+body {
+  margin: 0;
+}
+
+/* Cabeçalho */
+
+.cabecalho {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  padding-bottom: 3mm;
+  border-bottom: 2px solid #0b5394;
+  margin-bottom: 4mm;
+}
+
+.nome-sistema {
+  font-size: 9pt;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b5394;
+}
+
+h1 {
+  margin: 0.5mm 0 0 0;
+  font-size: 15pt;
+  font-weight: bold;
+}
+
+.identificacao {
+  text-align: right;
+}
+
+.numero {
+  font-size: 12pt;
+  font-weight: bold;
+}
+
+.numero-valor {
+  string-set: numero content(text);
+}
+
+.quando {
+  font-size: 9.5pt;
+  color: #4b5563;
+}
+
+/* Seções */
+
+.secao {
+  margin-bottom: 2.6mm;
+  break-inside: avoid;
+}
+
+h2 {
+  margin: 0 0 1.5mm 0;
+  padding-bottom: 0.8mm;
+  font-size: 8.5pt;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0b5394;
+  border-bottom: 1px solid #d1d5db;
+  break-after: avoid;
+}
+
+h3 {
+  margin: 0 0 1mm 0;
+  font-size: 8.5pt;
+  font-weight: bold;
+  color: #374151;
+}
+
+.campos {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  column-gap: 5mm;
+  row-gap: 1.4mm;
+}
+
+.campo.colunas-2 {
+  grid-column: span 2;
+}
+
+.campo.colunas-3 {
+  grid-column: span 3;
+}
+
+.rotulo {
+  font-size: 7pt;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.valor {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.destaque .valor {
+  font-weight: bold;
+}
+
+.vazio {
+  font-style: italic;
+  color: #9ca3af;
+}
+
+p.vazio {
+  margin: 0;
+}
+
+/* Triagem */
+
+.triagem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 4mm;
+  align-items: center;
+}
+
+.etiqueta {
+  padding: 1.6mm 6mm;
+  border-radius: 1.5mm;
+  font-size: 12pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.protocolo {
+  font-weight: bold;
+}
+
+.significado {
+  color: #4b5563;
+}
+
+/* Avaliação e tabelas */
+
+.avaliacao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 6mm;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabela th,
+.tabela td {
+  padding: 0.6mm 1.5mm;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tabela tbody th {
+  font-weight: normal;
+  color: #4b5563;
+}
+
+.tabela .pontos {
+  width: 8mm;
+  font-weight: bold;
+  text-align: center;
+}
+
+.tabela tfoot th,
+.tabela tfoot td {
+  font-weight: bold;
+  border-bottom: none;
+  border-top: 1.5px solid #9ca3af;
+}
+
+.tabela.lista thead th {
+  font-size: 7pt;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.tabela.lista .nome {
+  font-weight: bold;
+}
+
+.tabela tr {
+  break-inside: avoid;
+}
+
+/* Rodapé (rastreabilidade) */
+
+.rastreabilidade {
+  margin-top: 3mm;
+  padding: 2.5mm 3.5mm;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.5mm;
+}

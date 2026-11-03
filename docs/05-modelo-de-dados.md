@@ -310,21 +310,24 @@ Registro de cada unificação, para auditoria e para o portal.
 
 ### `documentos.envio_email`
 
-Cada pedido de envio da ficha por e-mail. O `id` é gerado por quem pede e serve de **chave de idempotência**: pedir de novo com o mesmo ID não manda dois e-mails.
+Cada pedido de envio da ficha por e-mail. O `id` é gerado por quem pede e serve de **chave de idempotência**: pedir de novo com o mesmo ID não manda dois e-mails (D-36). Só entra aqui o pedido que chegou a tentar o envio; pedido recusado na validação, atendimento inexistente ou destinatário sem e-mail não gravam nada. A tabela é criada pela migration do Alembic do ms-docs (`servicos/ms-docs/migracoes/`), que registra a versão aplicada em `documentos.alembic_version`.
 
 | Coluna | Tipo | Regra |
 |---|---|---|
 | `id` | uuid | PK |
-| `atendimento_id` | uuid | obrigatória (sem FK: é de outro schema) |
+| `atendimento_id` | uuid | obrigatória (sem FK: é de outro schema, de outro serviço) |
 | `destinatario_tipo` | text | `PACIENTE`, `FAMILIAR` ou `OUTRO` |
-| `destinatario_email` | text | obrigatória |
-| `status` | text | `PENDENTE`, `ENVIADO` ou `ERRO` |
-| `erro` | text | opcional (mensagem do servidor de e-mail) |
-| `tentativas` | integer | padrão `0` |
-| `solicitado_por_id` | uuid | profissional do token |
-| `dispositivo_id` | uuid | opcional |
-| `solicitado_em` | timestamptz | padrão `now()` |
-| `enviado_em` | timestamptz | opcional |
+| `destinatario_email` | text | obrigatória. O endereço usado de fato (o da pessoa, o do contato ou o informado) |
+| `status` | text | `ENVIADO` ou `ERRO` |
+| `erro` | text | motivo da última falha (ex.: "O servidor de e-mail não respondeu."). Obrigatória quando `ERRO`; vazia depois que o envio dá certo |
+| `tentativas` | integer | começa em `1`; cada nova tentativa com o mesmo ID soma 1 |
+| `solicitado_por_id` | uuid | profissional do token do primeiro pedido |
+| `dispositivo_id` | uuid | opcional (cabeçalho `X-Dispositivo-Id`) |
+| `solicitado_em` | timestamptz | primeiro pedido |
+| `ultima_tentativa_em` | timestamptz | última tentativa de envio |
+| `enviado_em` | timestamptz | preenchida se, e só se, `status = ENVIADO` |
+
+Índices: `(solicitado_em DESC, id DESC)` para o histórico e `(atendimento_id, solicitado_em DESC)` para o filtro por atendimento.
 
 ### `auditoria.log_acesso`
 

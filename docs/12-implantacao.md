@@ -79,6 +79,18 @@ O que cada resultado permite:
 
 `sudo ufw status`. Se aparecer `inactive`, o firewall do Ubuntu está desligado (o filtro, se houver, está na rede da Univates). Ver [12.7](#127-firewall-opcional).
 
+### Resultado na VM do projeto (verificado em 03/11/2026)
+
+| Verificação | Resultado | O que isso quer dizer |
+|---|---|---|
+| `sudo ss -tlnp` | Só o SSH (porta 22) escuta para fora. O Postgres que já existe atende só pelo socket local | Nada da VM fica exposto além do SSH. As portas 80, 443 e 5433 estão livres |
+| Porta 80 vista de fora | Pelo navegador do PC do aluno, pela internet, a página de teste abriu (o servidor registrou `GET / 200`) | O portal e a API vão funcionar pela porta 80 |
+| Porta 443 vista de fora | Ainda não testada | Só importa se formos ligar HTTPS |
+| `nslookup IP-DA-VM` | Existe um nome reverso (`…univates.br`), mas a consulta do nome não volta para o IP | A VM não tem um domínio utilizável para certificado |
+| `https://IP-DA-VM` | Nada responde | Não existe HTTPS hoje |
+
+Conclusão: o sistema roda em HTTP na porta 80 (D-24). Se quisermos HTTPS, o caminho é o da segunda linha da tabela acima: um subdomínio gratuito (DuckDNS) apontando para o IP, mais um certificado do Let's Encrypt validado pela porta 80, que já abre de fora ([12.9](#129-https-opcional)).
+
 ---
 
 ## 12.4 Primeira instalação
@@ -95,7 +107,7 @@ docker compose ps
 
 - Se o repositório for privado, o `git clone` pede usuário e um **token de acesso do GitHub** (não a senha da conta).
 - Na primeira subida, o Postgres roda [`postgres/init/01-estrutura.sh`](../infra/postgres/init/01-estrutura.sh), que cria os usuários, os schemas e as permissões. O log mostra `MedicalField: usuários, schemas e permissões criados.`
-- Teste: `http://IP-DA-VM/` no navegador mostra a página provisória do MedicalField. `curl -s http://localhost/api/pessoa` responde `SERVICO_INDISPONIVEL` até o ms-clinico entrar (etapa 3).
+- Teste: `http://IP-DA-VM/` no navegador mostra a página provisória do MedicalField (até o Portal Admin entrar, na etapa 5). `curl -s http://localhost/api/pessoa` responde `401 NAO_AUTENTICADO`: a rota existe e exige token. `docker compose ps` deve mostrar `db`, `ms-auth`, `ms-clinico` e `ms-docs` como `healthy`.
 - Dados de demonstração: defina `DEMO_SENHA` no `.env` e rode `./scripts/popular-demo.sh` (profissionais desde a etapa 2; dados clínicos a partir da etapa 3). Pode rodar mais de uma vez.
 - Testando de dentro da própria VM (`curl http://localhost/...`), o log de acesso mostra o IP da rede do Docker (`172.x.x.x`). Requisições vindas de fora mostram o IP real de quem chamou.
 
@@ -149,17 +161,40 @@ Só ative se nada mais na VM precisar de outras portas. O Docker publica portas 
 
 ## 12.8 E-mail (Gmail)
 
-1. Crie uma conta Gmail só para o projeto.
-2. Ative a **verificação em duas etapas** na conta.
-3. Gere uma **senha de app** (Conta Google → Segurança → Senhas de app). São 16 letras.
-4. Preencha no `infra/.env`: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORTA=587`, `SMTP_USUARIO`, `SMTP_SENHA` (a senha de app) e `SMTP_REMETENTE`.
-5. Teste se a VM alcança o Gmail:
+Sem esta configuração o sistema funciona, mas o envio da ficha por e-mail responde `502` dizendo que o SMTP não foi configurado (D-38). O PDF não depende dela.
+
+1. **Teste se a VM alcança o Gmail** (faça isso antes de criar a conta; se as duas portas estiverem bloqueadas, o resto não adianta):
 
    ```bash
    for p in 587 465; do timeout 5 bash -c "</dev/tcp/smtp.gmail.com/$p" && echo "porta $p liberada" || echo "porta $p bloqueada"; done
    ```
 
-Se as duas estiverem bloqueadas: pedir a liberação ou trocar para um provedor de e-mail por API (HTTPS, porta 443). O envio fica atrás de um Adapter (D-16), então só a configuração muda.
+2. Crie uma conta Gmail só para o projeto e ative a **verificação em duas etapas** nela.
+3. Gere uma **senha de app**: Conta Google → Segurança → Senhas de app. São 16 letras, mostradas em grupos de 4 (os espaços não fazem parte da senha; o ms-docs ignora espaços).
+4. No `infra/.env` da VM, tire o `#` das linhas de e-mail e preencha:
+
+   ```bash
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORTA=587
+   SMTP_USUARIO=conta-do-projeto@gmail.com
+   SMTP_SENHA=abcdefghijklmnop
+   SMTP_REMETENTE=conta-do-projeto@gmail.com
+   ```
+
+   Se só a porta 465 estiver liberada, use `SMTP_PORTA=465`: a conexão passa a ser SSL direto (`SMTP_SEGURANCA` já se ajusta pela porta).
+5. Aplique: `docker compose up -d ms-docs`. O log (`docker compose logs ms-docs`) mostra `e-mail pelo SMTP smtp.gmail.com:587 (STARTTLS)`.
+6. Teste: envie uma ficha para a opção **Outro** com um e-mail seu (pelo portal, pelo cliente ou pelo Postman).
+
+O que cada resposta de erro quer dizer:
+
+| Mensagem do `502 FALHA_ENVIO_EMAIL` | Causa provável |
+|---|---|
+| "o envio de e-mail não está configurado no servidor" | `SMTP_HOST` não está no `.env` (ou o ms-docs não foi reiniciado depois) |
+| "o servidor de e-mail recusou o usuário ou a senha" | Senha de app errada, ou foi usada a senha normal da conta, ou falta a verificação em duas etapas |
+| "o servidor de e-mail não respondeu" | Porta bloqueada no caminho, ou `SMTP_HOST`/`SMTP_PORTA` errados |
+| "o servidor de e-mail recusou o endereço do destinatário" ou "recusou a mensagem (código …)" | Endereço inexistente, ou o Gmail barrou a mensagem (limite diário de envios, por exemplo) |
+
+Se as portas 587 e 465 estiverem bloqueadas: pedir a liberação, ou trocar para um provedor de e-mail por API (HTTPS, porta 443). O envio fica atrás de um Adapter (D-16): bastaria escrever um adaptador novo no ms-docs, sem mexer em rotas, fila ou idempotência.
 
 ---
 
@@ -198,6 +233,8 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 |---|---|---|
 | `bad interpreter: /bin/bash^M` | Script salvo com CRLF (Windows) | O `.gitattributes` evita. Se acontecer: `git config core.autocrlf false`, apagar o arquivo e `git checkout` de novo |
 | `permission denied ... docker.sock` | Usuário fora do grupo `docker` | `sudo usermod -aG docker $USER` e entrar de novo no SSH |
+| PDF ou e-mail respondem `503 SERVICO_INDISPONIVEL` | O ms-docs está no ar, mas não conseguiu falar com o ms-clinico | `docker compose ps` e `docker compose logs ms-clinico` |
+| E-mail responde `502 FALHA_ENVIO_EMAIL` | Problema no envio (configuração, senha, porta) | Ver a tabela de mensagens em [12.8](#128-e-mail-gmail). O pedido fica registrado com o motivo e pode ser repetido |
 | `address already in use` na porta 80 | Outro programa usa a 80 (ex.: Apache) | `sudo ss -tlnp \| grep ':80 '`; parar o outro programa ou mudar `HTTP_PORTA` |
 | `address already in use` na 5433 | Outro programa usa a 5433 | Mudar `DB_PORTA_LOCAL` |
 | `/api/...` responde `SERVICO_INDISPONIVEL` | Serviço parado ou ainda não implantado | `docker compose ps` e `docker compose logs <serviço>` |

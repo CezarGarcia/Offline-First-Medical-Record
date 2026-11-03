@@ -136,24 +136,35 @@ Profissional logado (nome e registro), dispositivo, modo (online ou offline) e d
 
 ## 9.5 O PDF da ficha
 
-Gerado pelo ms-docs (padrão Builder), em A4, nesta ordem:
+Gerado pelo ms-docs em A4, pelo padrão Builder: o `FichaPdfBuilder` monta uma seção por vez e o `MontadorDaFicha` decide a ordem (D-35). Um atendimento comum cabe em **uma página**; uma lista longa de medicamentos continua na página seguinte.
 
-1. **Cabeçalho:** "MedicalField — Ficha de Atendimento Pré-Hospitalar", número (início do ID) e data/hora do atendimento.
-2. **Paciente:** nome, CPF, data de nascimento e idade, sexo, telefone e contato do familiar.
-3. **Prontuário:** tipo sanguíneo, alergias, comorbidades, medicamentos de uso contínuo.
-4. **Ocorrência:** tipo, local, queixa principal.
-5. **Triagem:** protocolo e cor (com a cor destacada).
-6. **Avaliação:** Glasgow (itens e total) e tabela de sinais vitais.
-7. **Medicamentos administrados:** tabela com medicamento, dose, unidade, via e horário.
-8. **Procedimentos, desfecho e destino, observações.**
-9. **Rodapé:** profissional responsável (nome e registro), dispositivo, modo de registro, data de recebimento pelo servidor, data de geração do documento e o aviso "Documento com dados pessoais sensíveis (LGPD). Uso restrito."
+1. **Cabeçalho:** "MedicalField", "Ficha de Atendimento Pré-Hospitalar", o número da ficha (os 8 últimos caracteres do ID, D-37) e a data/hora do atendimento.
+2. **Paciente:** nome, CPF (formatado), data de nascimento com a idade na data do atendimento, sexo, telefone, e-mail e o contato do familiar (nome, parentesco, telefone e e-mail numa linha).
+3. **Prontuário:** tipo sanguíneo, alergias (em destaque, se houver), comorbidades, medicamentos de uso contínuo e observações (se houver).
+4. **Ocorrência:** tipo, local e queixa principal.
+5. **Triagem:** a cor numa etiqueta colorida, o protocolo e o significado da cor (Manchester: prioridade e tempo-alvo; START: o que a cor indica).
+6. **Avaliação:** Glasgow (cada item com os pontos e o nome da resposta, o total e a gravidade) e a tabela de sinais vitais com as unidades.
+7. **Medicamentos administrados:** tabela com medicamento, dose e unidade, via, horário e observação. Se nenhum foi dado, a frase "Nenhum medicamento administrado."
+8. **Procedimentos e desfecho:** desfecho, destino (só quando encaminhado ao hospital), procedimentos realizados e observações (se houver).
+9. **Responsável e rastreabilidade:** profissional responsável (nome e registro), modo de registro (online ou offline), dispositivo, quando foi registrado no dispositivo, quando o servidor recebeu, quando o documento foi gerado e o ID completo do atendimento.
+10. **Rodapé de todas as páginas:** o aviso "Documento com dados pessoais sensíveis (LGPD). Uso restrito." e "Ficha Nº … · página X de Y".
+
+Regras de apresentação:
+
+- Datas e horas no horário de Brasília (D-23).
+- Números com vírgula (`36,6 °C`) e sem zeros à toa (`200 mg`).
+- Campo vazio aparece como "não informado" (ou "não medido", nos sinais vitais), para ninguém confundir "não preenchido" com "esquecido no PDF".
+- O PDF é gerado na hora, a cada pedido, a partir dos dados atuais do ms-clinico. Não fica guardado.
 
 ## 9.6 O e-mail
 
-- **Assunto:** `MedicalField — Ficha de Atendimento de <nome do paciente> (<data>)`
-- **Corpo:** texto curto em português: que se trata da ficha do atendimento pré-hospitalar em anexo, quem atendeu, e o aviso de que contém dados sensíveis e não deve ser repassado.
-- **Anexo:** o PDF da ficha.
-- **Remetente:** a conta Gmail do projeto (D-16).
+- **Assunto:** `MedicalField — Ficha de Atendimento de <nome do paciente> (<data do atendimento>)`
+- **Corpo:** texto curto em português, nesta ordem:
+  - que segue em anexo a ficha do atendimento pré-hospitalar do paciente, com a data, a hora e quem atendeu (nome e registro);
+  - quem pediu o envio, se não foi quem atendeu;
+  - o aviso de que a mensagem contém dados pessoais sensíveis de saúde (LGPD) e não deve ser repassada.
+- **Anexo:** o PDF da ficha, com o mesmo nome do download (`ficha-atendimento-<número>.pdf`).
+- **Remetente:** a conta Gmail do projeto (D-16), com o nome "MedicalField".
 
 ---
 
