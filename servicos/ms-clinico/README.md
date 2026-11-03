@@ -47,7 +47,7 @@ No Docker Compose tudo isso vem do `infra/.env` e de `infra/secrets/`. O ms-clin
 Com o banco do `infra/` no ar e as migrations do ms-auth já aplicadas (`docker compose up -d db ms-auth`):
 
 ```bash
-DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=<MS_CLINICO_DB_PASSWORD> MS_AUTH_DB_SENHA=<MS_AUTH_DB_PASSWORD> mvn test
+DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=ms_clinico MS_AUTH_DB_SENHA=ms_auth mvn test
 ```
 
 - Os testes sobem o serviço numa porta aleatória, com um par de chaves JWT gerado na hora, e apagam no fim tudo o que criaram (os logs ficam, porque a auditoria não aceita exclusão).

@@ -18,15 +18,19 @@ Na etapa 1, só o **PostgreSQL** e o **Nginx** estão no compose. Os serviços e
 
 ## 12.2 Pré-requisitos na VM
 
-Docker, Compose e Git (uma vez só):
+Docker, Compose e Git, uma vez só (pacotes do próprio Ubuntu; o Git já vem na VM do projeto):
 
 ```bash
 sudo apt update
-sudo apt install -y docker.io docker-compose-v2 git
+sudo apt install -y docker.io docker-compose-v2 docker-buildx git
 sudo usermod -aG docker $USER
 ```
 
-Depois, **saia do SSH e entre de novo** (para o grupo `docker` valer) e confira com `docker compose version`. Se o pacote `docker-compose-v2` não existir nessa versão do Ubuntu, siga a instalação oficial: <https://docs.docker.com/engine/install/ubuntu/>.
+- `docker.io` é o Docker; `docker-compose-v2`, o comando `docker compose`; `docker-buildx`, o construtor de imagens que o Compose prefere (sem ele, o build também funciona).
+- Depois, **saia do SSH e entre de novo**: o grupo `docker` só vale numa sessão nova. Sem isso, os comandos dão `permission denied ... docker.sock`.
+- Confira com `docker compose version` (deve mostrar `v2.x`) e `docker run --rm hello-world`.
+- Não use o Docker do *snap* (`snap install docker`, que o Ubuntu oferece quando o comando não existe): ele só enxerga pastas dentro do `home` e se atualiza sozinho.
+- Na VM do projeto (Ubuntu 26.04, 03/11/2026), o `apt` oferece o Docker 29.1 e o Compose 2.40.
 
 ---
 
@@ -99,28 +103,34 @@ Conclusão: o sistema roda em HTTP na porta 80 (D-24). Se quisermos HTTPS, o cam
 ```bash
 git clone https://github.com/CezarGarcia/offline-first-medical-record.git
 cd offline-first-medical-record
-./infra/scripts/instalar.sh    # 1ª vez: cria o infra/.env, com senhas novas para o banco, e para
+./infra/scripts/instalar.sh    # 1ª vez: copia o infra/.env.example para infra/.env e para
 nano infra/.env                # defina a DEMO_SENHA e o e-mail (12.8)
 ./infra/scripts/instalar.sh    # agora instala tudo e confere
 ```
 
-O `instalar.sh` faz, nesta ordem: confere o Docker; recusa continuar se ainda houver alguma senha de exemplo no `.env`; gera as chaves dos tokens; **constrói as imagens uma de cada vez** (compilar as quatro juntas pode passar da memória de uma VM pequena); sobe tudo e espera cada serviço ficar saudável; carrega os dados de demonstração; e roda o `verificar.sh`. Pode rodar de novo sem problema.
+- No `nano`: as setas andam, `Ctrl+O` e `Enter` salvam, `Ctrl+X` sai.
+- As senhas do banco já vêm prontas no `.env.example`: usuário `postgres`, senha `postgres` (e um usuário por serviço, com a senha igual ao nome: `ms_auth`, `ms_clinico`, `ms_docs`). Elas podem ser simples porque o banco só aceita conexões de dentro da VM (D-49). A única senha a escolher é a `DEMO_SENHA`, a das contas de demonstração: ela protege o portal, que fica aberto na internet.
+
+O `instalar.sh` faz, nesta ordem: confere o Docker; recusa continuar sem a `DEMO_SENHA`; gera as chaves dos tokens; **constrói as imagens uma de cada vez** (compilar as quatro juntas pode passar da memória de uma VM pequena); sobe tudo e espera cada serviço ficar saudável; carrega os dados de demonstração; e roda o `verificar.sh`. Pode rodar de novo sem problema. Na VM do projeto (1 processador), a primeira construção pode levar uns 20 a 30 minutos; as seguintes aproveitam o que já foi baixado e compilado.
 
 Sem o script, à mão, é o mesmo que:
 
 ```bash
-cd offline-first-medical-record/infra
+cd ~/offline-first-medical-record/infra
 cp .env.example .env
-nano .env                      # troque TODAS as senhas
+nano .env                      # defina a DEMO_SENHA (e o e-mail)
 ./scripts/gerar-chaves-jwt.sh  # chaves dos tokens (uma vez só)
-docker compose up -d --build
+docker compose build ms-auth && docker compose build ms-clinico && docker compose build ms-docs && docker compose build nginx
+docker compose up -d --wait
 ./scripts/popular-demo.sh
 ```
+
+(`docker compose up -d --build` também serve, mas constrói as quatro imagens ao mesmo tempo: numa VM com pouca memória, pode parar com `killed`.)
 
 - Se o repositório for privado, o `git clone` pede usuário e um **token de acesso do GitHub** (não a senha da conta).
 - Na primeira subida, o Postgres roda [`postgres/init/01-estrutura.sh`](../infra/postgres/init/01-estrutura.sh), que cria os usuários, os schemas e as permissões. O log mostra `MedicalField: usuários, schemas e permissões criados.`
 - Teste: `http://IP-DA-VM/` no navegador mostra a tela de login do Portal Admin. `curl -s http://localhost/api/pessoa` responde `401 NAO_AUTENTICADO`: a rota existe e exige token. `docker compose ps` deve mostrar `db`, `ms-auth`, `ms-clinico` e `ms-docs` como `healthy`.
-- Dados de demonstração: defina `DEMO_SENHA` no `.env` e rode `./scripts/popular-demo.sh` (profissionais desde a etapa 2; dados clínicos a partir da etapa 3). Pode rodar mais de uma vez.
+- Dados de demonstração: `./scripts/popular-demo.sh`, com a `DEMO_SENHA` definida no `.env`. Pode rodar mais de uma vez.
 - Testando de dentro da própria VM (`curl http://localhost/...`), o log de acesso mostra o IP da rede do Docker (`172.x.x.x`). Requisições vindas de fora mostram o IP real de quem chamou.
 
 ---
@@ -138,20 +148,38 @@ Ele baixa o código (`git pull`), reconstrói as imagens uma de cada vez, sobe a
 
 ## 12.6 Acessar o banco
 
+Usuário `postgres`, senha `postgres`, banco `medicalfield`, porta **5433** (os valores do `.env.example`, D-49). A porta só existe dentro da VM (`127.0.0.1`): de fora, nem com a senha se chega nele. Do PC, entra-se pelo SSH.
+
 | Jeito | Comando ou passos | Senha |
 |---|---|---|
 | Na VM, pelo script (mais fácil) | `./infra/scripts/psql.sh` (a partir da pasta do repositório) | não pede |
-| Na VM, com o `psql` do sistema | `psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield` | `POSTGRES_PASSWORD` do `.env` |
-| No PC, pelo DBeaver (túnel SSH) | ver abaixo | `POSTGRES_PASSWORD` + a do SSH |
+| Na VM, pelo Docker | `docker compose exec db psql -U postgres -d medicalfield` (na pasta `infra/`) | não pede |
+| Na VM, com o `psql` do sistema | `psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield` | `postgres` |
+| No PC, pelo DBeaver (túnel SSH) | ver abaixo | `postgres` + a do SSH |
 
-Atenção: `psql -U postgres` **sem** `-p 5433` entra no Postgres que já existia na VM, não no do MedicalField.
+Atenção: `psql -U postgres` **sem** `-h 127.0.0.1 -p 5433` entra no Postgres que já existia na VM, não no do MedicalField.
 
 **DBeaver com túnel SSH** (o banco continua fechado para a internet):
 
 1. Nova conexão → **PostgreSQL**.
-2. Aba **Main**: Host `localhost`, Port `5433`, Database `medicalfield`, Username `postgres`, Password = `POSTGRES_PASSWORD`.
+2. Aba **Main**: Host `localhost`, Port `5433`, Database `medicalfield`, Username `postgres`, Password `postgres`.
 3. Aba **SSH**: marcar **Use SSH Tunnel**. Host = IP da VM, Port `22`, usuário e senha do teu SSH.
 4. **Test Connection** → OK.
+
+Outro jeito: abrir o túnel no PowerShell do PC e deixar a janela aberta, com `ssh -L 5433:127.0.0.1:5433 usuario@IP-DA-VM`. Enquanto ela estiver aberta, qualquer programa do PC (DBeaver sem a aba SSH, pgAdmin, psql) conecta em `localhost:5433`.
+
+**Não abra a porta do banco para fora** (por exemplo, trocando `127.0.0.1` por `0.0.0.0` no `docker-compose.yml`): a senha `postgres` está no repositório, que é público, e qualquer um na internet entraria no banco. O `verificar.sh` acusa se isso acontecer.
+
+O que tem no banco (um schema por serviço, D-03):
+
+| Schema | Tabelas | Dono |
+|---|---|---|
+| `auth` | `profissional`, `sessao` | ms-auth |
+| `clinico` | `pessoa`, `prontuario`, `atendimento`, `atendimento_medicamento`, `medicamento`, `conflito`, `unificacao` | ms-clinico |
+| `documentos` | `envio_email` | ms-docs |
+| `auditoria` | `log_acesso`, `log_cliente` (não aceitam alteração nem exclusão, D-04) | ms-auth |
+
+Dentro do psql: `\dn` lista os schemas, `\dt clinico.*` as tabelas de um schema, `\d clinico.medicamento` as colunas de uma tabela, `\x` mostra cada linha na vertical (bom para tabelas largas) e `\q` sai. Todo comando SQL termina com `;`. As colunas de cada tabela estão em [05](05-modelo-de-dados.md).
 
 ---
 
@@ -180,7 +208,7 @@ Sem esta configuração o sistema funciona, mas o envio da ficha por e-mail resp
    ```
 
 2. Escolha a conta e ative nela a **verificação em duas etapas** (a senha de app só existe com ela ligada).
-   - **Recomendado: uma conta criada só para o projeto.** A senha de app dá acesso à conta inteira (ler e mandar e-mails), e ela fica no `.env` de uma VM que não é só nossa. Com uma conta do projeto, um vazamento expõe só os e-mails do sistema. O remetente também fica com cara de sistema, e não com o endereço pessoal de alguém (D-43).
+   - **Recomendado: uma conta criada só para o projeto.** A senha de app dá acesso à conta inteira (ler e mandar e-mails), e ela fica gravada no `.env` de um servidor ligado na internet. Com uma conta do projeto, um vazamento expõe só os e-mails do sistema. O remetente também fica com cara de sistema, e não com o endereço pessoal de alguém (D-43).
    - **Uma conta pessoal também funciona**, com a mesma configuração. Os e-mails saem com o endereço pessoal. Depois da apresentação, apague a senha de app (Conta Google → Segurança → Senhas de app); a senha da conta não muda.
 3. Gere uma **senha de app**: Conta Google → Segurança → Senhas de app. São 16 letras, mostradas em grupos de 4 (os espaços não fazem parte da senha; o ms-docs ignora espaços).
 4. No `infra/.env` da VM, tire o `#` das linhas de e-mail e preencha:
@@ -261,7 +289,10 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 | `address already in use` na porta 80 | Outro programa usa a 80 (ex.: Apache) | `sudo ss -tlnp \| grep ':80 '`; parar o outro programa ou mudar `HTTP_PORTA` |
 | `address already in use` na 5433 | Outro programa usa a 5433 | Mudar `DB_PORTA_LOCAL` |
 | `/api/...` responde `SERVICO_INDISPONIVEL` | Serviço parado ou ainda não implantado | `docker compose ps` e `docker compose logs <serviço>` |
-| Trocou senha do banco no `.env` e nada mudou | O script de inicialização só roda na primeira subida | Recomeçar do zero com `docker compose down -v` (**apaga todos os dados**) e subir de novo |
+| Trocou senha do banco no `.env` e nada mudou | O script de inicialização só roda na primeira subida | Recriar o banco com `./infra/scripts/zerar.sh` (**apaga todos os dados** e recarrega os de demonstração) |
+| `no configuration file provided: not found` | O `docker compose` foi rodado fora da pasta `infra/` | `cd ~/offline-first-medical-record/infra` (os scripts funcionam de qualquer pasta) |
+| Mudou o `.env` e o serviço continua igual | `docker compose restart` não relê o `.env` | `docker compose up -d <serviço>`: recria o container com os valores novos |
+| O DBeaver não conecta no banco | Sem o túnel SSH, ou com a porta 5432 (a do Postgres que já existia na VM) | Ver [12.6](#126-acessar-o-banco): aba SSH marcada, porta `5433` |
 | Cliente diz "servidor inacessível" | Endereço errado, porta bloqueada ou VM fora do ar | Abrir `http://IP-DA-VM` no navegador do mesmo PC. O endereço do app fica em **Sobre** |
 | Cliente pede "Faça login online para sincronizar" | A sessão do servidor venceu (7 dias), foi encerrada, ou o app foi reaberto depois de um login offline | Clicar em **Entrar online** na barra e digitar a senha. Nada se perde (D-46) |
 | Ao abrir o atalho, a janela que já estava aberta vem para a frente | Cada perfil abre uma janela só | Para outra ambulância, use o atalho do outro perfil |
@@ -275,6 +306,8 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 ## 12.13 Scripts de operação
 
 Ficam em [`infra/scripts/`](../infra/scripts) e rodam de qualquer pasta do repositório. Os que apagam dados pedem que se digite uma palavra (`ZERAR`, `RESTAURAR`) para confirmar. Todos usam o `infra/.env`, inclusive o `COMPOSE_FILE`: num PC com o Mailpit (12.11), o mesmo script funciona sem mudar nada.
+
+Eles não escondem nada: cada um mostra, numa linha cinza que começa com `$`, o comando que roda por baixo (ex.: `$ docker compose stop ms-docs`). Para fazer a mesma coisa à mão, é só rodar esse comando na pasta `infra/` ([12.15](#1215-fazendo-à-mão-sem-os-scripts)).
 
 | Script | O que faz |
 |---|---|
@@ -304,6 +337,7 @@ Na VM, no dia (ou na véspera):
 2. `./infra/scripts/zerar.sh`: os passos 2 a 4 do roteiro esperam só os dados de demonstração (2 prontuários e 2 atendimentos), sem os registros dos ensaios.
 3. `./infra/scripts/testar-email.sh <a caixa que será aberta na apresentação>`: confere o Gmail de ponta a ponta.
 4. `./infra/scripts/verificar.sh`: tem de terminar em "Tudo pronto" (ou só com avisos que você entenda).
+5. Repassar os comandos à mão de [12.15](#1215-fazendo-à-mão-sem-os-scripts): o professor pode pedir para ver um log, derrubar um serviço ou inserir algo direto no banco sem os scripts.
 
 No notebook:
 
@@ -312,3 +346,70 @@ No notebook:
 3. Fazer o mesmo no atalho **MedicalField (Ambulância 02)**, com o nome `Ambulância 02` e o Enf. Bruno, se for mostrar o conflito (11.4).
 4. Deixar a chave em **Online**, sem pendentes na fila.
 
+---
+
+## 12.15 Fazendo à mão (sem os scripts)
+
+Os scripts só juntam comandos curtos do Docker e do psql. Se o professor pedir para fazer à mão (ou se um script falhar), tudo se faz **na pasta `infra/`**, porque é lá que estão o `docker-compose.yml` e o `.env`, e o `docker compose` procura os dois na pasta atual:
+
+```bash
+cd ~/offline-first-medical-record/infra
+```
+
+Os nomes dos serviços são os do `docker-compose.yml`: `db`, `ms-auth`, `ms-clinico`, `ms-docs` e `nginx`.
+
+| Para | À mão (na pasta `infra/`) | Script equivalente |
+|---|---|---|
+| Ver o que está no ar | `docker compose ps` | `servico.sh estado` |
+| Ver os logs de um serviço (`Ctrl+C` sai) | `docker compose logs -f --tail 100 ms-clinico` | `servico.sh logs ms-clinico` |
+| Derrubar um serviço | `docker compose stop ms-docs` | `servico.sh parar ms-docs` |
+| Religar | `docker compose start ms-docs` | `servico.sh iniciar ms-docs` |
+| Reiniciar | `docker compose restart ms-clinico` | `servico.sh reiniciar ms-clinico` |
+| Aplicar uma mudança do `.env` | `docker compose up -d` (recria só os containers que mudaram) | — |
+| Trocar a estratégia de conflitos | `nano .env` (linha `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE`) e `docker compose up -d ms-clinico` | `estrategia.sh SERVIDOR_VENCE` |
+| Parar tudo (os dados ficam) | `docker compose down` | — |
+| Subir tudo | `docker compose up -d` | — |
+| Reconstruir um serviço depois de mudar o código | `docker compose build ms-clinico` e `docker compose up -d ms-clinico` | `atualizar.sh` (todos) |
+| Entrar no banco | `docker compose exec db psql -U postgres -d medicalfield` | `psql.sh` |
+| Um comando SQL só | `docker compose exec db psql -U postgres -d medicalfield -c "SELECT count(*) FROM clinico.atendimento;"` | `psql.sh -c "..."` |
+| Zerar (apaga **todos** os dados) | `docker compose down -v`, `docker compose up -d --wait` e `./scripts/popular-demo.sh` | `zerar.sh` (faz um backup antes) |
+| Backup do banco | `mkdir -p backups` e `docker compose exec -T db pg_dump -U postgres -d medicalfield -Fc > backups/meu.dump` | `backup.sh` |
+| Testar uma rota | `curl -i http://localhost/api/pessoa` (responde `401`: a rota existe e pede token) | `verificar.sh` |
+| Memória e processador de cada container | `docker stats --no-stream` | — |
+
+A diferença entre `down` e `down -v`: o `-v` apaga também o volume do banco, ou seja, **todos os dados**. Sem o `-v`, os dados ficam e voltam no próximo `up -d`.
+
+No banco (dentro do psql, [12.6](#126-acessar-o-banco)), os comandos mais prováveis:
+
+```sql
+-- Horários no fuso de Brasília (o banco guarda em UTC)
+SET TIME ZONE 'America/Sao_Paulo';
+
+-- Passo 9 do roteiro: um medicamento novo, direto no banco (aparece no portal e, depois de sincronizar, no app)
+INSERT INTO clinico.medicamento (nome, apresentacao, unidade_padrao)
+VALUES ('Cetoprofeno', 'Frasco-ampola 100 mg', 'MG');
+
+-- Um profissional novo (o enunciado permite cadastrar direto no banco; a senha vai em bcrypt, D-30)
+INSERT INTO auth.profissional (nome, tipo_registro, registro, perfil, senha_hash)
+VALUES ('Dr. Novo', 'CRM', '99999-RS', 'OPERACIONAL', crypt('a-senha-dele', gen_salt('bf', 10)));
+
+-- Desativar um profissional (o próximo login dele, e a renovação da sessão, são recusados)
+UPDATE auth.profissional SET ativo = false WHERE registro = '99999-RS';
+
+-- Os últimos atendimentos: de quem, quando, se foi registrado online ou offline, e em que aparelho
+SELECT p.nome, a.data_hora, a.modo_registro, a.dispositivo_nome
+FROM clinico.atendimento a
+JOIN clinico.prontuario pr ON pr.id = a.prontuario_id
+JOIN clinico.pessoa p ON p.id = pr.pessoa_id
+ORDER BY a.data_hora DESC LIMIT 5;
+
+-- Auditoria: os últimos acessos à API e as últimas ações registradas nos aparelhos
+SELECT data_hora, servico, metodo, rota, status_code FROM auditoria.log_acesso ORDER BY data_hora DESC LIMIT 10;
+SELECT data_hora, dispositivo_nome, acao, modo FROM auditoria.log_cliente ORDER BY data_hora DESC LIMIT 10;
+
+-- Conflitos de unificação e e-mails enviados
+SELECT detectado_em, entidade, motivo, estrategia, dispositivo_nome FROM clinico.conflito ORDER BY detectado_em DESC;
+SELECT solicitado_em, destinatario_email, status, erro FROM documentos.envio_email ORDER BY solicitado_em DESC;
+```
+
+Para mostrar a auditoria protegida (D-04): `DELETE FROM auditoria.log_acesso;` é recusado pelo próprio banco, até para o `postgres` ("Registros de auditoria não podem ser alterados nem apagados").

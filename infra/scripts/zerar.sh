@@ -19,11 +19,14 @@ if banco_no_ar; then
   "$INFRA/scripts/backup.sh" antes-de-zerar
 fi
 titulo "Recriando o banco"
+por_baixo "docker compose down -v"
 compose_quieto down -v
 ok "Banco apagado."
+por_baixo "docker compose up -d --wait"
 compose_quieto up -d --wait
 ok "Serviços no ar, com o banco novo."
 titulo "Dados de demonstração"
+por_baixo "./scripts/popular-demo.sh"
 "$INFRA/scripts/popular-demo.sh" >/dev/null
 read -r profissionais medicamentos pessoas atendimentos <<<"$(consultar "SELECT (SELECT count(*) FROM auth.profissional) || ' ' ||
   (SELECT count(*) FROM clinico.medicamento) || ' ' || (SELECT count(*) FROM clinico.pessoa) || ' ' || (SELECT count(*) FROM clinico.atendimento)")"

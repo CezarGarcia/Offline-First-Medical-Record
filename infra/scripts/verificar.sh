@@ -100,6 +100,16 @@ ok "estratégia de conflitos: $(ler_env ESTRATEGIA_CONFLITO | grep . || echo MAI
 
 titulo "Máquina"
 [[ -f secrets/jwt-privada.pem && -f secrets/jwt-publica.pem ]] && ok "chaves dos tokens em infra/secrets/" || problema "faltam as chaves dos tokens: ./infra/scripts/gerar-chaves-jwt.sh"
+# As senhas do banco são simples e estão no repositório (D-49): a porta dele não pode ficar aberta para fora
+porta_banco="$(docker port medicalfield-db 5432/tcp 2>/dev/null | head -1 || true)"
+case "$porta_banco" in
+  "") ;; # banco fora do ar: já aparece em "Containers"
+  127.0.0.1:*)
+    [[ "$(ler_env POSTGRES_PASSWORD)" == postgres ]] && quem="usuário postgres, senha postgres" || quem="usuário postgres, senha do POSTGRES_PASSWORD"
+    ok "banco em $porta_banco, só para esta máquina ($quem; do PC, pelo túnel SSH: docs/12, seção 12.6)"
+    ;;
+  *) problema "a porta do banco está aberta para fora ($porta_banco). Com as senhas do .env.example, ela tem de ficar em 127.0.0.1 (D-49)" ;;
+esac
 raiz="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /)"
 livre_mb="$(df -Pm "$raiz" 2>/dev/null | awk 'NR == 2 {print $4}')"
 if [[ -n "$livre_mb" ]]; then

@@ -21,6 +21,7 @@ sql_texto() { printf "'%s'" "${1//\'/\'\'}"; }
 sql="INSERT INTO clinico.medicamento (nome, apresentacao, unidade_padrao)
 SELECT $(sql_texto "$nome"), $(sql_texto "$apresentacao"), '$unidade'
 WHERE NOT EXISTS (SELECT 1 FROM clinico.medicamento WHERE lower(nome) = lower($(sql_texto "$nome")));"
+por_baixo "docker compose exec db psql -U postgres -d medicalfield      (e, dentro do psql, este SQL:)"
 echo "$sql"
 echo
 resultado="$(docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -c "$sql" </dev/null)"

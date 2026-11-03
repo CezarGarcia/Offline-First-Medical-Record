@@ -25,7 +25,10 @@ if [[ "$nova" == "$atual" ]] && [[ "$(docker inspect --format '{{.State.Status}}
   ok "A estratégia já é $nova."
   exit 0
 fi
-gravar_env ESTRATEGIA_CONFLITO "$nova"
 titulo "Reiniciando o ms-clinico com $nova"
+# "docker compose restart" não relê o .env: é o "up -d" que recria o container com o valor novo
+por_baixo "nano .env      (a linha ESTRATEGIA_CONFLITO=$nova)"
+gravar_env ESTRATEGIA_CONFLITO "$nova"
+por_baixo "docker compose up -d --wait ms-clinico"
 compose_quieto up -d --wait ms-clinico
 ok "Estratégia de conflitos: $nova. Vale para as próximas unificações (as já feitas não mudam)."

@@ -54,6 +54,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-46](#d-46--servidor-recusou-a-sessão-o-app-continua-e-pede-a-senha) | Servidor recusou a sessão: o app continua e pede a senha |
 | [D-47](#d-47--telas-testadas-com-o-núcleo-de-verdade-o-electron-num-passeio-automático) | Telas testadas com o núcleo de verdade; o Electron, num passeio automático |
 | [D-48](#d-48--no-github-actions-o-sistema-inteiro-sobe-junto-com-um-e-mail-de-teste) | No GitHub Actions, o sistema inteiro sobe junto, com um e-mail de teste |
+| [D-49](#d-49--senhas-do-banco-simples-com-o-banco-fechado-para-a-internet) | Senhas do banco simples, com o banco fechado para a internet |
 
 ---
 
@@ -314,7 +315,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 - **Decisão:** o envio usa uma conta Gmail criada para o projeto. Uma conta pessoal também funciona, com a mesma configuração.
 - **Por quê:**
   - A senha de app dá acesso à conta inteira por SMTP e IMAP: quem a tiver consegue ler e mandar e-mails como o dono.
-  - Ela fica no `infra/.env` de uma VM que não é só nossa.
+  - Ela fica gravada no `infra/.env` de um servidor ligado na internet.
   - Com uma conta do projeto, um vazamento expõe só os e-mails do sistema, e o remetente que o professor vê é o do sistema, não o endereço pessoal do aluno.
 - **Consequências:** com uma conta pessoal, os e-mails saem com o endereço pessoal. Depois da apresentação, apague a senha de app em Conta Google → Segurança → Senhas de app (isso não mexe na senha da conta).
 
@@ -366,5 +367,17 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
   - O Mailpit guarda as mensagens: dá para conferir que a ficha chegou com o PDF anexado, sem conta de e-mail nem senha no CI.
   - O `.exe` precisa ser gerado e testado no Windows, que é onde ele roda.
 - **Alternativas descartadas:** só os testes de cada serviço (a integração ficaria para a apresentação); os *service containers* do GitHub só com o Postgres (testaria outro arranjo, não o da VM); mandar e-mail de verdade no CI (precisaria da senha de app no GitHub).
-- **Consequências:** as senhas do CI são geradas a cada execução e não aparecem no log. As fotos das telas do passeio e o instalador ficam guardados em cada execução. Detalhes em [13, seção 13.6](13-testes-automatizados.md#136-no-github-actions).
+- **Consequências:** o CI usa o mesmo `.env.example` da VM (D-49); só a senha das contas de demonstração é gerada a cada execução, e ela não aparece no log. As fotos das telas do passeio e o instalador ficam guardados em cada execução. Detalhes em [13, seção 13.6](13-testes-automatizados.md#136-no-github-actions).
 
+### D-49 — Senhas do banco simples, com o banco fechado para a internet
+
+- **Decisão:** as senhas do banco já vêm prontas no `infra/.env.example`: `postgres` para o superusuário `postgres`, e o nome de cada usuário de serviço como senha (`ms_auth`, `ms_clinico`, `ms_docs`). A única senha escolhida na instalação é a `DEMO_SENHA` (D-31).
+- **Por quê:**
+  - O banco só escuta em `127.0.0.1:5433` (D-03). Da internet não se chega nele, nem sabendo a senha: só quem já entrou na VM pelo SSH, e a VM do projeto tem um dono só, com senha.
+  - Na apresentação, entrar no banco à mão (psql, DBeaver) com `postgres`/`postgres` é mais simples do que procurar uma senha aleatória no `.env`.
+  - A `DEMO_SENHA` é outra história: ela protege o portal e a API, que ficam abertos na internet pela porta 80.
+- **Alternativas descartadas:** senhas aleatórias geradas pelo `instalar.sh` (o que fazíamos antes). Só protegem contra quem já está dentro da VM, e atrapalham o acesso à mão.
+- **Consequências:**
+  - A porta do banco **não pode** ser aberta para fora (ex.: `0.0.0.0` no lugar de `127.0.0.1` no `docker-compose.yml`), porque a senha está num repositório público. O `verificar.sh` acusa se isso acontecer.
+  - Do PC, o banco é acessado pelo túnel SSH ([12.6](12-implantacao.md#126-acessar-o-banco)).
+  - Para usar outras senhas, basta trocá-las no `.env` antes da primeira subida; depois, a troca só vale com o banco recriado.

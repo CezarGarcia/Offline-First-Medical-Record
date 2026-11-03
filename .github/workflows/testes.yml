@@ -21,21 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Preparar o infra/.env de teste (senhas geradas na hora)
+      - name: Preparar o infra/.env de teste (o .env.example, com as senhas do banco da VM, D-49)
         run: |
           cd infra
-          gerar() { openssl rand -hex 16; }
-          {
-            echo "POSTGRES_PASSWORD=$(gerar)"
-            echo "MS_AUTH_DB_PASSWORD=$(gerar)"
-            echo "MS_CLINICO_DB_PASSWORD=$(gerar)"
-            echo "MS_DOCS_DB_PASSWORD=$(gerar)"
-            echo "DB_PORTA_LOCAL=5433"
-          } > .env
-          while IFS='=' read -r chave valor; do
-            echo "::add-mask::$valor"
-            echo "$chave=$valor" >> "$GITHUB_ENV"
-          done < <(grep -E '^MS_.*_PASSWORD=' .env)
+          cp .env.example .env
+          # As senhas dos usuários de cada serviço, para as suítes conectarem no banco
+          grep -E '^MS_.*_PASSWORD=' .env >> "$GITHUB_ENV"
           ./scripts/gerar-chaves-jwt.sh
 
       - name: Subir o banco e o ms-auth (as migrations dele criam a auditoria)
@@ -128,31 +119,34 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Preparar o infra/.env (senhas geradas na hora, e-mail no Mailpit)
+      - name: Preparar o infra/.env como na VM (instalar.sh cria; o resto é o que se edita no nano)
         run: |
+          # 1ª vez: copia o .env.example para o infra/.env e para, pedindo a DEMO_SENHA
+          ./infra/scripts/instalar.sh
+          test -f infra/.env
           cd infra
-          gerar() { openssl rand -hex 16; }
+          DEMO_SENHA="$(openssl rand -hex 16)"
+          echo "::add-mask::$DEMO_SENHA"
+          echo "DEMO_SENHA=$DEMO_SENHA" >> "$GITHUB_ENV"
+          sed -i -e "s|^DEMO_SENHA=.*|DEMO_SENHA=$DEMO_SENHA|" -e 's|^HTTP_PORTA=.*|HTTP_PORTA=8080|' .env
+          # E-mail no Mailpit (docker-compose.teste.yml) no lugar do Gmail
           {
             echo "COMPOSE_FILE=docker-compose.yml:docker-compose.teste.yml"
-            echo "POSTGRES_PASSWORD=$(gerar)"
-            echo "MS_AUTH_DB_PASSWORD=$(gerar)"
-            echo "MS_CLINICO_DB_PASSWORD=$(gerar)"
-            echo "MS_DOCS_DB_PASSWORD=$(gerar)"
-            echo "DEMO_SENHA=$(gerar)"
-            echo "DB_PORTA_LOCAL=5433"
-            echo "HTTP_PORTA=8080"
             echo "SMTP_HOST=smtp-teste"
             echo "SMTP_PORTA=1025"
             echo "SMTP_SEGURANCA=NENHUMA"
             echo 'SMTP_REMETENTE="MedicalField CI <medicalfield@exemplo.com>"'
-          } > .env
-          DEMO_SENHA="$(grep '^DEMO_SENHA=' .env | cut -d= -f2-)"
-          echo "::add-mask::$DEMO_SENHA"
-          echo "DEMO_SENHA=$DEMO_SENHA" >> "$GITHUB_ENV"
+          } >> .env
 
-      - name: Instalar como na VM (instalar.sh), com o Mailpit no lugar do Gmail
+      - name: Instalar como na VM (instalar.sh de novo)
         # Chaves, imagens uma de cada vez, tudo no ar, dados de demonstração e o verificar.sh
         run: ./infra/scripts/instalar.sh
+
+      - name: O banco só abre dentro da máquina, com a senha do .env.example
+        run: |
+          test "$(docker port medicalfield-db 5432/tcp)" = "127.0.0.1:5433"
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:18 \
+            psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield -At -c "SELECT count(*) FROM auth.profissional"
 
       - name: Coleção do Postman (Newman)
         run: >-

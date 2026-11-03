@@ -143,7 +143,7 @@ Regras complementares:
 - **Banco:** publicado só em `127.0.0.1:5433`. É acessado pela própria VM ou por um túnel SSH ([12-implantacao.md](12-implantacao.md)). Os serviços não publicam porta nenhuma: só o Nginx fala com eles, pela rede interna do Docker.
 - **Sem CORS:** o portal e a API estão no mesmo endereço; o app cliente faz as requisições pelo processo principal do Electron (que não é um navegador); o Postman não usa CORS.
 - **HTTP sem criptografia**, por enquanto: a VM não tem domínio. HTTPS é opcional ([D-24](03-decisoes.md), [12-implantacao.md](12-implantacao.md)).
-- **Segredos:** senhas do banco e do e-mail ficam em `infra/.env`; as chaves JWT, em `infra/secrets/`. Os dois ficam fora do Git (`.gitignore`). O modelo está em `infra/.env.example`.
+- **Segredos:** a senha das contas de demonstração (`DEMO_SENHA`) e a do e-mail ficam em `infra/.env`; as chaves JWT, em `infra/secrets/`. Os dois ficam fora do Git (`.gitignore`). O modelo está em `infra/.env.example`. As senhas do banco são simples e estão no próprio modelo, porque o banco só aceita conexões de dentro da VM (D-49).
 - **Firewall recomendado na VM (ufw):** liberar 22 e 80 (e 443, se houver HTTPS). As portas do banco e dos serviços já estão presas a `127.0.0.1` ou à rede interna do Docker.
 
 ---

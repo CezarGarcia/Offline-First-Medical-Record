@@ -31,12 +31,16 @@ echo "  $arquivo"
 confirmar RESTAURAR
 
 titulo "Recriando o banco"
+por_baixo "docker compose down -v"
 compose_quieto down -v
+por_baixo "docker compose up -d --wait db"
 compose_quieto up -d --wait db
 ok "Banco novo, vazio."
 titulo "Restaurando o backup"
+por_baixo "docker compose exec -T db pg_restore -U postgres -d medicalfield --clean --if-exists --exit-on-error < $arquivo"
 docker compose exec -T db pg_restore -U postgres -d medicalfield --clean --if-exists --exit-on-error <"$arquivo"
 titulo "Subindo os serviços"
+por_baixo "docker compose up -d --wait"
 compose_quieto up -d --wait
 ok "Banco restaurado de $(basename "$arquivo")."
 echo "Os aparelhos (app cliente) guardam os próprios dados: se o backup for de antes de um ensaio,"

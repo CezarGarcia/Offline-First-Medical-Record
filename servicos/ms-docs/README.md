@@ -80,7 +80,7 @@ Pré-requisitos: Python 3.13 e as bibliotecas de sistema do WeasyPrint (no Ubunt
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=<MS_DOCS_DB_PASSWORD> MS_AUTH_DB_SENHA=<MS_AUTH_DB_PASSWORD> .venv/bin/pytest
+DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=ms_docs MS_AUTH_DB_SENHA=ms_auth .venv/bin/pytest
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```
 

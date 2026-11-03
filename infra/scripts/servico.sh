@@ -24,9 +24,13 @@ exigir_servico() {
 }
 
 case "$acao" in
-  estado) docker compose ps ;;
+  estado)
+    por_baixo "docker compose ps"
+    docker compose ps
+    ;;
   parar)
     exigir_servico
+    por_baixo "docker compose stop $servico"
     compose_quieto stop "$servico"
     ok "$servico parado."
     case "$servico" in
@@ -40,15 +44,20 @@ case "$acao" in
     ;;
   iniciar)
     exigir_servico
+    por_baixo "docker compose up -d --wait $servico"
     compose_quieto up -d --wait "$servico"
     ok "$servico no ar de novo."
     ;;
   reiniciar)
     exigir_servico
+    por_baixo "docker compose restart $servico"
     compose_quieto restart "$servico"
     compose_quieto up -d --wait "$servico"
     ok "$servico reiniciado."
     ;;
-  logs) docker compose logs -f --tail 100 ${servico:+"$servico"} ;;
+  logs)
+    por_baixo "docker compose logs -f --tail 100${servico:+ $servico}"
+    docker compose logs -f --tail 100 ${servico:+"$servico"}
+    ;;
   *) erro "ação desconhecida: $acao (use estado, parar, iniciar, reiniciar ou logs)" ;;
 esac

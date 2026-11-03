@@ -35,32 +35,32 @@ cd infra
 docker compose up -d db ms-auth
 ```
 
-Depois, dentro da pasta de cada serviço. Os valores entre `< >` são as senhas do `infra/.env`.
+Depois, dentro da pasta de cada serviço. As senhas são as do `infra/.env.example` (D-49); se você trocou alguma no `infra/.env`, use a de lá.
 
 **ms-auth** (Node.js 24; antes, `npm ci`):
 
 ```bash
-DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=<MS_AUTH_DB_PASSWORD> MS_CLINICO_DB_SENHA=<MS_CLINICO_DB_PASSWORD> npx vitest run
+DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=ms_auth MS_CLINICO_DB_SENHA=ms_clinico npx vitest run
 ```
 
 **ms-clinico** (Java 21 e Maven):
 
 ```bash
-DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=<MS_CLINICO_DB_PASSWORD> MS_AUTH_DB_SENHA=<MS_AUTH_DB_PASSWORD> mvn test
+DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=ms_clinico MS_AUTH_DB_SENHA=ms_auth mvn test
 ```
 
 **ms-docs** (Python 3.13 e as bibliotecas de sistema do WeasyPrint; ver o [README do serviço](../servicos/ms-docs/README.md)):
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=<MS_DOCS_DB_PASSWORD> MS_AUTH_DB_SENHA=<MS_AUTH_DB_PASSWORD> .venv/bin/pytest
+DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=ms_docs MS_AUTH_DB_SENHA=ms_auth .venv/bin/pytest
 ```
 
 O ms-docs também roda os testes **dentro da mesma imagem da produção** (mesmas fontes e bibliotecas do PDF), sem instalar Python na máquina. O comando sai da pasta do repositório e usa a rede do Docker Compose:
 
 ```bash
 docker build --target testes -t ms-docs-testes servicos/ms-docs
-docker run --rm --network medicalfield_interna -e DB_HOST=db -e DB_PORTA=5432 -e DB_SENHA=<MS_DOCS_DB_PASSWORD> -e MS_AUTH_DB_SENHA=<MS_AUTH_DB_PASSWORD> ms-docs-testes
+docker run --rm --network medicalfield_interna -e DB_HOST=db -e DB_PORTA=5432 -e DB_SENHA=ms_docs -e MS_AUTH_DB_SENHA=ms_auth ms-docs-testes
 ```
 
 **Portal Admin** (Node.js 22.22 ou mais novo; não precisa de banco nem de serviço no ar):
@@ -195,9 +195,9 @@ A cada push, em qualquer branch, e em cada *pull request* (D-28, D-48). O result
 
 | Workflow | Job | O que roda |
 |---|---|---|
-| **Testes** ([`testes.yml`](../.github/workflows/testes.yml)) | Serviços | Sobe o Postgres e o ms-auth pelo Docker Compose (com senhas e chaves JWT geradas na hora) e roda as suítes do ms-auth, do ms-clinico e do ms-docs (esta dentro da imagem da produção) |
+| **Testes** ([`testes.yml`](../.github/workflows/testes.yml)) | Serviços | Sobe o Postgres e o ms-auth pelo Docker Compose (com o `.env.example` da VM e chaves JWT geradas na hora) e roda as suítes do ms-auth, do ms-clinico e do ms-docs (esta dentro da imagem da produção) |
 | | Portal e app cliente | Tipos, testes e build do portal e do app cliente |
-| | Sistema inteiro | Instala como na VM, pelo `infra/scripts/instalar.sh` (o mesmo `docker-compose.yml`, mais o Mailpit no lugar do Gmail). Com o sistema no ar: a coleção do Postman (Newman), a conferência de que o e-mail chegou com o PDF, o passeio pelo portal (Chromium), a integração do app cliente contra o servidor e o passeio pelo Electron numa tela virtual. Depois, os **scripts da apresentação** ([12.13](12-implantacao.md#1213-scripts-de-operação)): o passo 9 (e a repetição que não duplica), o teste de e-mail, a troca de estratégia, um serviço derrubado e religado (`503` no meio), backup, zerar (volta aos 2 atendimentos de demonstração) e restaurar (volta ao que era). As fotos das telas ficam no artefato **telas-dos-passeios** |
+| | Sistema inteiro | Instala como na VM, pelo `infra/scripts/instalar.sh` rodado duas vezes (a primeira cria o `.env` a partir do `.env.example`), com o mesmo `docker-compose.yml` e o Mailpit no lugar do Gmail. Confere que a porta do banco só abre em `127.0.0.1`, com a senha do `.env.example`. Com o sistema no ar: a coleção do Postman (Newman), a conferência de que o e-mail chegou com o PDF, o passeio pelo portal (Chromium), a integração do app cliente contra o servidor e o passeio pelo Electron numa tela virtual. Depois, os **scripts da apresentação** ([12.13](12-implantacao.md#1213-scripts-de-operação)): o passo 9 (e a repetição que não duplica), o teste de e-mail, a troca de estratégia, um serviço derrubado e religado (`503` no meio), backup, zerar (volta aos 2 atendimentos de demonstração) e restaurar (volta ao que era). As fotos das telas ficam no artefato **telas-dos-passeios** |
 | **Instalador do Windows** ([`instalador-windows.yml`](../.github/workflows/instalador-windows.yml)) | Instalador | Numa máquina **Windows**: testes do app cliente, o instalador (`electron-builder`), a instalação sem perguntas, a conferência dos dois atalhos (o normal e o da Ambulância 02) e o app instalado aberto (teste de fumaça, `e2e/fumaca.mjs`). O `.exe` fica no artefato **MedicalField-Setup** por 30 dias |
 | | Publicar | Só numa tag de versão (`v1.0.0`...): cria a versão na página **Releases**, com o instalador anexado ([12.10](12-implantacao.md#1210-app-cliente-no-windows)) |
 

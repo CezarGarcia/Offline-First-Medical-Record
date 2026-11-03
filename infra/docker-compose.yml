@@ -8,7 +8,7 @@
 # Etapa 7: testes no GitHub Actions; o Mailpit (e-mail de teste) fica em docker-compose.teste.yml.
 #
 # Uso (dentro desta pasta infra/):
-#   cp .env.example .env            # e troque as senhas
+#   cp .env.example .env            # e defina a DEMO_SENHA
 #   ./scripts/gerar-chaves-jwt.sh   # uma vez só
 #   docker compose up -d --build
 #

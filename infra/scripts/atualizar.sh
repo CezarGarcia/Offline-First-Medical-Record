@@ -8,14 +8,17 @@ exigir_docker
 exigir_env
 
 titulo "Código"
+por_baixo "git pull --ff-only"
 git -C "$INFRA/.." pull --ff-only || erro "não deu para atualizar o código (há mudanças locais nos arquivos? git status)."
 
 avisar_memoria_para_build
 construir_imagens
 
 titulo "Subindo a versão nova"
+por_baixo "docker compose up -d --wait --remove-orphans"
 docker compose up -d --wait --remove-orphans
 # As imagens antigas ficam sem nome e só ocupam disco
+por_baixo "docker image prune -f"
 docker image prune -f >/dev/null
 
 titulo "Conferindo"

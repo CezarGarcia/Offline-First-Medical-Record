@@ -2,9 +2,11 @@
 
 Para instalar, conferir, preparar a apresentação e mostrar o sistema funcionando, sem decorar comandos do Docker. Rodam de qualquer pasta do repositório (ex.: `./infra/scripts/verificar.sh`) e usam o `infra/.env`. Os que apagam dados pedem confirmação. Detalhes em [docs/12, seções 12.13 e 12.14](../../docs/12-implantacao.md#1213-scripts-de-operação).
 
+Cada script mostra, numa linha que começa com `$`, o comando que roda por baixo. Para fazer à mão, rode esse comando na pasta `infra/`; a lista completa está em [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
+
 | Script | Para quê | Quando |
 |---|---|---|
-| `instalar.sh` | Primeira instalação: cria o `.env` (com senhas novas para o banco), as chaves dos tokens, constrói as imagens uma de cada vez, sobe tudo, carrega os dados de demonstração e confere | Uma vez, na VM |
+| `instalar.sh` | Primeira instalação: cria o `.env` (cópia do `.env.example`; o banco já vem com `postgres`/`postgres`), as chaves dos tokens, constrói as imagens uma de cada vez, sobe tudo, carrega os dados de demonstração e confere | Uma vez, na VM |
 | `atualizar.sh` | Baixa a versão nova do repositório, reconstrói, sobe de novo e confere. Os dados ficam | Depois de cada mudança no código |
 | `verificar.sh` | Checklist: containers, rotas pelo Nginx, login das contas de demonstração, dados, e-mail, disco e memória. Não muda nada | Antes da apresentação, e sempre que algo parecer errado |
 | `zerar.sh` | Apaga todos os dados e recarrega os de demonstração: volta ao começo do roteiro (com backup antes) | Antes da apresentação e entre ensaios |

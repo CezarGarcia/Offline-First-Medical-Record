@@ -11,5 +11,6 @@ banco_no_ar || erro "o banco não está no ar (docker compose up -d db)."
 nome="$(printf '%s' "${1:-manual}" | tr -c 'A-Za-z0-9_-' '-')"
 mkdir -p backups
 arquivo="backups/$(date +%Y-%m-%d_%H%M%S)-${nome}.dump"
+por_baixo "docker compose exec -T db pg_dump -U postgres -d medicalfield --format=custom > $arquivo"
 docker compose exec -T db pg_dump -U postgres -d medicalfield --format=custom >"$arquivo" </dev/null
 ok "Backup salvo em infra/$arquivo ($(du -h "$arquivo" | cut -f1))"

@@ -10,14 +10,16 @@ cd "$INFRA"
 SERVICOS_COM_BUILD=(ms-auth ms-clinico ms-docs nginx)
 
 if [[ -t 1 ]]; then
-  _verde=$'\033[32m' _vermelho=$'\033[31m' _amarelo=$'\033[33m' _negrito=$'\033[1m' _fim=$'\033[0m'
+  _verde=$'\033[32m' _vermelho=$'\033[31m' _amarelo=$'\033[33m' _negrito=$'\033[1m' _cinza=$'\033[2m' _fim=$'\033[0m'
 else
-  _verde='' _vermelho='' _amarelo='' _negrito='' _fim=''
+  _verde='' _vermelho='' _amarelo='' _negrito='' _cinza='' _fim=''
 fi
 ok() { printf '  %s✓%s %s\n' "$_verde" "$_fim" "$*"; }
 falha() { printf '  %s✗%s %s\n' "$_vermelho" "$_fim" "$*"; }
 aviso() { printf '  %s!%s %s\n' "$_amarelo" "$_fim" "$*"; }
 titulo() { printf '\n%s%s%s\n' "$_negrito" "$*" "$_fim"; }
+# O comando que o script roda por baixo: para fazer à mão, é só rodá-lo na pasta infra/ (docs/12, seção 12.15)
+por_baixo() { printf '  %s$ %s%s\n' "$_cinza" "$*" "$_fim"; }
 erro() {
   printf '%sErro:%s %s\n' "$_vermelho" "$_fim" "$*" >&2
   exit 1
@@ -44,7 +46,7 @@ gravar_env() {
 }
 
 exigir_env() {
-  [[ -f .env ]] || erro "falta o infra/.env. Rode ./infra/scripts/instalar.sh (ou copie o .env.example e troque as senhas)."
+  [[ -f .env ]] || erro "falta o infra/.env. Rode ./infra/scripts/instalar.sh (ou, na pasta infra: cp .env.example .env, e defina a DEMO_SENHA)."
 }
 
 exigir_docker() {
@@ -110,6 +112,7 @@ construir_imagens() {
   for servico in "${SERVICOS_COM_BUILD[@]}"; do
     i=$((i + 1))
     titulo "Construindo $servico ($i/${#SERVICOS_COM_BUILD[@]})"
+    por_baixo "docker compose build $servico"
     docker compose build "$servico"
   done
 }

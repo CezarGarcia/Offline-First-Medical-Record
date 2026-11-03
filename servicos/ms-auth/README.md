@@ -53,7 +53,7 @@ Com o banco do `infra/` no ar (`docker compose up -d db`, porta 5433):
 ```bash
 npm install
 npm run typecheck
-DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=<MS_AUTH_DB_PASSWORD do .env> npm test
+DB_HOST=127.0.0.1 DB_PORTA=5433 DB_SENHA=ms_auth npm test
 ```
 
 - Os testes sobem o app com chaves JWT geradas na hora, criam os próprios profissionais (com senha feita pelo `crypt()` do Postgres, como num cadastro manual) e os apagam no fim. Os logs gerados ficam, porque a auditoria não aceita exclusão.

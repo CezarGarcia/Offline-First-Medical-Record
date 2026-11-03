@@ -72,7 +72,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 Pré-requisitos: Docker com Compose. Na VM, ver [docs/12-implantacao.md](docs/12-implantacao.md).
 
 ```bash
-./infra/scripts/instalar.sh     # 1ª vez: cria o infra/.env (senhas novas para o banco) e para
+./infra/scripts/instalar.sh     # 1ª vez: cria o infra/.env (cópia do .env.example) e para
 nano infra/.env                 # defina a DEMO_SENHA (e o e-mail, docs/12 seção 12.8)
 ./infra/scripts/instalar.sh     # constrói, sobe, carrega os dados de demonstração e confere
 ```
@@ -82,7 +82,7 @@ Os scripts de operação ficam em [`infra/scripts/`](infra/scripts): `verificar.
 - `http://localhost/` abre o Portal Admin (entre com o administrador de demonstração).
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
 - O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
-- `./scripts/psql.sh` abre o banco.
+- `./infra/scripts/psql.sh` abre o banco (ou o DBeaver, pelo túnel SSH: usuário `postgres`, senha `postgres`, porta 5433; [docs/12, seção 12.6](docs/12-implantacao.md#126-acessar-o-banco)). Os comandos para fazer tudo à mão, sem os scripts, estão na [seção 12.15](docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
 
 **Postman:** importe a coleção e o ambiente da pasta [`postman/`](postman) e preencha o endereço e a senha ([README da coleção](postman/README.md)).
 

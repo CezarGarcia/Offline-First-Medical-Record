@@ -23,7 +23,7 @@ Antes da apresentação:
 | OPERACIONAL | Enf. Bruno Lima | COREN | `543210-RS` | a de `DEMO_SENHA` |
 | OPERACIONAL | Carlos Pereira | SOCORRISTA | `SOC-0001` | a de `DEMO_SENHA` |
 
-A senha das quatro contas é a definida em `DEMO_SENHA`, no `infra/.env` da VM. Ela **não fica no repositório**, porque o repositório e a VM são públicos: quem lesse a senha aqui poderia entrar no sistema publicado (D-31). Os dados também incluem cerca de 10 medicamentos, 2 pessoas com prontuário e 2 atendimentos (etapa 3), para que os passos 2 a 4 já mostrem algo.
+A senha das quatro contas é a definida em `DEMO_SENHA`, no `infra/.env` da VM. Ela **não fica no repositório**, porque o repositório é público e o portal fica aberto na internet: quem lesse a senha aqui poderia entrar no sistema publicado (D-31). Os dados também incluem cerca de 10 medicamentos, 2 pessoas com prontuário e 2 atendimentos (etapa 3), para que os passos 2 a 4 já mostrem algo.
 
 ---
 
