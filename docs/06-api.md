@@ -39,7 +39,7 @@ Rotas marcadas **(admin)** exigem perfil `ADMIN`; com perfil `OPERACIONAL` a res
 |---|---|---|
 | `Authorization: Bearer ...` | cliente, portal, Postman | Autenticação |
 | `X-Dispositivo-Id` | app cliente | Vai para o log de acesso (de qual aparelho veio) |
-| `X-Dispositivo-Nome` | app cliente | Idem, legível (ex.: `Ambulância 01`) |
+| `X-Dispositivo-Nome` | app cliente | O nome do aparelho (ex.: `Ambulância 01`). O ms-clinico usa na origem de um cadastro que chega sem o bloco `origem` no corpo (o app sempre manda o bloco). Vai codificado como num endereço (`Ambul%C3%A2ncia%2001`), porque cabeçalho HTTP só aceita ASCII, e o ms-clinico decodifica |
 | `X-Real-IP`, `X-Forwarded-For` | **Nginx** (nunca o cliente) | IP real de quem chamou, usado no log de acesso |
 
 ---

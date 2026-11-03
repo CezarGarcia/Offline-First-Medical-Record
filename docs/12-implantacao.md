@@ -214,9 +214,10 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 
 ## 12.10 App cliente no Windows
 
-- **Instalar:** baixar `MedicalField-Setup-<versão>.exe` na página **Releases** do repositório (o GitHub Actions gera a cada versão, D-28) e executar. Na primeira vez aparece "O Windows protegeu o computador": clicar em **Mais informações** → **Executar assim mesmo** (o `.exe` não tem assinatura digital).
-- **Primeira abertura:** informar o endereço do servidor (`http://IP-DA-VM`) e o nome do dispositivo (ex.: `Ambulância 01`).
-- **Segunda ambulância** (D-29): criar um atalho do `MedicalField.exe` e, em Propriedades → Destino, acrescentar ` --perfil=ambulancia-02` depois das aspas. Esse atalho abre outra instância, com banco e configuração próprios.
+- **Instalar:** baixar `MedicalField-Setup-<versão>.exe` na página **Releases** do repositório (o GitHub Actions gera a cada versão, D-28, na etapa 7) e executar. Na primeira vez aparece "O Windows protegeu o computador": clicar em **Mais informações** → **Executar assim mesmo** (o `.exe` não tem assinatura digital). O instalador é por usuário (não pede administrador) e deixa escolher a pasta.
+- **Gerar o instalador no próprio Windows** (sem esperar o GitHub Actions): Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci`, `npm run build` e `npm run instalador`. O `.exe` sai em `apps/cliente/release/`.
+- **Primeira abertura:** informar o endereço do servidor (`http://IP-DA-VM`) e o nome do dispositivo (ex.: `Ambulância 01`). Os dois podem ser trocados depois, na tela **Sobre**.
+- **Segunda ambulância** (D-29): o instalador já cria o atalho **MedicalField (Ambulância 02)** na área de trabalho e no menu Iniciar. Ele abre o mesmo programa com `--perfil=ambulancia-02`, ou seja, outra instância, com banco e configuração próprios (na primeira abertura, configure o nome `Ambulância 02`). Para mais aparelhos, copie o atalho e troque o perfil em Propriedades → Destino (ex.: ` --perfil=ambulancia-03`, depois das aspas).
 - **Onde fica o banco local:** `%APPDATA%\MedicalField\<perfil>\medicalfield.db` (o perfil padrão é `padrao`). O caminho exato aparece na tela **Sobre**.
 - **Abrir o SQLite** (opcional): no DBeaver, Nova conexão → **SQLite** → escolher esse arquivo. **Não é necessário na apresentação:** as telas **Fila de sincronização** e **Logs locais** já mostram o que está no banco local.
 
@@ -226,7 +227,7 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 
 - O mesmo `docker compose` funciona no PC com o Docker Desktop (Windows). Para não brigar com outros programas, dá para mudar `HTTP_PORTA` no `.env` (ex.: `8088`).
 - Portal direto do código, com recarga automática: Node.js 22.22 ou mais novo e, na pasta `apps/portal`, `npm ci` e `MEDICALFIELD_API=http://localhost npm run dev` (abre em `http://localhost:5173`; ver o [README do portal](../apps/portal/README.md)).
-- App cliente direto do código: Node.js LTS, e `npm install` e `npm run dev` na pasta `apps/cliente` (etapa 6).
+- App cliente direto do código: Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci` e `npm run dev` (abre a janela do app com recarga automática das telas). Para usar outro perfil: `npm run dev -- -- --perfil=ambulancia-02`. Os testes, a integração e o passeio estão em [13.2](13-testes-automatizados.md#132-como-rodar); o resto, no [README do app](../apps/cliente/README.md).
 - O `.gitattributes` força fim de linha LF. Assim os scripts `.sh` editados no Windows continuam funcionando no Linux.
 
 ---
@@ -243,5 +244,7 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 | `address already in use` na 5433 | Outro programa usa a 5433 | Mudar `DB_PORTA_LOCAL` |
 | `/api/...` responde `SERVICO_INDISPONIVEL` | Serviço parado ou ainda não implantado | `docker compose ps` e `docker compose logs <serviço>` |
 | Trocou senha do banco no `.env` e nada mudou | O script de inicialização só roda na primeira subida | Recomeçar do zero com `docker compose down -v` (**apaga todos os dados**) e subir de novo |
-| Cliente diz "servidor inacessível" | Endereço errado, porta bloqueada ou VM fora do ar | Abrir `http://IP-DA-VM` no navegador do mesmo PC |
+| Cliente diz "servidor inacessível" | Endereço errado, porta bloqueada ou VM fora do ar | Abrir `http://IP-DA-VM` no navegador do mesmo PC. O endereço do app fica em **Sobre** |
+| Cliente pede "Faça login online para sincronizar" | A sessão do servidor venceu (7 dias), foi encerrada, ou o app foi reaberto depois de um login offline | Clicar em **Entrar online** na barra e digitar a senha. Nada se perde (D-46) |
+| Ao abrir o atalho, a janela que já estava aberta vem para a frente | Cada perfil abre uma janela só | Para outra ambulância, use o atalho do outro perfil |
 | E-mail responde `FALHA_ENVIO_EMAIL` | Senha de app errada ou porta SMTP bloqueada | Conferir o `.env` e o teste de porta de [12.8](#128-e-mail-gmail) |
