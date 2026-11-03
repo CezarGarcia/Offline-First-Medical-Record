@@ -4,7 +4,8 @@ name: Instalador do Windows
 
 on:
   push:
-    branches: [main]
+    # A main e as branches de cada etapa (etapa-7-..., D-28); a tag de versão publica em Releases
+    branches: [main, 'etapa-*']
     tags: ['v*']
     paths:
       - 'apps/cliente/**'
