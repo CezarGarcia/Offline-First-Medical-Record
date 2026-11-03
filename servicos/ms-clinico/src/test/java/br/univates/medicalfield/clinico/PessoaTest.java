@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -70,6 +71,19 @@ class PessoaTest extends TesteIntegracao {
         assertThat(origem.path("criadoPorNome").asString()).isEqualTo("Profissional de Teste");
         assertThat(origem.path("criadoPorRegistro").asString()).isEqualTo("CRM TESTE-1");
         assertThat(origem.path("modo").asString()).isEqualTo("ONLINE");
+    }
+
+    @Test
+    void semOrigemODispositivoVemDosCabecalhosComONomeDecodificado() {
+        String token = tokenOperacional();
+        String dispositivo = UUID.randomUUID().toString();
+        Resposta r = post("/api/pessoa", objeto().put("nome", "Sem Origem no Corpo"), token,
+                Map.of("X-Dispositivo-Id", dispositivo, "X-Dispositivo-Nome", "Ambul%C3%A2ncia%2001+A"));
+
+        assertThat(r.status()).isEqualTo(201);
+        JsonNode origem = r.corpo().path("dados").path("origem");
+        assertThat(origem.path("dispositivoId").asString()).isEqualTo(dispositivo);
+        assertThat(origem.path("dispositivoNome").asString()).isEqualTo("Ambulância 01+A");
     }
 
     @Test

@@ -61,6 +61,23 @@ export function fimDoDia(dia: string): string {
   return new Date(`${dia}T23:59:59.999-03:00`).toISOString();
 }
 
+/**
+ * "2026-11-03 10:05:00" no horário de Brasília: o formato dos campos de data e hora das telas (Mantine).
+ * Assim o campo mostra a hora de Brasília mesmo num computador com outro fuso, como o resto das telas (D-23).
+ */
+export function paraCampoDeDataHora(iso: string): string {
+  const p = partes(iso);
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
+}
+
+/** O contrário: o valor do campo (horário de Brasília, UTC−3) vira o instante em ISO 8601 UTC. */
+export function doCampoDeDataHora(valor: string | null | undefined): string | null {
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?$/.exec((valor ?? '').trim());
+  if (!m) return null;
+  const instante = new Date(`${m[1]}T${m[2]}:${m[3] ?? '00'}.000-03:00`);
+  return Number.isNaN(instante.getTime()) ? null : instante.toISOString();
+}
+
 /** "1980-05-10" vira "10/05/1980" (data sem hora: não depende de fuso). */
 export function data(dia: string | null | undefined): string | null {
   if (!dia) return null;

@@ -110,8 +110,11 @@ Regras complementares:
 
 ## 8.6 Sessão mantida
 
-- Fechar e abrir o app **mantém o profissional logado**. A sessão só acaba se ele clicar em **Sair**, se a sessão local vencer (fim da sessão do servidor ou da validade offline) ou se o servidor recusar a renovação.
-- Ao abrir o app com a chave em Online, ele renova o token de acesso em silêncio. Com a chave em Offline, segue na sessão local.
+- Fechar e abrir o app **mantém o profissional logado**. A sessão só acaba se ele clicar em **Sair**, se a sessão local vencer (fim da sessão do servidor ou da validade offline) ou se o servidor disser que o profissional foi **desativado**.
+- Ao abrir o app com a chave em Online, ele renova o token de acesso em silêncio, pelo refresh token. Com a chave em Offline, segue na sessão local.
+- **O servidor recusou a renovação** (`401`: sessão vencida no servidor, encerrada em outro lugar, ou outro servidor configurado): o app **continua aberto** e o profissional segue registrando no aparelho. A barra mostra "Faça login online para sincronizar", com o botão **Entrar online**, que pede só a senha. Até lá, só o que precisa do servidor fica parado: sincronizar e baixar o PDF (D-46).
+- **Profissional desativado** (`403 PROFISSIONAL_INATIVO` na renovação ou no login): a sessão acaba e a credencial offline é apagada. Os pendentes continuam guardados no aparelho, para quem entrar em seguida.
+- **Onde fica o refresh token:** cifrado pelo cofre do sistema (no Windows, o DPAPI, pela API `safeStorage` do Electron), na tabela `sessao`. O token de acesso (15 min) fica só na memória. Num sistema sem cofre (acontece em alguns Linux), o refresh token não vai para o disco: a senha fica na memória até o app fechar, e depois disso o app pede a senha de novo para sincronizar.
 - **Sair** apaga a sessão local e o refresh token e, se estiver online, avisa o servidor (`POST /api/auth/logout`). A credencial offline **continua**, então o profissional pode entrar offline depois. Se houver pendentes, o app avisa que eles continuam guardados e serão enviados por quem entrar em seguida.
 - Sair estando offline: a sessão no servidor vence sozinha. Ninguém mais consegue usá-la, porque o aparelho já apagou o refresh token.
 
