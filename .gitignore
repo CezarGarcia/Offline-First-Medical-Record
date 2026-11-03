@@ -36,3 +36,6 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+# Fotos do passeio pelo app cliente (npm run e2e)
+apps/cliente/e2e/telas/

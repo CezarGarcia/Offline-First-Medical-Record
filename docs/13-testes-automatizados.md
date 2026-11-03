@@ -9,9 +9,11 @@ O que cada serviço testa sozinho, como rodar e o que fica para o roteiro manual
 | Serviço | Ferramenta | Testes | Onde ficam | Contra o quê |
 |---|---|---|---|---|
 | ms-auth | Vitest | 26 | [`servicos/ms-auth/test/`](../servicos/ms-auth/test) | O app Fastify de verdade (em memória) e o PostgreSQL do `infra/` |
-| ms-clinico | JUnit 6 + Spring Boot Test | 34 | [`servicos/ms-clinico/src/test/java/`](../servicos/ms-clinico/src/test/java) | O serviço numa porta aleatória e o PostgreSQL do `infra/`. O `Mesclador` e o CPF também têm testes unitários |
+| ms-clinico | JUnit 6 + Spring Boot Test | 35 | [`servicos/ms-clinico/src/test/java/`](../servicos/ms-clinico/src/test/java) | O serviço numa porta aleatória e o PostgreSQL do `infra/`. O `Mesclador` e o CPF também têm testes unitários |
 | ms-docs | pytest | 46 | [`servicos/ms-docs/testes/`](../servicos/ms-docs/testes) | O app FastAPI (`TestClient`), o PostgreSQL do `infra/`, um servidor SMTP de teste local e um ms-clinico falso |
 | Portal Admin | Vitest + Testing Library | 27 | [`apps/portal/testes/`](../apps/portal/testes) | As telas de verdade, num navegador simulado (jsdom), com uma API falsa no lugar do `fetch`. Não precisa de banco nem de serviço no ar |
+| App cliente | Vitest + Testing Library | 49 + 3 | [`apps/cliente/testes/`](../apps/cliente/testes) | O núcleo local de verdade (SQLite numa pasta temporária) com um servidor falso; as telas no jsdom com esse núcleo atrás de uma ponte falsa (D-47). Mais 3 de integração contra o servidor de verdade, que só rodam com o endereço e a senha |
+| App cliente (passeio) | Playwright + Electron | 1 roteiro | [`apps/cliente/e2e/`](../apps/cliente/e2e) | O app de verdade, com o *preload*, o IPC e a CSP, contra o servidor de verdade |
 
 **Regras comuns às suítes dos três serviços** (o portal não usa banco: a API é falsa):
 
@@ -66,7 +68,25 @@ npm ci
 npm test
 ```
 
-Resultado da última rodada (etapa 5): **133 testes, todos passando** (26 + 34 + 46 + 27).
+**App cliente** (Node.js 22.22 ou mais novo; os testes do núcleo e das telas não precisam de banco nem de serviço no ar):
+
+```bash
+cd apps/cliente
+npm ci
+npm test
+```
+
+A **integração** com o servidor de verdade (a pilha do `infra/` no ar, com os dados de demonstração) e o **passeio** pelo app real. Os dois criam registros de teste no banco: rode na pilha local, não na VM da apresentação. No Linux sem tela, o passeio roda com `xvfb-run`:
+
+```bash
+MEDICALFIELD_URL=http://127.0.0.1 MEDICALFIELD_SENHA=<DEMO_SENHA> MEDICALFIELD_EMAIL_TESTE=<um e-mail> npm run test:integracao
+npm run build
+MEDICALFIELD_URL=http://127.0.0.1 MEDICALFIELD_SENHA=<DEMO_SENHA> npm run e2e
+```
+
+O endereço é o do Nginx (troque a porta se o `HTTP_PORTA` do `.env` não for 80). O `MEDICALFIELD_EMAIL_TESTE` é opcional: sem ele, a integração pula o envio de e-mail. O passeio salva uma foto de cada tela em `apps/cliente/e2e/telas/`.
+
+Resultado da última rodada (etapa 6): **186 testes, todos passando** (26 + 35 + 46 + 27 + 49 + 3 de integração) e o passeio completo pelo app.
 
 ---
 
@@ -82,12 +102,12 @@ Resultado da última rodada (etapa 5): **133 testes, todos passando** (26 + 34 +
 | Auditoria | O middleware grava todos os campos do enunciado. Um `X-Dispositivo-Id` que não é UUID é ignorado. Os logs não podem ser alterados nem apagados, nem pelo dono das tabelas. `POST /api/log` ignora IDs repetidos, grava quem enviou e recusa lote grande demais ou ação fora do padrão. Consultas com filtros e paginação |
 | Admin e geral | `GET /api/profissional`: só admin, e sem a senha. A especificação OpenAPI exige token. Rota inexistente |
 
-### ms-clinico (34 testes)
+### ms-clinico (35 testes)
 
 | Área | O que é conferido |
 |---|---|
 | Autenticação | Sem token ou com token ruim: `401`. Token válido acessa. Rota de admin confere o perfil. A especificação OpenAPI exige token. Rota inexistente |
-| Pessoa | Grava a origem do aparelho e quem sincronizou (D-25). Reenvio do mesmo ID não duplica, e o primeiro envio vale. Sem ID e sem origem, o servidor preenche com o token. Validação campo a campo. Data no futuro além da folga é recusada (D-34). JSON quebrado e ID mal formado. CPF repetido é unificado com `MAIS_RECENTE_VENCE` |
+| Pessoa | Grava a origem do aparelho e quem sincronizou (D-25). Reenvio do mesmo ID não duplica, e o primeiro envio vale. Sem ID e sem origem, o servidor preenche com o token, e o nome do dispositivo vem do cabeçalho, decodificado (`Ambul%C3%A2ncia` vira `Ambulância`). Validação campo a campo. Data no futuro além da folga é recusada (D-34). JSON quebrado e ID mal formado. CPF repetido é unificado com `MAIS_RECENTE_VENCE` |
 | Prontuário | Cadastro e consulta pelo ID da pessoa. Pessoa inexistente ou sem prontuário. Segundo prontuário da mesma pessoa é unificado. Prontuário enviado com o ID de uma pessoa descartada vai para a pessoa mantida |
 | Atendimento | Ficha completa com medicamentos, e consulta. Referências inexistentes (`422`). Regras entre campos (cor × protocolo, Glasgow completo, destino quando encaminhado). Atendimento com prontuário descartado vai para o mantido |
 | Receber dados (pull) | Sem cursor traz tudo. Com cursor traz só o que mudou, inclusive o que foi inserido ou alterado direto no SQL. A unificação aparece com o apelido e com a pessoa mantida atualizada. Cursor inválido |
@@ -118,6 +138,17 @@ Resultado da última rodada (etapa 5): **133 testes, todos passando** (26 + 34 +
 
 Além dos testes automáticos, as telas foram conferidas num navegador de verdade (Chromium, pelo Playwright) contra a stack inteira no Docker, passando pelo Nginx: login (inclusive a recusa do perfil operacional), todas as páginas, PDF baixado, e-mail recebido pelo servidor SMTP de teste e as três especificações no Swagger, sem nenhum erro no console. Também em tamanho de celular.
 
+### App cliente (49 testes + 3 de integração + o passeio)
+
+| Área | O que é conferido |
+|---|---|
+| Chave, login e sessão (16) | Com a chave em Offline, **nenhuma requisição** sai do aparelho (nem de log); a posição fica salva e cada troca vira log local. Primeiro acesso offline recusado. Login offline depois de um online, com o registro escrito de outro jeito. Senha errada, bloqueio na 5ª seguida (5 min) e credencial vencida (7 dias). Servidor inacessível: entra offline com aviso. Sessão mantida ao reabrir, renovação pelo refresh token, login online automático com a senha da memória. Servidor recusou a renovação: segue registrando e pede a senha (D-46). Profissional desativado perde a sessão e a credencial. Sair com e sem rede (a credencial offline continua) |
+| Gravação e fila (16) | Pessoa, prontuário e atendimento numa transação, com o JSON exato da API na fila e o log local. Envio em ordem, um por vez. Respostas do servidor conforme a tabela de [7.4](07-sincronizacao.md#74-envio-push): `401` renova e repete, `422` vira erro definitivo e a fila segue, `500` até a 3ª tentativa, `502 FALHA_ENVIO_EMAIL` não trava a fila (D-39), `503` ou rede fora param a fila e agendam nova tentativa, e a chave indo para Offline no meio do envio devolve o item sem contar tentativa. Unificação aplicada no aparelho (pessoa e prontuário), inclusive a que chega depois, pelo "receber dados". Logs sobem em lote. PDF só depois de sincronizado e com a chave em Online. Pedido de e-mail pela fila, com o ID do pedido como chave de idempotência |
+| Formulário do atendimento (10) | Datas no horário de Brasília em qualquer fuso do computador. A ficha vira o pedido no formato da API (sinal vital em branco é "não medido", não zero). Glasgow completo ou nenhum, destino quando encaminhado, cor do protocolo, faixas e casas decimais dos sinais vitais (como no servidor), regras dos medicamentos e data no futuro |
+| Telas (7) | Primeira vez: configuração, login e a moldura (barra, chave, menu). Primeiro acesso offline. **Nova ocorrência offline** pelas telas, com as alergias em destaque, 3 pendentes e nada saindo do aparelho; com a chave em Online, a fila esvazia sozinha e o PDF fica disponível. O formulário confere antes de salvar, e o erro some quando o campo muda. Item recusado pelo servidor e o **Tentar de novo**. Janela do e-mail só com os destinatários que têm e-mail; offline, o pedido espera na fila e sai quando a chave volta |
+| Integração (3, contra o servidor de verdade) | O lado do cliente do roteiro (passos 5 a 7 e 11 a 17): login, receber dados, atendimento online, ocorrência offline, a chave em Online esvaziando a fila, PDF e e-mail. As duas ambulâncias com o mesmo CPF: o servidor unifica, e cada aparelho termina com uma pessoa só e os dois atendimentos (roteiro 11.4). Login offline e o login online automático ao voltar a conexão (11.5) |
+| Passeio (Electron) | O app de verdade, do zero: configuração, primeiro acesso offline recusado, login online, ocorrência completa offline, e-mail na fila, a chave em Online esvaziando a fila, e-mail enviado, PDF salvo, as telas de apoio e o login offline, sem nenhum erro no console. Uma foto de cada tela |
+
 ---
 
 ## 13.4 Como os testes isolam cada serviço
@@ -137,5 +168,5 @@ A integração de verdade entre os serviços (Nginx → ms-docs → ms-clinico, 
 
 - **O sistema inteiro junto:** roteiro manual ([11](11-roteiro-de-testes.md)) e, na etapa 7, a coleção do Postman rodando sozinha (D-28).
 - **O envio pelo Gmail de verdade:** só na VM, com a conta do projeto ([12.8](12-implantacao.md#128-e-mail-gmail)). O teste automático usa o mesmo adaptador, contra um servidor SMTP local.
-- **App cliente:** testes na etapa 6.
+- **O instalador do Windows:** gerado e conferido na etapa 7, no GitHub Actions. O passeio roda o app sem instalar.
 - **Execução automática a cada push:** na etapa 7, o GitHub Actions roda as suítes (com um Postgres de serviço) e gera o `.exe` do cliente.

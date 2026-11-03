@@ -370,7 +370,11 @@ As ações feitas no app cliente (principalmente offline), recebidas pelo `POST 
 
 ## 5.3 Banco local (SQLite, no app cliente)
 
-Um arquivo SQLite por dispositivo, criado automaticamente na pasta de dados do app no Windows (`%APPDATA%\MedicalField\<perfil>\medicalfield.db`). Quem acessa é só o processo principal do Electron (ver [04-arquitetura.md](04-arquitetura.md)). As tabelas são criadas e atualizadas por migrations do próprio app.
+Um arquivo SQLite por dispositivo, criado automaticamente na pasta de dados do app no Windows (`%APPDATA%\MedicalField\<perfil>\medicalfield.db`). Quem acessa é só o processo principal do Electron (ver [04-arquitetura.md](04-arquitetura.md)), pelo módulo `node:sqlite` que já vem no Electron (D-45).
+
+- **Migrations do próprio app:** `apps/cliente/src/main/nucleo/migracoes.ts`. Cada versão aplicada fica na tabela `migracao`, e o app aplica as que faltam ao abrir o banco.
+- **Modo do arquivo:** `journal_mode = WAL` (gravar não bloqueia a leitura das telas), `synchronous = NORMAL` e `busy_timeout = 5000`.
+- **Sem chaves estrangeiras:** as setas do diagrama são as ligações lógicas. Quem garante a integridade é o servidor: o que vem dele substitui a cópia local, e um registro recebido nunca pode ser recusado pelo banco do aparelho (por exemplo, um atendimento de outra ambulância que chega antes do prontuário dele).
 
 ```mermaid
 erDiagram
@@ -411,6 +415,9 @@ erDiagram
 | Coluna extra `estado_sync` em `pessoa`, `prontuario` e `atendimento`: `PENDENTE`, `SINCRONIZADO` ou `ERRO` | Mostrar na tela o que ainda não subiu (selo "Pendente") |
 | Colunas `sincronizado_por_id`, `recebido_em` e `atualizado_em` ficam vazias até o registro ser confirmado pelo servidor | Elas são preenchidas pelo servidor |
 | **Não** existe a regra "um prontuário por pessoa" | Quem garante isso é o servidor. Por um instante pode haver dois localmente (um pendente e um recebido), até a unificação resolver |
+| O bloco de origem usa os mesmos nomes de colunas; o `modo` se chama `modo_registro` | `modo` sozinho ficaria ambíguo ao lado de `estado_sync` |
+| `atendimento_medicamento` tem a coluna `nome`, uma cópia do nome do medicamento | A ficha mostra o nome mesmo antes de o catálogo chegar ao aparelho |
+| O contato do familiar fica em quatro colunas (`contato_nome`, `contato_parentesco`, `contato_telefone`, `contato_email`) | Iguais às do banco central |
 
 ### `outbox` (fila de pendentes)
 
@@ -421,12 +428,13 @@ Cada operação que precisa ir para o servidor. É o padrão **Outbox**; cada it
 | `ordem` | INTEGER | PK autoincremento. Define a ordem de envio (a ordem em que as coisas foram feitas) |
 | `id` | TEXT | UUID da operação |
 | `tipo` | TEXT | `CRIAR_PESSOA`, `CRIAR_PRONTUARIO`, `CRIAR_ATENDIMENTO` ou `ENVIAR_EMAIL` |
-| `entidade_id` | TEXT | ID do registro (ou da solicitação de e-mail) |
+| `entidade_id` | TEXT | ID do registro. No `ENVIAR_EMAIL`, o ID do atendimento: o ID do pedido é o próprio `id` do item, que é a chave de idempotência do ms-docs (D-36) |
 | `payload` | TEXT | JSON exatamente como vai no corpo da requisição |
 | `status` | TEXT | `PENDENTE`, `ENVIANDO`, `CONCLUIDO` ou `ERRO` |
 | `tentativas` | INTEGER | Quantas vezes já tentou |
 | `ultimo_erro` | TEXT | Código e mensagem da última falha |
-| `proxima_tentativa_em` | TEXT | Quando pode tentar de novo (espera crescente) |
+| `proxima_tentativa_em` | TEXT | Quando pode tentar de novo (espera crescente: 5 s, 10 s, 20 s… até 5 min) |
+| `resultado` | TEXT | A resposta do servidor depois de concluído (JSON). No `ENVIAR_EMAIL`, o envio registrado pelo ms-docs: é o que a tela mostra em "E-mails desta ficha" |
 | `criado_por_id` | TEXT | Profissional que fez a operação |
 | `criado_em` / `concluido_em` | TEXT | |
 
@@ -467,7 +475,7 @@ No máximo uma linha: quem está logado agora.
 | `profissional_id` | TEXT | |
 | `modo_login` | TEXT | `ONLINE` ou `OFFLINE` (como a sessão começou) |
 | `iniciada_em` / `expira_em` | TEXT | |
-| `refresh_token_cifrado` | BLOB | Refresh token criptografado pelo cofre do Windows (API `safeStorage` do Electron). Vazio em sessão iniciada offline |
+| `refresh_token_cifrado` | BLOB | Refresh token criptografado pelo cofre do Windows (API `safeStorage` do Electron). Vazio em sessão iniciada offline, e também quando o sistema não tem cofre: aí a senha fica só na memória até o app fechar ([08](08-seguranca-e-auditoria.md#86-sessão-mantida)) |
 | `sessao_servidor_expira_em` | TEXT | Validade da sessão no servidor |
 
 O token de acesso (15 min) fica só na memória, nunca em disco.

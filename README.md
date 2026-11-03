@@ -31,7 +31,7 @@ flowchart LR
 
 | Componente | Pasta | Linguagem / tecnologia | O que faz |
 |---|---|---|---|
-| App cliente | [`apps/cliente`](apps/cliente) | Electron, React, TypeScript, SQLite | Uso em campo, online e offline, com a chave "Simular Conectividade" |
+| App cliente | [`apps/cliente`](apps/cliente) | Electron, React, TypeScript, Mantine, SQLite | Uso em campo, online e offline, com a chave "Simular Conectividade": ficha de atendimento, fila de sincronização, login offline, PDF e e-mail |
 | Portal Admin | [`apps/portal`](apps/portal) | React, TypeScript, Mantine | Consulta de atendimentos, prontuários, cadastros, logs e conflitos; PDF e e-mail da ficha. Servido pelo Nginx |
 | Código compartilhado | [`apps/compartilhado`](apps/compartilhado) | TypeScript | Tipos da API, rótulos e formatação usados pelo portal e pelo app cliente |
 | ms-auth | [`servicos/ms-auth`](servicos/ms-auth) | TypeScript (Node.js) | Login, sessão, tokens, profissionais e auditoria |
@@ -59,7 +59,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 | 3 | ms-clinico: cadastros, idempotência, unificação de duplicados, "receber dados" e dados de demonstração | **Concluída** |
 | 4 | ms-docs: PDF da ficha, envio por e-mail com idempotência e histórico de envios | **Concluída** |
 | 5 | Portal Admin: consultas, auditoria, PDF, e-mail e a documentação da API (Swagger) | **Concluída** |
-| 6 | App cliente (Electron): telas, SQLite, login offline, chave, fila, sincronização | Pendente |
+| 6 | App cliente (Electron): telas, SQLite, login offline, chave, fila, sincronização | **Concluída** |
 | 7 | Coleção do Postman, testes automatizados e geração do `.exe` | Pendente |
 | 8 | Implantação na VM e ensaio do roteiro de testes completo | Pendente |
 
@@ -79,6 +79,8 @@ docker compose up -d --build
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
 - O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
 - `./scripts/psql.sh` abre o banco.
+
+**App cliente** (no PC, com Node.js 22.22 ou mais novo): na pasta `apps/cliente`, `npm ci` e `npm run dev`. Na primeira vez, ele pede o endereço do servidor (`http://localhost`, ou com a porta do `HTTP_PORTA`) e o nome do dispositivo. O instalador do Windows e a segunda ambulância estão em [docs/12, seção 12.10](docs/12-implantacao.md#1210-app-cliente-no-windows); os testes, em [docs/13](docs/13-testes-automatizados.md).
 
 ## Convenções
 

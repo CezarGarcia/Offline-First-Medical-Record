@@ -3,6 +3,8 @@ package br.univates.medicalfield.clinico.comum;
 import br.univates.medicalfield.clinico.seguranca.FiltroAutenticacao;
 import br.univates.medicalfield.clinico.seguranca.ProfissionalAutenticado;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -15,7 +17,22 @@ public record Autor(ProfissionalAutenticado profissional, UUID dispositivoId, St
         return new Autor(
                 profissional,
                 uuidOuNulo(requisicao.getHeader("X-Dispositivo-Id")),
-                Banco.limpar(requisicao.getHeader("X-Dispositivo-Nome")));
+                Banco.limpar(decodificado(requisicao.getHeader("X-Dispositivo-Nome"))));
+    }
+
+    /**
+     * O app cliente manda o nome codificado como num endereço ("Ambul%C3%A2ncia%2001"), porque um cabeçalho
+     * HTTP só aceita ASCII. Um nome sem codificação (ex.: pelo Postman) passa como veio.
+     */
+    private static String decodificado(String texto) {
+        if (texto == null || texto.indexOf('%') < 0) {
+            return texto;
+        }
+        try {
+            return URLDecoder.decode(texto.replace("+", "%2B"), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            return texto;
+        }
     }
 
     /**

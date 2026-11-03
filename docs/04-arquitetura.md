@@ -58,9 +58,23 @@ O Electron tem duas partes, e a divisão entre elas é parte da arquitetura:
 | Parte | O que faz | O que **não** faz |
 |---|---|---|
 | **Telas** (processo de renderização, React) | Mostra e coleta dados | Nunca acessa o SQLite nem a rede diretamente |
-| **Núcleo local** (processo principal, Node.js/TypeScript) | Repositórios (local e remoto), fila (outbox), motor de sincronização, estado da conectividade, sessão e login offline, logs locais | — |
+| **Núcleo local** (processo principal, Node.js/TypeScript) | Repositórios do SQLite, fila (outbox), cliente HTTP, motor de sincronização, estado da conectividade, sessão e login offline, logs locais | Não depende do Electron: o cofre, a janela "Salvar como" e a rede chegam de fora, por isso roda nos testes com o Node.js puro |
 
-As telas chamam o núcleo por uma API pequena e tipada (IPC do Electron, exposta pelo *preload*). Isso isola a interface das regras de dados, que é exatamente a sugestão do **Repository Pattern** no enunciado.
+As telas chamam o núcleo por uma API pequena e tipada (`ApiDoNucleo`, em `apps/cliente/src/comum/contrato.ts`), pelo IPC do Electron:
+
+- o *preload* expõe só duas funções em `window.medicalfield`: chamar um método do contrato e ouvir os avisos do núcleo ("o estado mudou", "os dados mudaram");
+- o processo principal só atende os métodos do contrato, e só vindos da janela do próprio app;
+- as telas rodam com `contextIsolation` e `sandbox`, sem Node.js, e a política de conteúdo (CSP) não deixa a página falar com a rede.
+
+Isso isola a interface das regras de dados, que é exatamente a sugestão do **Repository Pattern** no enunciado.
+
+| Pasta (`apps/cliente/src/`) | O que tem |
+|---|---|
+| `main/index.ts` | Janela, perfil (`--perfil`, D-29), cofre (`safeStorage`), "Salvar como" do PDF e o IPC |
+| `main/nucleo/` | `nucleo.ts` (a fachada que as telas usam), `banco.ts` e `migracoes.ts` (SQLite), `repositorios/`, `conectividade.ts` (Observer), `http.ts`, `sessao.ts` e `credencial.ts` (login offline), `registros.ts` (gravação local), `comandos.ts` (Command), `sincronizacao.ts` (motor), `auditoria.ts` (logs locais) |
+| `preload/index.ts` | A ponte `window.medicalfield` |
+| `comum/contrato.ts` | O contrato entre as telas e o núcleo |
+| `renderer/` | As telas (React + Mantine): `paginas/`, `formularios/`, `componentes/` |
 
 ---
 
@@ -103,10 +117,10 @@ O enunciado sugere três padrões e pede mais três de livre escolha.
 
 | Padrão | Onde | Para quê |
 |---|---|---|
-| **Repository** (sugerido) | App cliente: `RepositorioLocal` (SQLite) e `RepositorioRemoto` (API), atrás das mesmas interfaces. No ms-clinico, as classes `Repositorio*` concentram todo o SQL de cada tabela; no ms-docs, o `RepositorioEnvios` | As telas e os serviços não sabem de onde vêm os dados; trocar o armazenamento não mexe no resto |
+| **Repository** (sugerido) | App cliente: um repositório por tabela do SQLite (`RepositorioPessoas`, `RepositorioProntuarios`, `RepositorioAtendimentos`, `RepositorioMedicamentos`, `RepositorioOutbox`, `RepositorioLogs`, `RepositorioCredenciais`, `RepositorioSessao`, `RepositorioConfig`), os únicos com SQL; as telas só veem o contrato do núcleo. No ms-clinico, as classes `Repositorio*` concentram todo o SQL de cada tabela; no ms-docs, o `RepositorioEnvios` | As telas e os serviços não sabem de onde vêm os dados; trocar o armazenamento não mexe no resto |
 | **Strategy** (sugerido) | ms-clinico: `EstrategiaDeMesclagem` com `MaisRecenteVence` e `ServidorVence` | Regra de resolução de conflitos trocável por configuração |
-| **Observer** (sugerido) | App cliente: `EstadoConectividade` avisa o motor de sincronização, a sessão e a tela quando a chave muda. No portal, o `ArmazemDaSessao` avisa as telas quando a sessão muda (entrou, renovou, terminou) | Disparar o envio da fila sozinho quando a conexão volta |
-| **Command** (escolhido) | App cliente: cada item da outbox (`CriarPessoa`, `CriarProntuario`, `CriarAtendimento`, `EnviarEmail`) é um comando com `executar()` | A fila guarda e executa operações de tipos diferentes do mesmo jeito, na ordem certa |
+| **Observer** (sugerido) | App cliente: `EstadoConectividade` avisa o motor de sincronização (Online → sincroniza), o cliente HTTP (Offline → cancela o que está saindo) e o núcleo, que grava a posição e avisa as telas. No portal, o `ArmazemDaSessao` avisa as telas quando a sessão muda (entrou, renovou, terminou) | Disparar o envio da fila sozinho quando a conexão volta |
+| **Command** (escolhido) | App cliente: cada item da outbox vira um comando (`CriarPessoa`, `CriarProntuario`, `CriarAtendimento`, `EnviarEmail`, em `comandos.ts`) com `requisicao()` (o que enviar), `aplicar()` (o que fazer com a resposta, inclusive a unificação), `aoFalhar()` e `descrever()` (o texto da tela da fila) | O motor envia e trata operações de tipos diferentes do mesmo jeito, na ordem certa |
 | **Adapter** (escolhido) | ms-docs: interface `EnvioDeEmail` com o `EnvioPorSmtp`, que adapta o `smtplib` (Gmail), e o `EnvioDesativado`, usado quando o SMTP não foi configurado | Trocar o provedor de e-mail (por exemplo, por uma API HTTP) sem mexer nas rotas nem na idempotência |
 | **Builder** (escolhido) | ms-docs: `FichaPdfBuilder` monta o PDF por partes (cabeçalho, paciente, prontuário, ocorrência, triagem, avaliação, medicamentos, desfecho, rastreabilidade) e o `MontadorDaFicha` (o "diretor") chama as partes na ordem | Montar um documento complexo passo a passo e de forma legível |
 
@@ -122,7 +136,7 @@ Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Out
 | ms-clinico | Java 21, Spring Boot 4 (Web MVC, Validation, JDBC com `JdbcClient`), Flyway, Nimbus JOSE + JWT (confere o token), springdoc-openapi |
 | ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy Core + Alembic, psycopg 3, PyJWT (confere o token), httpx (chama o ms-clinico), Jinja2 + WeasyPrint (HTML → PDF), smtplib |
 | Portal | React 19, TypeScript, Vite, Mantine 9, React Router, TanStack Query, Swagger UI. Servido pelo Nginx (D-40) |
-| App cliente | Electron, React, TypeScript, Vite, Mantine, better-sqlite3, `safeStorage` (cofre do Windows) |
+| App cliente | Electron 45 (Node.js 24), React 19, TypeScript, electron-vite, Mantine 9, TanStack Query, SQLite pelo `node:sqlite` do próprio Electron (D-45), `safeStorage` (cofre do Windows), electron-builder (instalador NSIS) |
 | Infraestrutura | Docker Compose, Nginx, PostgreSQL 18 |
 | Qualidade e entrega | Testes automatizados por serviço, coleção do Postman, GitHub Actions (gera o `.exe` do cliente) |
 

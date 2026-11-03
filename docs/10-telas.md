@@ -37,13 +37,13 @@ O que cada interface tem e como se comporta. Os campos dos formulários estão e
 |---|---|
 | **Configuração inicial** (só na primeira vez) | Endereço do servidor (ex.: `http://IP-DA-VM`) e nome do dispositivo (ex.: `Ambulância 01`). O endereço é conferido no primeiro login. Dá para mudar depois em "Sobre" |
 | **Login** | Tipo de registro (CRM, COREN, ID de Socorrista), registro, senha e a chave Online/Offline (também disponível aqui). Mensagens: credenciais inválidas; bloqueado até HH:MM; "primeiro acesso neste aparelho precisa de conexão"; "login offline vencido: conecte-se". Ao entrar offline, mostra "Entrou em modo offline" |
-| **Nova ocorrência** | Assistente em 3 passos. 1) **Pessoa:** busca por nome ou CPF no aparelho, ou cadastro novo (avisa se o CPF já existe). 2) **Prontuário:** mostra o existente ou abre o formulário. 3) **Atendimento:** a ficha completa, com a lista de medicamentos administrados. Ao salvar: "Salvo no aparelho" e, se online, "enviado" logo depois |
+| **Nova ocorrência** | Assistente em 3 passos. 1) **Pessoa:** busca por nome ou CPF no aparelho, ou cadastro novo (avisa se o CPF já existe, com o botão "Usar esta pessoa"). 2) **Prontuário:** mostra o existente (com as alergias) ou abre o formulário. 3) **Atendimento:** a ficha completa, com as **alergias em destaque** no topo e a lista de medicamentos administrados. A ficha é conferida antes de salvar, com as mesmas regras do servidor: os campos com problema ficam em vermelho e a tela rola até o primeiro. Ao salvar: "Salvo no aparelho" e, se online, "enviado" logo depois. O botão **Novo atendimento** do detalhe do paciente abre o assistente já no passo 2 |
 | **Pacientes** | Lista do aparelho (busca por nome ou CPF), com selo **Pendente** ou **Sincronizado**. Detalhe: dados da pessoa, prontuário e atendimentos dela |
-| **Atendimentos** | Lista do aparelho, do mais recente para o mais antigo: data/hora, paciente, tipo, cor da triagem, desfecho, selo de sincronização. Detalhe: a ficha completa + botões **Baixar PDF** e **Enviar por e-mail** |
+| **Atendimentos** | Lista do aparelho, do mais recente para o mais antigo: data/hora, número da ficha, paciente, tipo, cor da triagem, desfecho, quem registrou (e em qual dispositivo), modo e selo de sincronização. Busca por paciente ou número da ficha e filtro Pendentes / Sincronizados / Com erro. Detalhe: a ficha completa, na ordem do PDF, + botões **Baixar PDF** e **Enviar por e-mail** e a lista **E-mails desta ficha** (para quem, situação na fila e resultado) |
 | **Enviar por e-mail** (janela) | Escolher Paciente, Familiar (só aparecem se houver e-mail cadastrado) ou Outro (digitar o e-mail). Offline: "o envio vai para a fila e sai quando a conexão voltar" |
-| **Fila de sincronização** | Cada item: tipo, registro, status (Pendente, Enviando, Concluído, Erro), tentativas, último erro e próxima tentativa. Botão **Tentar de novo** nos itens com erro. É a melhor tela para mostrar o offline-first na apresentação |
-| **Logs locais** | Ações registradas no aparelho: data/hora, profissional, ação, modo e se já foi enviado |
-| **Sobre** | Versão do app, ID e nome do dispositivo, endereço do servidor, perfil em uso (`--perfil`) e **caminho do arquivo do banco local** |
+| **Fila de sincronização** | Cada item, na ordem de envio: tipo, registro (com link para ele), status (Pendente, Enviando, Concluído, Erro) com as tentativas, último erro e próxima tentativa, criado e concluído. Filtros Todos / A enviar / Concluídos / Com erro. Botão **Tentar de novo** nos itens com erro. Atualiza sozinha. É a melhor tela para mostrar o offline-first na apresentação |
+| **Logs locais** | Ações registradas no aparelho: data/hora (com segundos), profissional, ação, modo, detalhes (IDs encurtados, o completo na dica) e se já foi enviado. Filtro por ação |
+| **Sobre** | Versão do app, ID e nome do dispositivo, endereço do servidor, perfil em uso (`--perfil`), posição da chave e **caminho do arquivo do banco local**. A sessão (quem entrou, como entrou e se a sincronização está liberada). E o formulário para trocar o endereço do servidor e o nome do dispositivo |
 
 ### Comportamentos
 
@@ -51,6 +51,8 @@ O que cada interface tem e como se comporta. Os campos dos formulários estão e
 - As listas se atualizam sozinhas depois de cada sincronização.
 - Salvar nunca depende da rede: qualquer formulário é salvo no aparelho, mesmo com a chave em Online e o servidor fora do ar.
 - **Sair com pendentes:** "Existem N pendentes. Eles continuam guardados e serão enviados por quem entrar em seguida."
+- Os avisos rápidos ("Salvo no aparelho", "PDF salvo"…) aparecem no canto de baixo, para não cobrir a chave nem o botão Sincronizar.
+- Datas e horas, inclusive nos campos da ficha, ficam no horário de Brasília, qualquer que seja o fuso do computador (D-23).
 
 ---
 

@@ -1,0 +1,53 @@
+{
+  "name": "medicalfield-cliente",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MedicalField — app cliente (offline-first) para os profissionais em campo",
+  "author": "Cezar Garcia",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CezarGarcia/offline-first-medical-record.git",
+    "directory": "apps/cliente"
+  },
+  "main": "./out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.telas.json",
+    "test": "vitest run",
+    "test:integracao": "vitest run testes/integracao.test.ts",
+    "e2e": "node e2e/passeio.mjs",
+    "instalador": "electron-builder --win",
+    "pacote:linux": "electron-builder --linux dir"
+  },
+  "devDependencies": {
+    "@mantine/core": "^9.7.4",
+    "@mantine/dates": "^9.7.4",
+    "@mantine/hooks": "^9.7.4",
+    "@mantine/notifications": "^9.7.4",
+    "@tabler/icons-react": "^3.50.0",
+    "@tanstack/react-query": "^5.105.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "dayjs": "^1.11.23",
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "jsdom": "^30.1.3",
+    "playwright-core": "^1.63.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
+  }
+}

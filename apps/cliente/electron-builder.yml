@@ -1,0 +1,34 @@
+# Empacotamento do app cliente (electron-builder). O instalador do Windows (.exe) é gerado no GitHub Actions
+# (etapa 7); no próprio Windows: npm run build && npm run instalador. Ver docs/12, seção 12.10.
+appId: br.univates.medicalfield.cliente
+productName: MedicalField
+copyright: Cezar Garcia · Univates 2026/B
+directories:
+  output: release
+  buildResources: recursos
+# Tudo já vem empacotado pelo electron-vite em out/; o SQLite é o do próprio Node.js do Electron (D-45),
+# então o app não leva node_modules nem módulos nativos
+files:
+  - out/**
+  - package.json
+asar: true
+# Sem publicação automática: o instalador fica em release/ (ou como artefato do GitHub Actions)
+publish: null
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: recursos/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: MedicalField
+  artifactName: MedicalField-Setup-${version}.exe
+  # Também cria o atalho da segunda ambulância (--perfil=ambulancia-02, D-29)
+  include: recursos/instalador.nsh
+linux:
+  target: dir
+  icon: recursos/icon.png

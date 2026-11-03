@@ -49,6 +49,9 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-41](#d-41--código-comum-do-portal-e-do-cliente-numa-pasta-sem-pacote-npm) | Código comum do portal e do cliente numa pasta, sem pacote npm |
 | [D-42](#d-42--listas-clínicas-filtradas-no-navegador-logs-e-e-mails-paginados-no-servidor) | Listas clínicas filtradas no navegador; logs e e-mails paginados no servidor |
 | [D-43](#d-43--conta-do-gmail-uma-só-do-projeto-de-preferência) | Conta do Gmail: uma só do projeto, de preferência |
+| [D-45](#d-45--sqlite-do-próprio-electron-nodesqlite-sem-better-sqlite3) | SQLite do próprio Electron (`node:sqlite`), sem better-sqlite3 |
+| [D-46](#d-46--servidor-recusou-a-sessão-o-app-continua-e-pede-a-senha) | Servidor recusou a sessão: o app continua e pede a senha |
+| [D-47](#d-47--telas-testadas-com-o-núcleo-de-verdade-o-electron-num-passeio-automático) | Telas testadas com o núcleo de verdade; o Electron, num passeio automático |
 
 ---
 
@@ -294,7 +297,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 ### D-41 — Código comum do portal e do cliente numa pasta, sem pacote npm
 
 - **Decisão:** os tipos da API, os rótulos em português e a formatação (datas no horário de Brasília, CPF, telefone, UUID v7) ficam em `apps/compartilhado/src`, sem nenhuma dependência. Cada app importa pelo atalho `@compartilhado/...`, configurado no `tsconfig.json` e no `vite.config.ts`.
-- **Por quê:** é o que o D-21 pede ("compartilham as definições de tipos"), com o mínimo de mecanismo. Um pacote npm ou um workspace complicaria o build do Electron (dependências nativas, como o `better-sqlite3`).
+- **Por quê:** é o que o D-21 pede ("compartilham as definições de tipos"), com o mínimo de mecanismo. Um pacote npm ou um workspace complicaria o build do Electron e do Docker do portal, sem ganho para um código que só os dois apps usam.
 - **Consequências:** o código compartilhado não pode importar bibliotecas, só o que o navegador e o Node.js já têm.
 
 ### D-42 — Listas clínicas filtradas no navegador; logs e e-mails paginados no servidor
@@ -310,4 +313,33 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
   - Ela fica no `infra/.env` de uma VM que não é só nossa.
   - Com uma conta do projeto, um vazamento expõe só os e-mails do sistema, e o remetente que o professor vê é o do sistema, não o endereço pessoal do aluno.
 - **Consequências:** com uma conta pessoal, os e-mails saem com o endereço pessoal. Depois da apresentação, apague a senha de app em Conta Google → Segurança → Senhas de app (isso não mexe na senha da conta).
+
+### D-45 — SQLite do próprio Electron (`node:sqlite`), sem better-sqlite3
+
+- **Decisão:** o banco local usa o módulo `node:sqlite` (`DatabaseSync`), que já vem no Node.js do Electron 45 (Node.js 24 com SQLite 3.53), em vez do pacote `better-sqlite3`.
+- **Por quê:**
+  - O better-sqlite3 é um módulo nativo: precisa ser recompilado para a versão exata do Electron, com compilador C++ em quem gera o `.exe` (inclusive no GitHub Actions). É a parte que mais quebra no empacotamento.
+  - O `node:sqlite` tem o mesmo jeito de usar (síncrono, com `prepare`, `run`, `all`, transações e WAL) e não leva nenhum binário a mais.
+  - Os testes do núcleo rodam no Node.js 24 puro, com o mesmo SQLite do app.
+- **Alternativas descartadas:** better-sqlite3 (módulo nativo); sql.js (SQLite em WebAssembly, com o banco em memória salvo no disco pelo app, sem a garantia de transação do arquivo); IndexedDB nas telas (D-01).
+- **Consequências:**
+  - O app empacotado não leva `node_modules` nem módulos nativos: tudo o que ele usa vem no próprio Electron ou no código empacotado pelo electron-vite.
+  - O Node.js ainda marca o `node:sqlite` como experimental e mostra um aviso no terminal dos testes. A versão fica presa à do Electron do projeto, então uma mudança na API só chega com uma atualização do Electron, e os testes do núcleo mostram na hora.
+  - O módulo recusa parâmetros que o SQL não usa; o `BancoLocal` passa só os que aparecem no comando.
+
+### D-46 — Servidor recusou a sessão: o app continua e pede a senha
+
+- **Decisão:** quando o servidor recusa a renovação (`401`: sessão vencida no servidor, encerrada em outro lugar, ou outro servidor configurado), a sessão do aparelho **continua**. O profissional segue registrando, e a barra mostra "Faça login online para sincronizar", com o botão **Entrar online** (só a senha). A exceção é o profissional desativado (`403 PROFISSIONAL_INATIVO`): a sessão acaba e a credencial offline dele é apagada.
+- **Por quê:** em campo, derrubar a sessão por causa do servidor é perder o fio de um atendimento, e com a chave em Offline talvez nem dê para entrar de novo. Só o que depende do servidor fica parado: sincronizar e baixar o PDF. Já um profissional desativado não pode continuar registrando em nome do serviço.
+- **Alternativas descartadas:** voltar para a tela de login (perde o que estava na tela e, com a credencial offline vencida, impede o trabalho); guardar a senha no disco para entrar sozinho (a senha nunca é gravada, D-07).
+- **Consequências:** os detalhes estão em [08, seção 8.6](08-seguranca-e-auditoria.md#86-sessão-mantida). Depois de um login offline, a senha fica na memória e o login online acontece sozinho quando a chave volta para Online; só depois de fechar o app é que ele pede a senha.
+
+### D-47 — Telas testadas com o núcleo de verdade; o Electron, num passeio automático
+
+- **Decisão:** o app cliente tem três camadas de teste além dos testes do núcleo:
+  - **telas** no jsdom, com o núcleo de verdade (SQLite numa pasta temporária) atrás de uma ponte falsa no lugar do *preload*, e um servidor falso;
+  - **integração** do núcleo com o servidor de verdade (a pilha do Docker), com o lado do cliente do roteiro de testes, inclusive as duas ambulâncias; só roda quando o endereço e a senha são informados;
+  - **passeio** no Electron de verdade (Playwright), da configuração ao login offline, com uma foto de cada tela.
+- **Por quê:** a ponte falsa testa as telas e o núcleo juntos, sem simular o comportamento do núcleo à mão (o risco de testar uma tela contra um núcleo que não existe). O passeio pega o que o jsdom não vê: o *preload*, o IPC, a CSP e o empacotamento.
+- **Consequências:** a lista e os comandos estão em [13](13-testes-automatizados.md). A integração e o passeio criam registros no servidor: são para a pilha local, não para a VM da apresentação.
 

@@ -25,7 +25,12 @@ Como o app cliente funciona sem conexão e como os dados vão e voltam entre o b
 
 - A posição da chave fica salva no SQLite (`config.conectividade`) e é mantida quando o app é fechado e aberto.
 - Toda troca de posição vira um log local (`CONECTIVIDADE_ALTERADA`).
-- **Padrão Observer:** a chave é o "sujeito". Quem quer saber das mudanças se inscreve: o motor de sincronização (ao ir para Online, dispara a sincronização), o gerenciador de sessão (renova o token) e a tela (atualiza os indicadores).
+- **Padrão Observer:** a chave é o "sujeito" (`EstadoConectividade`, em `apps/cliente/src/main/nucleo/conectividade.ts`). Quem quer saber das mudanças se inscreve:
+  - o **motor de sincronização**: ao ir para Online, dispara a sincronização completa; ao ir para Offline, cancela a próxima tentativa agendada;
+  - o **cliente HTTP**: ao ir para Offline, cancela as requisições que estiverem saindo (o item volta para `PENDENTE`);
+  - o **núcleo local**: grava a posição no SQLite, registra o log e avisa as telas, que atualizam a barra.
+
+  O token é renovado na hora em que uma requisição precisa dele, pelo refresh token.
 
 ---
 
@@ -67,7 +72,7 @@ Para cada item `PENDENTE` (cujo horário de nova tentativa já passou):
 |---|---|---|
 | `201 CRIADO` ou `200 JA_EXISTIA` | sucesso | Item `CONCLUIDO`. Registro local `SINCRONIZADO`, com os dados de `sincronizacao` preenchidos |
 | `200 UNIFICADO` | sucesso | Aplica a unificação no banco local (ver [7.6](#76-unificação-de-duplicados-conflitos)) e marca o item `CONCLUIDO` |
-| `401` | sessão | Renova o token e repete uma vez. Se a renovação falhar, **para a fila** e mostra "faça login online para sincronizar". Os itens continuam guardados |
+| `401` | sessão | Renova o token e repete uma vez. Se a renovação for recusada, **para a fila** e mostra "faça login online para sincronizar" (botão **Entrar online**, só com a senha). Os itens continuam guardados e o app segue registrando (D-46) |
 | `400`, `403`, `404`, `422` | erro definitivo | Item `ERRO`, com o código e a mensagem. **Segue para o próximo item.** Itens que dependiam dele também vão falhar com `422` e aparecer em erro |
 | `500` | temporário, até 3 vezes | Depois da 3ª tentativa vira erro definitivo, para um item com problema não travar a fila inteira |
 | `408`, `429`, `502`, `503`, `504`, erro de rede, tempo esgotado | temporário | **Para a fila** (para não furar a ordem) e agenda nova tentativa com espera crescente: 5 s, 10 s, 20 s, 40 s… até 5 min |
@@ -266,7 +271,8 @@ sequenceDiagram
 | Chave desligada no meio de um envio | Requisição cancelada; o item volta para `PENDENTE` |
 | App fechado com pendentes | A fila está no SQLite; sai na próxima sincronização |
 | Token de acesso venceu durante o período offline | Renovado pelo refresh token antes de enviar |
-| Sessão do servidor venceu (7 dias) ou profissional desativado | A fila para e o app pede login online. Nada é perdido |
+| Sessão do servidor venceu (7 dias) | A fila para e a barra pede login online; o profissional continua registrando no aparelho. Nada é perdido (D-46) |
+| Profissional desativado no servidor | A sessão acaba e a credencial offline dele é apagada. Os pendentes continuam no aparelho e saem com quem entrar em seguida |
 | Outro profissional entra no aparelho e sincroniza | Sincroniza tudo; "criado por" continua sendo quem registrou |
 | Um item falha de vez (ex.: `422`) | Fica em `ERRO` com o motivo; os dependentes também falham; os outros seguem |
 | Medicamento inserido à mão no SQL | Aparece no próximo "receber dados" |

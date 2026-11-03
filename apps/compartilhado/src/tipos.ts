@@ -292,3 +292,25 @@ export interface RespostaDeErro {
   detalhes?: DetalheDeErro[];
   bloqueadoAte?: DataHoraIso;
 }
+
+// ---------------------------------------------------------------- cadastros (resposta do POST, docs/06 6.6)
+
+export interface ResultadoDoCadastro<T> {
+  resultado: 'CRIADO' | 'JA_EXISTIA' | 'UNIFICADO';
+  /** O registro que ficou no servidor (numa unificação, o mantido). */
+  id: Uuid;
+  /** O ID que foi enviado (numa unificação, o descartado). */
+  idEnviado: Uuid;
+  conflitoId: Uuid | null;
+  dados: T;
+}
+
+/** GET /api/sync/pull: o que mudou no servidor desde o cursor (docs/07, seção 7.7). */
+export interface RespostaDoPull {
+  cursor: DataHoraIso;
+  medicamentos: Medicamento[];
+  pessoas: Pessoa[];
+  prontuarios: Prontuario[];
+  atendimentos: Atendimento[];
+  unificacoes: { entidade: 'PESSOA' | 'PRONTUARIO'; idDescartado: Uuid; idMantido: Uuid }[];
+}
