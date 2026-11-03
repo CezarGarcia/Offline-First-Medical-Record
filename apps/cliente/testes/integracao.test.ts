@@ -54,7 +54,7 @@ async function aparelho(nome: string): Promise<AparelhoReal> {
     arquivos,
     async fechar() {
       await nucleo.encerrar();
-      rmSync(pasta, { recursive: true, force: true });
+      rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     },
   };
   abertos.push(a);

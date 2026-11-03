@@ -1,0 +1,2723 @@
+{
+  "info": {
+    "_postman_id": "6d1e0c3a-7f2b-4c51-9a6e-2f3b8d4c1a10",
+    "name": "MedicalField",
+    "description": "Coleção das rotas do MedicalField (docs/06-api.md), com o roteiro do Postman (docs/11, seção 11.6) e testes em cada requisição.\n\nComo usar: importe esta coleção e o ambiente (postman/MedicalField.postman_environment.json), escolha o ambiente e preencha `baseUrl` (o endereço da VM) e `senha` (a DEMO_SENHA). O login é automático: cada requisição já vai com o token do perfil de que precisa.\n\nRode a coleção inteira (Run collection), ou a pasta 1 primeiro: ela cria os registros que as outras pastas usam. Ver postman/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{tokenOperacional}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Login automático (D-28). Cada requisição usa o token do perfil de que precisa: {{tokenOperacional}}",
+          "// (Dra. Ana) ou {{tokenAdmin}} (Dr. Ricardo). Sem token, ou com ele perto de vencer (15 min), a coleção",
+          "// entra sozinha com o registro e a senha do ambiente e guarda o token. Não precisa fazer nada à mão.",
+          "const auth = pm.request.auth;",
+          "const token = auth && auth.type === 'bearer' ? String(auth.parameters().get('token') || '') : auth ? '' : '{{tokenOperacional}}';",
+          "const perfil = token.includes('tokenAdmin') ? 'Admin' : token.includes('tokenOperacional') ? 'Operacional' : null;",
+          "if (perfil) {",
+          "  const expiraEm = Number(pm.collectionVariables.get('token' + perfil + 'ExpiraEm') || 0);",
+          "  if (!pm.collectionVariables.get('token' + perfil) || Date.now() > expiraEm - 60 * 1000) {",
+          "    const senha = pm.variables.get('senha');",
+          "    if (!senha) {",
+          "      throw new Error('Preencha a variável \"senha\" do ambiente (a DEMO_SENHA do infra/.env da VM).');",
+          "    }",
+          "    pm.sendRequest(",
+          "      {",
+          "        url: pm.variables.get('baseUrl') + '/api/auth/login',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: {",
+          "          mode: 'raw',",
+          "          raw: JSON.stringify({",
+          "            tipoRegistro: pm.variables.get('tipoRegistro' + perfil) || 'CRM',",
+          "            registro: pm.variables.get('registro' + perfil),",
+          "            senha,",
+          "            dispositivo: { nome: 'Postman' },",
+          "          }),",
+          "        },",
+          "      },",
+          "      (erro, resposta) => {",
+          "        if (erro || resposta.code !== 200) {",
+          "          console.error('Login automático (' + perfil + ') falhou', erro || resposta.text());",
+          "          return;",
+          "        }",
+          "        const corpo = resposta.json();",
+          "        pm.collectionVariables.set('token' + perfil, corpo.tokenDeAcesso);",
+          "        pm.collectionVariables.set('token' + perfil + 'ExpiraEm', String(Date.parse(corpo.tokenDeAcessoExpiraEm)));",
+          "        pm.collectionVariables.set('profissionalId' + perfil, corpo.profissional.id);",
+          "      },",
+          "    );",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Roteiro do Postman (docs/11, seção 11.6)",
+      "description": "Os passos C1 a C13 do roteiro extra de testes, na ordem. Rode esta pasta primeiro: ela cria a pessoa, o prontuário e o atendimento que as outras pastas usam.",
+      "item": [
+        {
+          "name": "C1 · GET /api/medicamento sem token → 401",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Marca o início do roteiro (com 5 min de folga para o relógio deste computador), para o C8 achar este 401",
+                  "pm.collectionVariables.set('inicioDoRoteiro', new Date(Date.now() - 5 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 NAO_AUTENTICADO', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().erro).to.eql('NAO_AUTENTICADO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicamento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicamento"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C2 · POST /api/auth/login (Dra. Ana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('devolve os dois tokens e o profissional', () => {",
+                  "  pm.expect(corpo.tokenDeAcesso).to.be.a('string');",
+                  "  pm.expect(corpo.refreshToken).to.be.a('string');",
+                  "  pm.expect(corpo.profissional.perfil).to.eql('OPERACIONAL');",
+                  "});",
+                  "// A coleção guarda o token sozinha: as próximas requisições já vão com ele",
+                  "pm.collectionVariables.set('tokenOperacional', corpo.tokenDeAcesso);",
+                  "pm.collectionVariables.set('tokenOperacionalExpiraEm', String(Date.parse(corpo.tokenDeAcessoExpiraEm)));",
+                  "pm.collectionVariables.set('profissionalIdOperacional', corpo.profissional.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoRegistro\": \"{{tipoRegistroOperacional}}\",\n  \"registro\": \"{{registroOperacional}}\",\n  \"senha\": \"{{senha}}\",\n  \"dispositivo\": {\n    \"nome\": \"Postman\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C3 · GET /api/medicamento com token → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "pm.test('lista os medicamentos, com os campos do catálogo', () => {",
+                  "  pm.expect(lista).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(lista[0]).to.include.all.keys('id', 'nome', 'apresentacao', 'unidadePadrao', 'ativo', 'atualizadoEm');",
+                  "});",
+                  "const ativo = lista.find((m) => m.ativo);",
+                  "pm.collectionVariables.set('medicamentoId', ativo.id);",
+                  "pm.collectionVariables.set('unidadeDoMedicamento', ativo.unidadePadrao);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicamento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicamento"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C4 · POST /api/pessoa (ID fixo, CPF novo) → 201 CRIADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Pessoa nova a cada execução: um ID e um CPF válido novos. O C5 repete esta requisição exatamente igual",
+                  "const d = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));",
+                  "for (const t of [9, 10]) {",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < t; i += 1) soma += d[i] * (t + 1 - i);",
+                  "  const resto = (soma * 10) % 11;",
+                  "  d[t] = resto === 10 ? 0 : resto;",
+                  "}",
+                  "pm.collectionVariables.set('cpfNovo', d.join(''));",
+                  "pm.collectionVariables.set('pessoaId', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('resultado CRIADO, com o ID enviado', () => {",
+                  "  pm.expect(corpo.resultado).to.eql('CRIADO');",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('pessoaId'));",
+                  "  pm.expect(corpo.idEnviado).to.eql(corpo.id);",
+                  "  pm.expect(corpo.conflitoId).to.eql(null);",
+                  "});",
+                  "pm.test('sem o bloco origem, o servidor preenche com o token e o modo ONLINE', () => {",
+                  "  pm.expect(corpo.dados.origem.criadoPorId).to.eql(pm.collectionVariables.get('profissionalIdOperacional'));",
+                  "  pm.expect(corpo.dados.origem.modo).to.eql('ONLINE');",
+                  "  pm.expect(corpo.dados.sincronizacao.recebidoEm).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{pessoaId}}\",\n  \"nome\": \"Paciente do Postman\",\n  \"cpf\": \"{{cpfNovo}}\",\n  \"telefone\": \"51911110000\",\n  \"sexo\": \"FEMININO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pessoa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pessoa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C5 · O mesmo POST de novo → 200 JA_EXISTIA (idempotência)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('resultado JA_EXISTIA, com o mesmo registro', () => {",
+                  "  pm.expect(corpo.resultado).to.eql('JA_EXISTIA');",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('pessoaId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{pessoaId}}\",\n  \"nome\": \"Paciente do Postman\",\n  \"cpf\": \"{{cpfNovo}}\",\n  \"telefone\": \"51911110000\",\n  \"sexo\": \"FEMININO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pessoa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pessoa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C6 · POST /api/pessoa com outro ID e o mesmo CPF → 200 UNIFICADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('pessoaId2', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('resultado UNIFICADO: fica a pessoa do C4, a nova é descartada', () => {",
+                  "  pm.expect(corpo.resultado).to.eql('UNIFICADO');",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('pessoaId'));",
+                  "  pm.expect(corpo.idEnviado).to.eql(pm.collectionVariables.get('pessoaId2'));",
+                  "  pm.expect(corpo.conflitoId).to.be.a('string');",
+                  "});",
+                  "pm.collectionVariables.set('conflitoId', corpo.conflitoId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{pessoaId2}}\",\n  \"nome\": \"Paciente do Postman\",\n  \"cpf\": \"{{cpfNovo}}\",\n  \"telefone\": \"51922220000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pessoa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pessoa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C7 · GET /api/log/acesso com o token da Dra. Ana → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 PROIBIDO', () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().erro).to.eql('PROIBIDO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/log/acesso",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "log",
+                "acesso"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C8 · POST /api/auth/login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('devolve os dois tokens e o profissional', () => {",
+                  "  pm.expect(corpo.tokenDeAcesso).to.be.a('string');",
+                  "  pm.expect(corpo.refreshToken).to.be.a('string');",
+                  "  pm.expect(corpo.profissional.perfil).to.eql('ADMIN');",
+                  "});",
+                  "// A coleção guarda o token sozinha: as próximas requisições já vão com ele",
+                  "pm.collectionVariables.set('tokenAdmin', corpo.tokenDeAcesso);",
+                  "pm.collectionVariables.set('tokenAdminExpiraEm', String(Date.parse(corpo.tokenDeAcessoExpiraEm)));",
+                  "pm.collectionVariables.set('profissionalIdAdmin', corpo.profissional.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoRegistro\": \"{{tipoRegistroAdmin}}\",\n  \"registro\": \"{{registroAdmin}}\",\n  \"senha\": \"{{senha}}\",\n  \"dispositivo\": {\n    \"nome\": \"Postman\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C8 · GET /api/log/acesso (admin) → o 401 do C1 está lá",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('paginado (itens, pagina, tamanho, total)', () => {",
+                  "  pm.expect(corpo).to.include.all.keys('itens', 'pagina', 'tamanho', 'total');",
+                  "});",
+                  "const doC1 = corpo.itens.find((l) => l.metodo === 'GET' && l.rota === '/api/medicamento' && l.statusCode === 401);",
+                  "pm.test('o 401 do C1 foi registrado, com os campos do enunciado', () => {",
+                  "  pm.expect(doC1, 'log do C1').to.be.an('object');",
+                  "  pm.expect(doC1.servico).to.eql('ms-clinico');",
+                  "  pm.expect(doC1.ipCliente).to.be.a('string').that.is.not.empty;",
+                  "  pm.expect(doC1.profissionalId).to.eql(null);",
+                  "  pm.expect(doC1.tempoMs).to.be.a('number');",
+                  "  pm.expect(doC1.dataHora).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/log/acesso?rota=/api/medicamento&status=401&de={{inicioDoRoteiro}}&tamanho=200",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "log",
+                "acesso"
+              ],
+              "query": [
+                {
+                  "key": "rota",
+                  "value": "/api/medicamento"
+                },
+                {
+                  "key": "status",
+                  "value": "401"
+                },
+                {
+                  "key": "de",
+                  "value": "{{inicioDoRoteiro}}"
+                },
+                {
+                  "key": "tamanho",
+                  "value": "200"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C9 · POST /api/prontuario (da pessoa do C4)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('prontuarioId', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.test('resultado CRIADO', () => pm.expect(pm.response.json().resultado).to.eql('CRIADO'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{prontuarioId}}\",\n  \"pessoaId\": \"{{pessoaId}}\",\n  \"tipoSanguineo\": \"O+\",\n  \"alergias\": \"Dipirona\",\n  \"comorbidades\": \"Hipertensão\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prontuario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prontuario"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C9 · POST /api/atendimento (com um medicamento)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('atendimentoId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('itemDoMedicamentoId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('dataHoraDoAtendimento', new Date(Date.now() - 20 * 60 * 1000).toISOString());",
+                  "pm.collectionVariables.set('horarioDoMedicamento', new Date(Date.now() - 10 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('resultado CRIADO; o servidor calcula o Glasgow e preenche o nome do medicamento', () => {",
+                  "  pm.expect(corpo.resultado).to.eql('CRIADO');",
+                  "  pm.expect(corpo.dados.glasgow.total).to.eql(15);",
+                  "  pm.expect(corpo.dados.medicamentos[0].nome).to.be.a('string').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{atendimentoId}}\",\n  \"prontuarioId\": \"{{prontuarioId}}\",\n  \"dataHora\": \"{{dataHoraDoAtendimento}}\",\n  \"localOcorrencia\": \"BR-386, km 350, Lajeado\",\n  \"tipoOcorrencia\": \"CLINICA\",\n  \"queixaPrincipal\": \"Dor no peito há 30 minutos\",\n  \"triagem\": { \"protocolo\": \"MANCHESTER\", \"cor\": \"LARANJA\" },\n  \"glasgow\": { \"ocular\": 4, \"verbal\": 5, \"motora\": 6 },\n  \"sinaisVitais\": { \"paSistolica\": 150, \"paDiastolica\": 95, \"frequenciaCardiaca\": 104, \"frequenciaRespiratoria\": 22, \"spo2\": 95, \"temperatura\": 36.8, \"glicemia\": 110 },\n  \"medicamentos\": [\n    {\n      \"id\": \"{{itemDoMedicamentoId}}\",\n      \"medicamentoId\": \"{{medicamentoId}}\",\n      \"dose\": 1,\n      \"unidade\": \"{{unidadeDoMedicamento}}\",\n      \"via\": \"INTRAVENOSA\",\n      \"horario\": \"{{horarioDoMedicamento}}\"\n    }\n  ],\n  \"procedimentos\": \"Monitorização e acesso venoso\",\n  \"desfecho\": { \"tipo\": \"ENCAMINHADO_HOSPITAL\", \"destino\": \"Hospital Bruno Born\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/atendimento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "atendimento"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C9 · GET /api/prontuario/{id da pessoa}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('o prontuário da pessoa, com os dados completos dela', () => {",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('prontuarioId'));",
+                  "  pm.expect(corpo.alergias).to.eql('Dipirona');",
+                  "  pm.expect(corpo.pessoa.id).to.eql(pm.collectionVariables.get('pessoaId'));",
+                  "  pm.expect(corpo.pessoa.cpf).to.eql(pm.collectionVariables.get('cpfNovo'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prontuario/{{pessoaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prontuario",
+                "{{pessoaId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C9 · GET /api/atendimento/{id da pessoa}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('os atendimentos da pessoa', () => {",
+                  "  const ids = pm.response.json().map((a) => a.id);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('atendimentoId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/atendimento/{{pessoaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "atendimento",
+                "{{pessoaId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C10 · GET /api/documentos/ficha/{id}/pdf",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('é um PDF, com o nome da ficha e sem cache', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf');",
+                  "  pm.expect(pm.response.headers.get('Content-Disposition')).to.match(/ficha-atendimento-[0-9A-F]{8}\\.pdf/);",
+                  "  pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store');",
+                  "  pm.expect(pm.response.text().startsWith('%PDF-')).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/{{atendimentoId}}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "{{atendimentoId}}",
+                "pdf"
+              ]
+            },
+            "description": "No Postman, use \"Send and Download\" para salvar o arquivo."
+          },
+          "response": []
+        },
+        {
+          "name": "C11 · POST /api/documentos/ficha/{id}/email (Outro) → 201 ENVIADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('emailDeTeste')) {",
+                  "  console.warn('Sem \"emailDeTeste\" no ambiente: C11 a C13 pulados.');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "pm.collectionVariables.set('emailId', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('status ENVIADO, para o endereço pedido', () => {",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('emailId'));",
+                  "  pm.expect(corpo.status).to.eql('ENVIADO');",
+                  "  pm.expect(corpo.destinatarioTipo).to.eql('OUTRO');",
+                  "  pm.expect(corpo.destinatarioEmail).to.eql(pm.variables.get('emailDeTeste'));",
+                  "  pm.expect(corpo.tentativas).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{emailId}}\",\n  \"destinatario\": {\n    \"tipo\": \"OUTRO\",\n    \"email\": \"{{emailDeTeste}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/{{atendimentoId}}/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "{{atendimentoId}}",
+                "email"
+              ]
+            },
+            "description": "Manda de verdade para o endereço da variável \"emailDeTeste\" do ambiente. Sem ela, os passos C11 a C13 são pulados."
+          },
+          "response": []
+        },
+        {
+          "name": "C12 · O mesmo pedido de novo → 200, sem e-mail novo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('emailDeTeste')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('o mesmo registro: nenhuma tentativa a mais (idempotência)', () => {",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('emailId'));",
+                  "  pm.expect(corpo.status).to.eql('ENVIADO');",
+                  "  pm.expect(corpo.tentativas).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{emailId}}\",\n  \"destinatario\": {\n    \"tipo\": \"OUTRO\",\n    \"email\": \"{{emailDeTeste}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/{{atendimentoId}}/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "{{atendimentoId}}",
+                "email"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "C13 · GET /api/documentos/email (admin) → o envio do C11 no topo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('emailDeTeste')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('o envio do C11 aparece uma vez só', () => {",
+                  "  pm.expect(corpo.itens[0].id).to.eql(pm.collectionVariables.get('emailId'));",
+                  "  pm.expect(corpo.total).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/email?atendimentoId={{atendimentoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "email"
+              ],
+              "query": [
+                {
+                  "key": "atendimentoId",
+                  "value": "{{atendimentoId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. ms-auth (login, sessão, profissionais e logs)",
+      "description": "Rotas do ms-auth (TypeScript).",
+      "item": [
+        {
+          "name": "GET /api/auth/me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('quem está logado', () => {",
+                  "  const corpo = pm.response.json();",
+                  "  pm.expect(corpo.registro.toUpperCase()).to.eql(String(pm.variables.get('registroOperacional')).trim().toUpperCase());",
+                  "  pm.expect(corpo.perfil).to.eql('OPERACIONAL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login com registro que não existe → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 CREDENCIAIS_INVALIDAS', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().erro).to.eql('CREDENCIAIS_INVALIDAS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoRegistro\": \"CRM\",\n  \"registro\": \"NAO-EXISTE-0000\",\n  \"senha\": \"qualquer-coisa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Registro inexistente responde igual a senha errada, e não conta para o bloqueio de nenhuma conta."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login sem senha → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 VALIDACAO', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().erro).to.eql('VALIDACAO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoRegistro\": \"CRM\",\n  \"registro\": \"{{registroOperacional}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sessão · POST /api/auth/login (uma sessão só para este teste)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.collectionVariables.set('tokenDaSessao', corpo.tokenDeAcesso);",
+                  "pm.collectionVariables.set('refreshTokenDaSessao', corpo.refreshToken);",
+                  "pm.collectionVariables.set('fimDaSessao', corpo.sessaoExpiraEm);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoRegistro\": \"{{tipoRegistroOperacional}}\",\n  \"registro\": \"{{registroOperacional}}\",\n  \"senha\": \"{{senha}}\",\n  \"dispositivo\": {\n    \"nome\": \"Postman\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sessão · POST /api/auth/refresh → token novo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('token de acesso novo; o fim da sessão não muda (D-06)', () => {",
+                  "  pm.expect(corpo.tokenDeAcesso).to.be.a('string');",
+                  "  pm.expect(corpo.sessaoExpiraEm).to.eql(pm.collectionVariables.get('fimDaSessao'));",
+                  "});",
+                  "pm.collectionVariables.set('tokenDaSessao', corpo.tokenDeAcesso);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshTokenDaSessao}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sessão · POST /api/auth/logout → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDaSessao}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sessão · POST /api/auth/refresh depois do logout → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 SESSAO_INVALIDA', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().erro).to.eql('SESSAO_INVALIDA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshTokenDaSessao}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/profissional (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "pm.test('lista os profissionais, sem nenhuma senha', () => {",
+                  "  pm.expect(lista).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(lista[0]).to.include.all.keys('id', 'nome', 'tipoRegistro', 'registro', 'perfil', 'ativo');",
+                  "  pm.expect(pm.response.text().toLowerCase()).to.not.include('senha');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissional",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profissional"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/profissional com perfil operacional → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 PROIBIDO', () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().erro).to.eql('PROIBIDO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissional",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profissional"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/log (um log do \"aparelho\")",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('logId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('dispositivoDoPostmanId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('dataHoraDoLog', new Date().toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('recebido e novo', () => pm.expect(pm.response.json()).to.eql({ recebidos: 1, novos: 1, repetidos: 0 }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logs\": [\n    {\n      \"id\": \"{{logId}}\",\n      \"profissionalId\": \"{{profissionalIdOperacional}}\",\n      \"dispositivoId\": \"{{dispositivoDoPostmanId}}\",\n      \"dispositivoNome\": \"Postman\",\n      \"dataHora\": \"{{dataHoraDoLog}}\",\n      \"acao\": \"ATENDIMENTO_CRIADO\",\n      \"modo\": \"OFFLINE\",\n      \"detalhes\": { \"atendimentoId\": \"{{atendimentoId}}\" }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/log",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "log"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/log de novo → repetido (idempotência)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('o mesmo ID não grava de novo', () => pm.expect(pm.response.json()).to.eql({ recebidos: 1, novos: 0, repetidos: 1 }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"logs\": [\n    {\n      \"id\": \"{{logId}}\",\n      \"profissionalId\": \"{{profissionalIdOperacional}}\",\n      \"dispositivoId\": \"{{dispositivoDoPostmanId}}\",\n      \"dispositivoNome\": \"Postman\",\n      \"dataHora\": \"{{dataHoraDoLog}}\",\n      \"acao\": \"ATENDIMENTO_CRIADO\",\n      \"modo\": \"OFFLINE\",\n      \"detalhes\": { \"atendimentoId\": \"{{atendimentoId}}\" }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/log",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "log"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/log/cliente (admin) → o log enviado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('uma vez só, com o modo e quem enviou', () => {",
+                  "  pm.expect(corpo.total).to.eql(1);",
+                  "  pm.expect(corpo.itens[0].id).to.eql(pm.collectionVariables.get('logId'));",
+                  "  pm.expect(corpo.itens[0].modo).to.eql('OFFLINE');",
+                  "  pm.expect(corpo.itens[0].enviadoPorId).to.eql(pm.collectionVariables.get('profissionalIdOperacional'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/log/cliente?dispositivoId={{dispositivoDoPostmanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "log",
+                "cliente"
+              ],
+              "query": [
+                {
+                  "key": "dispositivoId",
+                  "value": "{{dispositivoDoPostmanId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/docs/ms-auth (OpenAPI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('especificação OpenAPI', () => pm.expect(pm.response.json().openapi).to.match(/^3\\./));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/ms-auth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "ms-auth"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. ms-clinico (cadastros clínicos e sincronização)",
+      "description": "Rotas do ms-clinico (Java). Usa a pessoa, o prontuário e o atendimento criados na pasta 1.",
+      "item": [
+        {
+          "name": "GET /api/pessoa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('a pessoa do C4 está na lista; a descartada no C6, não', () => {",
+                  "  const ids = pm.response.json().map((p) => p.id);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('pessoaId'));",
+                  "  pm.expect(ids).to.not.include(pm.collectionVariables.get('pessoaId2'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pessoa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pessoa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/pessoa inválida → 400 com cada campo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 VALIDACAO', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().erro).to.eql('VALIDACAO');",
+                  "});",
+                  "pm.test('explica cada campo com problema', () => {",
+                  "  const campos = pm.response.json().detalhes.map((d) => d.campo);",
+                  "  pm.expect(campos).to.include.members(['nome', 'cpf', 'email']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \" \",\n  \"cpf\": \"12345678900\",\n  \"email\": \"nao-e-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pessoa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pessoa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/prontuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('cada prontuário com um resumo da pessoa', () => {",
+                  "  const daPessoa = pm.response.json().find((p) => p.id === pm.collectionVariables.get('prontuarioId'));",
+                  "  pm.expect(daPessoa.pessoa).to.include.all.keys('id', 'nome', 'cpf');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prontuario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prontuario"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/prontuario com o ID descartado no C6 → 200 UNIFICADO",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('prontuarioId2', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('fica o prontuário do C9', () => {",
+                  "  pm.expect(corpo.resultado).to.eql('UNIFICADO');",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('prontuarioId'));",
+                  "  pm.expect(corpo.idEnviado).to.eql(pm.collectionVariables.get('prontuarioId2'));",
+                  "  pm.expect(corpo.dados.medicamentosUsoContinuo).to.eql('Losartana 50 mg');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{prontuarioId2}}\",\n  \"pessoaId\": \"{{pessoaId2}}\",\n  \"tipoSanguineo\": \"O+\",\n  \"medicamentosUsoContinuo\": \"Losartana 50 mg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prontuario",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prontuario"
+              ]
+            },
+            "description": "O ID descartado vira a pessoa mantida (tradução de IDs), e ela já tem prontuário: o servidor junta os dois."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/atendimento com prontuário que não existe → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRONTUARIO_NAO_ENCONTRADO', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().erro).to.eql('PRONTUARIO_NAO_ENCONTRADO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prontuarioId\": \"{{$guid}}\",\n  \"dataHora\": \"{{dataHoraDoAtendimento}}\",\n  \"tipoOcorrencia\": \"CLINICA\",\n  \"queixaPrincipal\": \"Teste\",\n  \"triagem\": { \"protocolo\": \"MANCHESTER\", \"cor\": \"VERDE\" },\n  \"desfecho\": { \"tipo\": \"LIBERADO_NO_LOCAL\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/atendimento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "atendimento"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/atendimento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json();",
+                  "pm.test('do mais recente para o mais antigo, com o do C9', () => {",
+                  "  pm.expect(lista.map((a) => a.id)).to.include(pm.collectionVariables.get('atendimentoId'));",
+                  "  for (let i = 1; i < lista.length; i += 1) pm.expect(Date.parse(lista[i - 1].dataHora)).to.be.at.least(Date.parse(lista[i].dataHora));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/atendimento",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "atendimento"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/atendimento/detalhe/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('o atendimento completo, com a pessoa e o prontuário', () => {",
+                  "  pm.expect(corpo.id).to.eql(pm.collectionVariables.get('atendimentoId'));",
+                  "  pm.expect(corpo.pessoa.id).to.eql(pm.collectionVariables.get('pessoaId'));",
+                  "  pm.expect(corpo.prontuario.id).to.eql(pm.collectionVariables.get('prontuarioId'));",
+                  "  pm.expect(corpo.triagem).to.eql({ protocolo: 'MANCHESTER', cor: 'LARANJA' });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/atendimento/detalhe/{{atendimentoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "atendimento",
+                "detalhe",
+                "{{atendimentoId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/sync/pull (tudo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const corpo = pm.response.json();",
+                  "pm.test('as listas do \"receber dados\" e o cursor', () => {",
+                  "  pm.expect(corpo).to.include.all.keys('cursor', 'medicamentos', 'pessoas', 'prontuarios', 'atendimentos', 'unificacoes');",
+                  "  pm.expect(corpo.unificacoes.map((u) => u.idDescartado)).to.include(pm.collectionVariables.get('pessoaId2'));",
+                  "});",
+                  "pm.collectionVariables.set('cursorDoPull', corpo.cursor);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sync/pull",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sync",
+                "pull"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/sync/pull?desde=<cursor> (só o que mudou)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('devolve um cursor novo', () => pm.expect(pm.response.json().cursor).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sync/pull?desde={{cursorDoPull}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sync",
+                "pull"
+              ],
+              "query": [
+                {
+                  "key": "desde",
+                  "value": "{{cursorDoPull}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/sync/pull?desde=ontem → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 VALIDACAO', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().erro).to.eql('VALIDACAO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sync/pull?desde=ontem",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sync",
+                "pull"
+              ],
+              "query": [
+                {
+                  "key": "desde",
+                  "value": "ontem"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/conflito (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const conflito = pm.response.json().find((c) => c.id === pm.collectionVariables.get('conflitoId'));",
+                  "pm.test('o conflito do C6, com a estratégia e as diferenças', () => {",
+                  "  pm.expect(conflito.entidade).to.eql('PESSOA');",
+                  "  pm.expect(conflito.motivo).to.eql('CPF_DUPLICADO');",
+                  "  pm.expect(conflito.idMantido).to.eql(pm.collectionVariables.get('pessoaId'));",
+                  "  pm.expect(conflito.estrategia).to.be.oneOf(['MAIS_RECENTE_VENCE', 'SERVIDOR_VENCE']);",
+                  "  pm.expect(conflito.diferencas.map((d) => d.campo)).to.include('telefone');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/conflito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "conflito"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/conflito com perfil operacional → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 PROIBIDO', () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().erro).to.eql('PROIBIDO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/conflito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "conflito"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/docs/ms-clinico (OpenAPI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('especificação OpenAPI', () => pm.expect(pm.response.json().openapi).to.match(/^3\\./));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/ms-clinico",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "ms-clinico"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. ms-docs (PDF e e-mail)",
+      "description": "Rotas do ms-docs (Python). O PDF e o e-mail que dão certo estão nos passos C10 a C13.",
+      "item": [
+        {
+          "name": "GET pdf de um atendimento que não existe → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 NAO_ENCONTRADO', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().erro).to.eql('NAO_ENCONTRADO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/{{$guid}}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "{{$guid}}",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET pdf com ID inválido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 VALIDACAO', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().erro).to.eql('VALIDACAO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/abc/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "abc",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST email para o paciente sem e-mail → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PACIENTE_SEM_EMAIL', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().erro).to.eql('PACIENTE_SEM_EMAIL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"destinatario\": {\n    \"tipo\": \"PACIENTE\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/{{atendimentoId}}/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "{{atendimentoId}}",
+                "email"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST email \"Outro\" sem o endereço → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 VALIDACAO', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().erro).to.eql('VALIDACAO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"destinatario\": {\n    \"tipo\": \"OUTRO\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/ficha/{{atendimentoId}}/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "ficha",
+                "{{atendimentoId}}",
+                "email"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/documentos/email com perfil operacional → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 PROIBIDO', () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().erro).to.eql('PROIBIDO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documentos/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "documentos",
+                "email"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/docs/ms-docs (OpenAPI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('especificação OpenAPI', () => pm.expect(pm.response.json().openapi).to.match(/^3\\./));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/ms-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "ms-docs"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Gateway (Nginx)",
+      "description": "O Nginx é a porta única: rota desconhecida e cabeçalhos de segurança.",
+      "item": [
+        {
+          "name": "GET /api/nao-existe → 404, com os cabeçalhos de segurança",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 NAO_ENCONTRADO', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().erro).to.eql('NAO_ENCONTRADO');",
+                  "});",
+                  "pm.test('cabeçalhos de segurança do Nginx', () => {",
+                  "  pm.response.to.have.header('X-Content-Type-Options', 'nosniff');",
+                  "  pm.response.to.have.header('Referrer-Policy', 'no-referrer');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/nao-existe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "nao-existe"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

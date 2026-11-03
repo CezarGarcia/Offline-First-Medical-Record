@@ -1,0 +1,216 @@
+# Testes a cada push (D-28, docs/13): as suítes de cada parte e o sistema inteiro rodando junto no Docker.
+name: Testes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  servicos:
+    name: Serviços (ms-auth, ms-clinico, ms-docs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Preparar o infra/.env de teste (senhas geradas na hora)
+        run: |
+          cd infra
+          gerar() { openssl rand -hex 16; }
+          {
+            echo "POSTGRES_PASSWORD=$(gerar)"
+            echo "MS_AUTH_DB_PASSWORD=$(gerar)"
+            echo "MS_CLINICO_DB_PASSWORD=$(gerar)"
+            echo "MS_DOCS_DB_PASSWORD=$(gerar)"
+            echo "DB_PORTA_LOCAL=5433"
+          } > .env
+          while IFS='=' read -r chave valor; do
+            echo "::add-mask::$valor"
+            echo "$chave=$valor" >> "$GITHUB_ENV"
+          done < <(grep -E '^MS_.*_PASSWORD=' .env)
+          ./scripts/gerar-chaves-jwt.sh
+
+      - name: Subir o banco e o ms-auth (as migrations dele criam a auditoria)
+        working-directory: infra
+        run: docker compose up -d --build --wait db ms-auth
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: servicos/ms-auth/package-lock.json
+
+      - name: ms-auth (Vitest)
+        working-directory: servicos/ms-auth
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORTA: 5433
+          DB_SENHA: ${{ env.MS_AUTH_DB_PASSWORD }}
+          MS_CLINICO_DB_SENHA: ${{ env.MS_CLINICO_DB_PASSWORD }}
+        run: |
+          npm ci
+          npx vitest run
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: ms-clinico (JUnit)
+        working-directory: servicos/ms-clinico
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORTA: 5433
+          DB_SENHA: ${{ env.MS_CLINICO_DB_PASSWORD }}
+          MS_AUTH_DB_SENHA: ${{ env.MS_AUTH_DB_PASSWORD }}
+        run: mvn -B -ntp test
+
+      - name: ms-docs (pytest, dentro da imagem da produção)
+        run: |
+          docker build --target testes -t ms-docs-testes servicos/ms-docs
+          docker run --rm --network medicalfield_interna \
+            -e DB_HOST=db -e DB_PORTA=5432 \
+            -e DB_SENHA="$MS_DOCS_DB_PASSWORD" -e MS_AUTH_DB_SENHA="$MS_AUTH_DB_PASSWORD" \
+            ms-docs-testes
+
+      - name: Logs dos containers (se algo falhou)
+        if: failure()
+        working-directory: infra
+        run: docker compose logs --no-color --tail 200
+
+  apps:
+    name: Portal e app cliente
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            apps/portal/package-lock.json
+            apps/cliente/package-lock.json
+
+      - name: Portal Admin (tipos, testes e build)
+        working-directory: apps/portal
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: App cliente (tipos, testes e build)
+        working-directory: apps/cliente
+        env:
+          # Os testes não abrem o Electron: o binário dele fica para o job da pilha e o do Windows
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+  pilha:
+    name: Sistema inteiro (Docker + Postman + app cliente)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Preparar o infra/.env (senhas geradas na hora, e-mail no Mailpit)
+        run: |
+          cd infra
+          gerar() { openssl rand -hex 16; }
+          {
+            echo "POSTGRES_PASSWORD=$(gerar)"
+            echo "MS_AUTH_DB_PASSWORD=$(gerar)"
+            echo "MS_CLINICO_DB_PASSWORD=$(gerar)"
+            echo "MS_DOCS_DB_PASSWORD=$(gerar)"
+            echo "DEMO_SENHA=$(gerar)"
+            echo "DB_PORTA_LOCAL=5433"
+            echo "HTTP_PORTA=8080"
+            echo "SMTP_HOST=smtp-teste"
+            echo "SMTP_PORTA=1025"
+            echo "SMTP_SEGURANCA=NENHUMA"
+            echo 'SMTP_REMETENTE="MedicalField CI <medicalfield@exemplo.com>"'
+          } > .env
+          DEMO_SENHA="$(grep '^DEMO_SENHA=' .env | cut -d= -f2-)"
+          echo "::add-mask::$DEMO_SENHA"
+          echo "DEMO_SENHA=$DEMO_SENHA" >> "$GITHUB_ENV"
+          ./scripts/gerar-chaves-jwt.sh
+
+      - name: Subir tudo (Postgres, três serviços, Nginx com o portal e o Mailpit)
+        working-directory: infra
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.teste.yml up -d --build --wait
+          docker compose -f docker-compose.yml -f docker-compose.teste.yml ps
+
+      - name: Dados de demonstração
+        run: ./infra/scripts/popular-demo.sh
+
+      - name: Coleção do Postman (Newman)
+        run: >-
+          npx --yes newman@6.2.3 run postman/MedicalField.postman_collection.json
+          -e postman/MedicalField.postman_environment.json
+          --env-var baseUrl=http://localhost:8080
+          --env-var "senha=$DEMO_SENHA"
+          --env-var emailDeTeste=postman@exemplo.com
+          --color on
+
+      - name: O e-mail da coleção chegou (com o PDF anexado)
+        run: |
+          curl -fsS 'http://127.0.0.1:8025/api/v1/messages?limit=50' \
+            | jq -e '[.messages[] | select(.To[].Address == "postman@exemplo.com" and .Attachments == 1)] | length == 1'
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/cliente/package-lock.json
+
+      - name: App cliente contra o servidor de verdade (integração)
+        working-directory: apps/cliente
+        env:
+          MEDICALFIELD_URL: http://localhost:8080
+          MEDICALFIELD_SENHA: ${{ env.DEMO_SENHA }}
+          MEDICALFIELD_EMAIL_TESTE: cliente@exemplo.com
+        run: |
+          npm ci
+          npm run test:integracao
+
+      - name: Passeio pelo app de verdade (Electron, numa tela virtual)
+        working-directory: apps/cliente
+        env:
+          MEDICALFIELD_URL: http://localhost:8080
+          MEDICALFIELD_SENHA: ${{ env.DEMO_SENHA }}
+        run: |
+          # O Ubuntu 24.04 restringe os namespaces que o sandbox do Chromium usa
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          command -v xvfb-run >/dev/null || sudo apt-get install -y xvfb
+          npm run build
+          xvfb-run -a -s '-screen 0 1400x1000x24' npm run e2e
+
+      - name: Fotos das telas do passeio
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: telas-do-app-cliente
+          path: apps/cliente/e2e/telas/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Logs dos containers (se algo falhou)
+        if: failure()
+        working-directory: infra
+        run: docker compose -f docker-compose.yml -f docker-compose.teste.yml logs --no-color --tail 200
