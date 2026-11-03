@@ -4,6 +4,7 @@
 # Etapa 2: ms-auth (TypeScript).
 # Etapa 3: ms-clinico (Java).
 # Etapa 4: ms-docs (Python).
+# Etapa 5: Portal Admin (React), servido pelo Nginx.
 #
 # Uso (dentro desta pasta infra/):
 #   cp .env.example .env            # e troque as senhas
@@ -150,7 +151,11 @@ services:
     networks: [interna]
 
   nginx:
-    image: nginx:1.29-alpine
+    # Gateway + Portal Admin: a imagem é o Nginx com o build do portal dentro (apps/portal/Dockerfile)
+    build:
+      context: ../apps
+      dockerfile: portal/Dockerfile
+    image: medicalfield/nginx
     container_name: medicalfield-nginx
     restart: unless-stopped
     ports:
@@ -159,8 +164,6 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      # Página provisória; na etapa 5 é substituída pelo build do Portal Admin
-      - ./nginx/html:/usr/share/nginx/html:ro
     networks: [interna]
 
 volumes:

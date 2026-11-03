@@ -105,7 +105,7 @@ O enunciado sugere três padrões e pede mais três de livre escolha.
 |---|---|---|
 | **Repository** (sugerido) | App cliente: `RepositorioLocal` (SQLite) e `RepositorioRemoto` (API), atrás das mesmas interfaces. No ms-clinico, as classes `Repositorio*` concentram todo o SQL de cada tabela; no ms-docs, o `RepositorioEnvios` | As telas e os serviços não sabem de onde vêm os dados; trocar o armazenamento não mexe no resto |
 | **Strategy** (sugerido) | ms-clinico: `EstrategiaDeMesclagem` com `MaisRecenteVence` e `ServidorVence` | Regra de resolução de conflitos trocável por configuração |
-| **Observer** (sugerido) | App cliente: `EstadoConectividade` avisa o motor de sincronização, a sessão e a tela quando a chave muda | Disparar o envio da fila sozinho quando a conexão volta |
+| **Observer** (sugerido) | App cliente: `EstadoConectividade` avisa o motor de sincronização, a sessão e a tela quando a chave muda. No portal, o `ArmazemDaSessao` avisa as telas quando a sessão muda (entrou, renovou, terminou) | Disparar o envio da fila sozinho quando a conexão volta |
 | **Command** (escolhido) | App cliente: cada item da outbox (`CriarPessoa`, `CriarProntuario`, `CriarAtendimento`, `EnviarEmail`) é um comando com `executar()` | A fila guarda e executa operações de tipos diferentes do mesmo jeito, na ordem certa |
 | **Adapter** (escolhido) | ms-docs: interface `EnvioDeEmail` com o `EnvioPorSmtp`, que adapta o `smtplib` (Gmail), e o `EnvioDesativado`, usado quando o SMTP não foi configurado | Trocar o provedor de e-mail (por exemplo, por uma API HTTP) sem mexer nas rotas nem na idempotência |
 | **Builder** (escolhido) | ms-docs: `FichaPdfBuilder` monta o PDF por partes (cabeçalho, paciente, prontuário, ocorrência, triagem, avaliação, medicamentos, desfecho, rastreabilidade) e o `MontadorDaFicha` (o "diretor") chama as partes na ordem | Montar um documento complexo passo a passo e de forma legível |
@@ -121,7 +121,7 @@ Padrões de **arquitetura** que também aparecem: **API Gateway** (Nginx), **Out
 | ms-auth | Node.js (LTS), TypeScript, Fastify, node-postgres, bcrypt, `jose` (JWT RS256), migrations SQL |
 | ms-clinico | Java 21, Spring Boot 4 (Web MVC, Validation, JDBC com `JdbcClient`), Flyway, Nimbus JOSE + JWT (confere o token), springdoc-openapi |
 | ms-docs | Python 3.13, FastAPI, Uvicorn, SQLAlchemy Core + Alembic, psycopg 3, PyJWT (confere o token), httpx (chama o ms-clinico), Jinja2 + WeasyPrint (HTML → PDF), smtplib |
-| Portal | React, TypeScript, Vite, Mantine, Swagger UI |
+| Portal | React 19, TypeScript, Vite, Mantine 9, React Router, TanStack Query, Swagger UI. Servido pelo Nginx (D-40) |
 | App cliente | Electron, React, TypeScript, Vite, Mantine, better-sqlite3, `safeStorage` (cofre do Windows) |
 | Infraestrutura | Docker Compose, Nginx, PostgreSQL 18 |
 | Qualidade e entrega | Testes automatizados por serviço, coleção do Postman, GitHub Actions (gera o `.exe` do cliente) |
@@ -147,7 +147,8 @@ offline-first-medical-record/
 │   ├── ms-clinico/        Java
 │   └── ms-docs/           Python
 ├── apps/
-│   ├── portal/            Portal Admin (React)
+│   ├── compartilhado/     tipos da API, rótulos e formatação (portal e cliente, D-41)
+│   ├── portal/            Portal Admin (React); o Dockerfile gera a imagem do Nginx com o portal
 │   └── cliente/           App cliente (Electron)
 └── postman/               coleção e ambiente (etapa 7)
 ```

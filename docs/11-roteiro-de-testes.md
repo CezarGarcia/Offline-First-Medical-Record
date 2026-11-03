@@ -46,7 +46,7 @@ A senha das quatro contas é a definida em `DEMO_SENHA`, no `infra/.env` da VM. 
 | 13 | Portal | **Prontuários** e **Atendimentos** → Atualizar | **Maria não aparece**: nada saiu do aparelho |
 | 14 | Cliente | Chave em **Online** | A fila esvazia sozinha (Observer), sem clicar em nada. Pendentes: 0. (O botão Sincronizar faz o mesmo) |
 | 15 | Portal | **Prontuários** e **Atendimentos** → Atualizar | **Maria aparece**. O atendimento mostra modo **Offline**, com o horário de registro anterior ao "recebido em" |
-| 16 | Portal ou cliente | Abrir o atendimento de Maria → **Baixar PDF** | O PDF da ficha abre com paciente, prontuário, triagem, Glasgow, sinais vitais, medicamentos e desfecho |
+| 16 | Portal ou cliente | Abrir o atendimento de Maria → **Baixar PDF** | O navegador salva `ficha-atendimento-<número>.pdf`: paciente, prontuário, triagem, Glasgow, sinais vitais, medicamentos, desfecho e rastreabilidade |
 | 17 | Portal ou cliente | **Enviar por e-mail** → Familiar (ou Outro) | Status **Enviado**. Abrir a caixa de e-mail: a mensagem chegou com o PDF anexado. A página **E-mails enviados** mostra o envio |
 
 SQL do passo 9 (via `./infra/scripts/psql.sh` na VM, ou DBeaver):

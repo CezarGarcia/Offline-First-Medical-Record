@@ -23,7 +23,7 @@ Tudo que foi pedido, tudo que foi decidido e como o sistema funciona. Para quem 
 | Entregável | Onde está |
 |---|---|
 | Modelo de arquitetura: desenho + tecnologias | [04-arquitetura.md](04-arquitetura.md) |
-| Documentação das APIs e endpoints | [06-api.md](06-api.md) (+ Swagger no portal e coleção do Postman, nas próximas etapas) |
+| Documentação das APIs e endpoints | [06-api.md](06-api.md) + Swagger UI no Portal Admin (página **API (Swagger)**) + coleção do Postman (etapa 7) |
 | Modelagem dos bancos de dados | [05-modelo-de-dados.md](05-modelo-de-dados.md) |
 | Roteiro de testes | [11-roteiro-de-testes.md](11-roteiro-de-testes.md) (+ testes automatizados em [13-testes-automatizados.md](13-testes-automatizados.md)) |
 

@@ -115,6 +115,14 @@ Regras complementares:
 - **Sair** apaga a sessão local e o refresh token e, se estiver online, avisa o servidor (`POST /api/auth/logout`). A credencial offline **continua**, então o profissional pode entrar offline depois. Se houver pendentes, o app avisa que eles continuam guardados e serão enviados por quem entrar em seguida.
 - Sair estando offline: a sessão no servidor vence sozinha. Ninguém mais consegue usá-la, porque o aparelho já apagou o refresh token.
 
+**No Portal Admin:**
+
+- A sessão fica no `sessionStorage`: recarregar a página mantém o login; fechar a aba encerra.
+- O portal renova o token de acesso sozinho, quando faltam 30 segundos para vencer ou quando o servidor responde `401`. Várias requisições ao mesmo tempo esperam uma renovação só.
+- Se a renovação for recusada (sessão vencida ou encerrada), o portal volta ao login com o aviso "Sua sessão terminou" e esquece os dados que tinha carregado.
+- **Sair** chama `POST /api/auth/logout` (o refresh token deixa de valer) e apaga a sessão do navegador.
+- Um profissional operacional que tenta entrar no portal recebe "Acesso restrito a administradores", e a sessão que o servidor acabou de criar é encerrada na hora.
+
 ---
 
 ## 8.7 Autorização

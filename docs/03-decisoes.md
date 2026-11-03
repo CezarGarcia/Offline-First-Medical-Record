@@ -45,6 +45,10 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-37](#d-37--número-da-ficha--os-8-últimos-caracteres-do-id) | Número da ficha = os 8 últimos caracteres do ID |
 | [D-38](#d-38--sem-smtp-configurado-o-envio-falha-de-verdade) | Sem SMTP configurado, o envio falha de verdade |
 | [D-39](#d-39--falha-de-e-mail-não-trava-a-fila-do-cliente) | Falha de e-mail não trava a fila do cliente |
+| [D-40](#d-40--o-portal-vai-dentro-da-imagem-do-nginx) | O portal vai dentro da imagem do Nginx |
+| [D-41](#d-41--código-comum-do-portal-e-do-cliente-numa-pasta-sem-pacote-npm) | Código comum do portal e do cliente numa pasta, sem pacote npm |
+| [D-42](#d-42--listas-clínicas-filtradas-no-navegador-logs-e-e-mails-paginados-no-servidor) | Listas clínicas filtradas no navegador; logs e e-mails paginados no servidor |
+| [D-43](#d-43--conta-do-gmail-uma-só-do-projeto-de-preferência) | Conta do Gmail: uma só do projeto, de preferência |
 
 ---
 
@@ -279,3 +283,31 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 - **Decisão:** no app cliente, um item `ENVIAR_EMAIL` que recebe `502 FALHA_ENVIO_EMAIL` não para a fila. Ele ganha uma nova tentativa agendada e o envio segue para o próximo item. Depois da 3ª tentativa vira `ERRO`, com a mensagem do servidor e o botão **Tentar de novo**.
 - **Por quê:** nenhum outro item depende de um e-mail, então pular adiante não fura a ordem. Já um problema persistente no servidor de e-mail (senha errada, porta bloqueada, SMTP não configurado) travaria a sincronização dos atendimentos novos se o `502` parasse a fila, como acontece com os outros erros temporários.
 - **Consequências:** complementa a tabela de respostas do envio em [07-sincronizacao.md](07-sincronizacao.md#74-envio-push).
+
+### D-40 — O portal vai dentro da imagem do Nginx
+
+- **Decisão:** a imagem do gateway (`medicalfield/nginx`) é construída em dois estágios pelo `apps/portal/Dockerfile`: um com Node.js faz o build do React, e a imagem final é o Nginx com os arquivos estáticos do portal. A configuração do Nginx continua em `infra/nginx/` e entra como volume.
+- **Por quê:** o portal é só HTML, CSS e JavaScript depois do build, e o Nginx já é quem serve o endereço público. Com o build dentro do Docker, a VM não precisa de Node.js instalado, e o `docker compose up -d --build` de sempre atualiza tudo.
+- **Alternativas descartadas:** um container só para o portal, atrás do Nginx (um salto a mais para servir arquivos estáticos); fazer o build no PC e copiar a pasta `dist/` para a VM (passo manual fácil de esquecer).
+- **Consequências:** a página provisória de `infra/nginx/html/` saiu. O `index.html` vai sem cache e os arquivos de `/assets/` (com hash no nome) vão com cache longo, então uma versão nova do portal aparece logo depois do deploy.
+
+### D-41 — Código comum do portal e do cliente numa pasta, sem pacote npm
+
+- **Decisão:** os tipos da API, os rótulos em português e a formatação (datas no horário de Brasília, CPF, telefone, UUID v7) ficam em `apps/compartilhado/src`, sem nenhuma dependência. Cada app importa pelo atalho `@compartilhado/...`, configurado no `tsconfig.json` e no `vite.config.ts`.
+- **Por quê:** é o que o D-21 pede ("compartilham as definições de tipos"), com o mínimo de mecanismo. Um pacote npm ou um workspace complicaria o build do Electron (dependências nativas, como o `better-sqlite3`).
+- **Consequências:** o código compartilhado não pode importar bibliotecas, só o que o navegador e o Node.js já têm.
+
+### D-42 — Listas clínicas filtradas no navegador; logs e e-mails paginados no servidor
+
+- **Decisão:** pessoas, prontuários, atendimentos e medicamentos vêm inteiros do ms-clinico, e o portal filtra e pagina no navegador. Os logs de acesso, os logs dos clientes e o histórico de e-mails são paginados e filtrados pelo servidor.
+- **Por quê:** as listas clínicas já vêm inteiras porque o app cliente precisa de todos os dados (D-26), e numa demonstração elas têm dezenas de registros. Já os logs crescem a cada requisição (milhares em pouco tempo), então só a página pedida pode vir.
+
+### D-43 — Conta do Gmail: uma só do projeto, de preferência
+
+- **Decisão:** o envio usa uma conta Gmail criada para o projeto. Uma conta pessoal também funciona, com a mesma configuração.
+- **Por quê:**
+  - A senha de app dá acesso à conta inteira por SMTP e IMAP: quem a tiver consegue ler e mandar e-mails como o dono.
+  - Ela fica no `infra/.env` de uma VM que não é só nossa.
+  - Com uma conta do projeto, um vazamento expõe só os e-mails do sistema, e o remetente que o professor vê é o do sistema, não o endereço pessoal do aluno.
+- **Consequências:** com uma conta pessoal, os e-mails saem com o endereço pessoal. Depois da apresentação, apague a senha de app em Conta Google → Segurança → Senhas de app (isso não mexe na senha da conta).
+

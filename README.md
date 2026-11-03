@@ -32,7 +32,8 @@ flowchart LR
 | Componente | Pasta | Linguagem / tecnologia | O que faz |
 |---|---|---|---|
 | App cliente | [`apps/cliente`](apps/cliente) | Electron, React, TypeScript, SQLite | Uso em campo, online e offline, com a chave "Simular Conectividade" |
-| Portal Admin | [`apps/portal`](apps/portal) | React, TypeScript | Consulta de atendimentos, prontuários, cadastros, logs e conflitos |
+| Portal Admin | [`apps/portal`](apps/portal) | React, TypeScript, Mantine | Consulta de atendimentos, prontuários, cadastros, logs e conflitos; PDF e e-mail da ficha. Servido pelo Nginx |
+| Código compartilhado | [`apps/compartilhado`](apps/compartilhado) | TypeScript | Tipos da API, rótulos e formatação usados pelo portal e pelo app cliente |
 | ms-auth | [`servicos/ms-auth`](servicos/ms-auth) | TypeScript (Node.js) | Login, sessão, tokens, profissionais e auditoria |
 | ms-clinico | [`servicos/ms-clinico`](servicos/ms-clinico) | Java (Spring Boot) | Pessoas, prontuários, atendimentos, medicamentos e sincronização |
 | ms-docs | [`servicos/ms-docs`](servicos/ms-docs) | Python (FastAPI) | PDF da ficha de atendimento e envio por e-mail |
@@ -57,7 +58,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 | 2 | ms-auth: login, sessão, profissionais, logs e o middleware de log | **Concluída** |
 | 3 | ms-clinico: cadastros, idempotência, unificação de duplicados, "receber dados" e dados de demonstração | **Concluída** |
 | 4 | ms-docs: PDF da ficha, envio por e-mail com idempotência e histórico de envios | **Concluída** |
-| 5 | Portal Admin | Pendente |
+| 5 | Portal Admin: consultas, auditoria, PDF, e-mail e a documentação da API (Swagger) | **Concluída** |
 | 6 | App cliente (Electron): telas, SQLite, login offline, chave, fila, sincronização | Pendente |
 | 7 | Coleção do Postman, testes automatizados e geração do `.exe` | Pendente |
 | 8 | Implantação na VM e ensaio do roteiro de testes completo | Pendente |
@@ -74,7 +75,7 @@ docker compose up -d --build
 ./scripts/popular-demo.sh       # contas de demonstração
 ```
 
-- `http://localhost/` mostra a página provisória do portal.
+- `http://localhost/` abre o Portal Admin (entre com o administrador de demonstração).
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
 - O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
 - `./scripts/psql.sh` abre o banco.

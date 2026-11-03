@@ -11,8 +11,9 @@ O que cada serviço testa sozinho, como rodar e o que fica para o roteiro manual
 | ms-auth | Vitest | 26 | [`servicos/ms-auth/test/`](../servicos/ms-auth/test) | O app Fastify de verdade (em memória) e o PostgreSQL do `infra/` |
 | ms-clinico | JUnit 6 + Spring Boot Test | 34 | [`servicos/ms-clinico/src/test/java/`](../servicos/ms-clinico/src/test/java) | O serviço numa porta aleatória e o PostgreSQL do `infra/`. O `Mesclador` e o CPF também têm testes unitários |
 | ms-docs | pytest | 46 | [`servicos/ms-docs/testes/`](../servicos/ms-docs/testes) | O app FastAPI (`TestClient`), o PostgreSQL do `infra/`, um servidor SMTP de teste local e um ms-clinico falso |
+| Portal Admin | Vitest + Testing Library | 27 | [`apps/portal/testes/`](../apps/portal/testes) | As telas de verdade, num navegador simulado (jsdom), com uma API falsa no lugar do `fetch`. Não precisa de banco nem de serviço no ar |
 
-**Regras comuns às três suítes:**
+**Regras comuns às suítes dos três serviços** (o portal não usa banco: a API é falsa):
 
 - **Banco de verdade**, não um banco falso: idempotência, travas e auditoria dependem do Postgres (`ON CONFLICT`, `FOR UPDATE`, travas de transação, gatilhos).
 - **Chaves JWT geradas na hora:** cada suíte cria um par de chaves e assina os tokens como o ms-auth faria. Por isso ms-clinico e ms-docs não precisam do ms-auth no ar.
@@ -58,7 +59,14 @@ docker build --target testes -t ms-docs-testes servicos/ms-docs
 docker run --rm --network medicalfield_interna -e DB_HOST=db -e DB_PORTA=5432 -e DB_SENHA=<MS_DOCS_DB_PASSWORD> -e MS_AUTH_DB_SENHA=<MS_AUTH_DB_PASSWORD> ms-docs-testes
 ```
 
-Resultado da última rodada (etapa 4): **106 testes, todos passando** (26 + 34 + 46).
+**Portal Admin** (Node.js 22.22 ou mais novo; não precisa de banco nem de serviço no ar):
+
+```bash
+npm ci
+npm test
+```
+
+Resultado da última rodada (etapa 5): **133 testes, todos passando** (26 + 34 + 46 + 27).
 
 ---
 
@@ -99,6 +107,17 @@ Resultado da última rodada (etapa 4): **106 testes, todos passando** (26 + 34 +
 | Unitários | CPF, telefone, números com vírgula, horário de Brasília, idade, número da ficha, gravidade do Glasgow, rótulos, UUID v7, configuração do SMTP (segurança pela porta, senha de app com espaços, remetente com nome) e mensagens de validação em português |
 | Banco | As migrations rodam de novo sem erro, e a tabela pertence ao usuário do ms-docs |
 
+### Portal Admin (27 testes)
+
+| Área | O que é conferido |
+|---|---|
+| Formatação compartilhada | Datas no horário de Brasília (inclusive perto da meia-noite), início e fim do dia para os filtros, CPF, telefone, números com vírgula, idade, número da ficha, Glasgow, busca sem acento, UUID v7 em ordem, rótulos e o resumo do user-agent |
+| Cliente da API | Manda o token e a consulta sem os filtros vazios. Com `401`, renova o token uma vez e repete com o token novo, mantendo o mesmo refresh token. Três `401` ao mesmo tempo fazem uma renovação só. Renovação recusada encerra a sessão com aviso. Renova antes de mandar quando o token está para vencer. Erro da API com código e detalhes; rede fora. Logout com e sem rede. Nome do arquivo do PDF. Sessão vencida guardada no navegador é descartada; quem ouve a sessão é avisado |
+| Login | Sem sessão, qualquer página leva ao login. Administrador entra e vê os atendimentos. Perfil operacional é recusado, e a sessão criada no servidor é encerrada com o token dele. Senha errada e conta bloqueada (com a hora em Brasília) |
+| Telas | Atendimentos: cor da triagem, data em Brasília, filtro por paciente, mensagem de erro da API. Detalhe: a ficha completa, como no PDF. PDF baixado com o token e o nome que o servidor mandou. E-mail: familiar sem e-mail fica desabilitado, e-mail inválido não deixa enviar, e a nova tentativa depois de um `502` usa o mesmo ID do pedido. Rota desconhecida e botão Sair |
+
+Além dos testes automáticos, as telas foram conferidas num navegador de verdade (Chromium, pelo Playwright) contra a stack inteira no Docker, passando pelo Nginx: login (inclusive a recusa do perfil operacional), todas as páginas, PDF baixado, e-mail recebido pelo servidor SMTP de teste e as três especificações no Swagger, sem nenhum erro no console. Também em tamanho de celular.
+
 ---
 
 ## 13.4 Como os testes isolam cada serviço
@@ -118,5 +137,5 @@ A integração de verdade entre os serviços (Nginx → ms-docs → ms-clinico, 
 
 - **O sistema inteiro junto:** roteiro manual ([11](11-roteiro-de-testes.md)) e, na etapa 7, a coleção do Postman rodando sozinha (D-28).
 - **O envio pelo Gmail de verdade:** só na VM, com a conta do projeto ([12.8](12-implantacao.md#128-e-mail-gmail)). O teste automático usa o mesmo adaptador, contra um servidor SMTP local.
-- **Portal e app cliente:** testes nas etapas 5 e 6.
-- **Execução automática a cada push:** na etapa 7, o GitHub Actions roda as três suítes (com um Postgres de serviço) e gera o `.exe` do cliente.
+- **App cliente:** testes na etapa 6.
+- **Execução automática a cada push:** na etapa 7, o GitHub Actions roda as suítes (com um Postgres de serviço) e gera o `.exe` do cliente.

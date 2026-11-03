@@ -497,5 +497,5 @@ Resposta: `{ "itens": [ ...envios, no formato acima... ], "pagina": 1, "tamanho"
 
 ## 6.11 Documentação interativa e Postman
 
-- Cada serviço gera a própria especificação **OpenAPI** e a publica em `GET /api/docs/<serviço>` (autenticada, como todas as rotas). O Portal Admin tem uma página **API** que mostra as três especificações no Swagger UI, já usando o token de quem está logado. Assim nenhuma rota fica aberta além do login.
+- Cada serviço gera a própria especificação **OpenAPI** e a publica em `GET /api/docs/<serviço>` (autenticada, como todas as rotas). O Portal Admin tem uma página **API (Swagger)**, em `/documentacao`, que mostra as três especificações no Swagger UI, já usando o token de quem está logado. Assim nenhuma rota fica aberta além do login.
 - A coleção do Postman (com variáveis de ambiente e login automático) fica na pasta `postman/` (etapa 7).

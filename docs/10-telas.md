@@ -68,15 +68,15 @@ Menu lateral fixo, com o administrador logado e o botão Sair no topo. Cada pág
 |---|---|
 | **Login** | Tipo de registro, registro e senha. Perfil operacional: "Acesso restrito a administradores" |
 | **Atendimentos** | Tabela: data/hora, paciente, tipo, triagem (selo com a cor), desfecho, profissional, dispositivo, modo (online/offline), recebido em. Filtros por paciente e período |
-| **Detalhe do atendimento** | A ficha completa, a origem (quem, quando, onde, modo) e os botões **Baixar PDF** e **Enviar por e-mail** |
+| **Detalhe do atendimento** | A ficha completa, na ordem do PDF, a origem (quem, quando, onde, modo) e os botões **Ver prontuário**, **Baixar PDF** e **Enviar por e-mail**. Na janela do e-mail, Paciente e Familiar só ficam disponíveis se houver e-mail no cadastro; em caso de erro, **Tentar de novo** reaproveita o mesmo pedido (não manda dois e-mails) |
 | **Prontuários** | Tabela: paciente, CPF, tipo sanguíneo, alergias, quantidade de atendimentos. Detalhe: pessoa + prontuário + atendimentos |
-| **Pessoas** | Tabela: nome, CPF, nascimento, sexo, contatos, origem |
+| **Pessoas** | Tabela: nome, CPF, nascimento, sexo, contatos, origem. Clicar abre o prontuário da pessoa |
 | **Medicamentos** | Tabela: nome, apresentação, unidade padrão, ativo, atualizado em |
 | **Profissionais** | Tabela: nome, tipo e número do registro, perfil, ativo |
 | **Conflitos** | Cada unificação: entidade, motivo, registro mantido × descartado, dispositivo de origem, estratégia e a tabela de diferenças (campo, valor mantido, valor descartado) |
-| **Logs de acesso** | Log dos três serviços, paginado, com filtros por serviço, profissional, método, status, rota e período |
+| **Logs de acesso** | Log dos três serviços, paginado, com filtros por serviço, profissional, método, status, rota e período. A coluna Origem resume o user-agent (navegador, Postman, app cliente, ms-docs interno); o texto completo aparece ao passar o mouse |
 | **Logs dos clientes** | Ações enviadas pelos aparelhos, com filtros por profissional, dispositivo, ação e modo |
-| **E-mails enviados** | Pedido, atendimento, destinatário, status, erro, quem pediu, quando |
-| **API** | Swagger UI dos três serviços (ms-auth, ms-clinico, ms-docs), já autenticado com o token do administrador |
+| **E-mails enviados** | Pedido, atendimento (abre a ficha), destinatário, status, tentativas, erro, quem pediu, quando |
+| **API (Swagger)** | Swagger UI dos três serviços (ms-auth, ms-clinico, ms-docs), já autenticado com o token do administrador. Endereço `/documentacao` (não `/api`, que é o prefixo da própria API no Nginx) |
 
 O portal **não cadastra nada** (D-17): cadastros de apoio são feitos direto no banco, como permite o enunciado.

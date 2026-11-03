@@ -1,0 +1,4 @@
+# Contexto do build da imagem do Nginx + portal (apps/portal/Dockerfile)
+**/node_modules
+**/dist
+cliente
