@@ -8,7 +8,7 @@ O roteiro do enunciado (17 passos), com a ação exata e o resultado esperado de
 
 Antes da apresentação:
 
-1. Na VM, o sistema está no ar (`docker compose ps` mostra tudo `Up`) e os **dados de demonstração** estão carregados (script `infra/scripts/popular-demo.sh`, etapa 3).
+1. Na VM, o sistema está no ar (`docker compose ps` mostra tudo `Up`) e os **dados de demonstração** estão carregados (`./infra/scripts/popular-demo.sh`).
 2. No notebook, o **app cliente** está instalado, com o endereço da VM configurado e o dispositivo chamado `Ambulância 01`. Para o roteiro extra 11.4, a segunda instância (`Ambulância 02`) também está configurada.
 3. No notebook, um navegador aberto no portal (`http://IP-DA-VM/`), o Postman com a coleção do projeto e acesso ao banco (DBeaver com túnel SSH, ou um terminal SSH na VM).
 4. Uma **caixa de e-mail que possa ser aberta na hora**, cadastrada como e-mail do contato familiar de uma pessoa de demonstração, ou digitada na opção "Outro".
@@ -18,12 +18,12 @@ Antes da apresentação:
 
 | Perfil | Nome | Tipo de registro | Registro | Senha |
 |---|---|---|---|---|
-| ADMIN | Dr. Ricardo Almeida (regulador) | CRM | `10001-RS` | `Senha@123` |
-| OPERACIONAL | Dra. Ana Souza | CRM | `12345-RS` | `Senha@123` |
-| OPERACIONAL | Enf. Bruno Lima | COREN | `543210-RS` | `Senha@123` |
-| OPERACIONAL | Carlos Pereira | SOCORRISTA | `SOC-0001` | `Senha@123` |
+| ADMIN | Dr. Ricardo Almeida (regulador) | CRM | `10001-RS` | a de `DEMO_SENHA` |
+| OPERACIONAL | Dra. Ana Souza | CRM | `12345-RS` | a de `DEMO_SENHA` |
+| OPERACIONAL | Enf. Bruno Lima | COREN | `543210-RS` | a de `DEMO_SENHA` |
+| OPERACIONAL | Carlos Pereira | SOCORRISTA | `SOC-0001` | a de `DEMO_SENHA` |
 
-Senhas só de demonstração. Os dados incluem cerca de 10 medicamentos, 2 pessoas com prontuário e 2 atendimentos, para que os passos 2 a 4 já mostrem algo.
+A senha das quatro contas é a definida em `DEMO_SENHA`, no `infra/.env` da VM. Ela **não fica no repositório**, porque o repositório e a VM são públicos: quem lesse a senha aqui poderia entrar no sistema publicado (D-31). Os dados também incluem cerca de 10 medicamentos, 2 pessoas com prontuário e 2 atendimentos (etapa 3), para que os passos 2 a 4 já mostrem algo.
 
 ---
 

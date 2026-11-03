@@ -1,11 +1,13 @@
 # MedicalField — infraestrutura do servidor (a VM da Univates faz o papel da "nuvem").
 #
 # Etapa 1: banco central (PostgreSQL) + gateway/portal (Nginx).
-# Os microsserviços (ms-auth, ms-clinico, ms-docs) entram nas próximas etapas.
+# Etapa 2: ms-auth (TypeScript).
+# ms-clinico e ms-docs entram nas próximas etapas.
 #
 # Uso (dentro desta pasta infra/):
-#   cp .env.example .env     # e troque as senhas
-#   docker compose up -d
+#   cp .env.example .env            # e troque as senhas
+#   ./scripts/gerar-chaves-jwt.sh   # uma vez só
+#   docker compose up -d --build
 #
 # Detalhes: docs/12-implantacao.md
 name: medicalfield
@@ -39,6 +41,38 @@ services:
       retries: 20
     networks: [interna]
 
+  ms-auth:
+    build: ../servicos/ms-auth
+    image: medicalfield/ms-auth
+    container_name: medicalfield-ms-auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORTA: "3000"
+      DB_HOST: db
+      DB_PORTA: "5432"
+      DB_NOME: medicalfield
+      DB_USUARIO: ms_auth
+      DB_SENHA: ${MS_AUTH_DB_PASSWORD:?defina MS_AUTH_DB_PASSWORD no arquivo .env}
+      JWT_CHAVE_PRIVADA_ARQUIVO: /run/secrets/jwt-privada.pem
+      JWT_CHAVE_PUBLICA_ARQUIVO: /run/secrets/jwt-publica.pem
+      TZ: UTC
+    secrets:
+      - source: jwt_privada
+        target: jwt-privada.pem
+      - source: jwt_publica
+        target: jwt-publica.pem
+    healthcheck:
+      # Teste de porta, não de rota HTTP: nenhuma rota fica aberta sem token (D-19)
+      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks: [interna]
+
   nginx:
     image: nginx:1.29-alpine
     container_name: medicalfield-nginx
@@ -58,3 +92,11 @@ volumes:
 
 networks:
   interna:
+
+# Chaves dos tokens JWT, geradas por scripts/gerar-chaves-jwt.sh (fora do Git).
+# A privada só vai para o ms-auth; a pública vai para os três serviços.
+secrets:
+  jwt_privada:
+    file: ./secrets/jwt-privada.pem
+  jwt_publica:
+    file: ./secrets/jwt-publica.pem

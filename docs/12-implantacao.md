@@ -88,15 +88,16 @@ git clone https://github.com/CezarGarcia/offline-first-medical-record.git
 cd offline-first-medical-record/infra
 cp .env.example .env
 nano .env                      # troque TODAS as senhas
-./scripts/gerar-chaves-jwt.sh  # chaves dos tokens (a partir da etapa 2)
-docker compose up -d
+./scripts/gerar-chaves-jwt.sh  # chaves dos tokens (uma vez só)
+docker compose up -d --build
 docker compose ps
 ```
 
 - Se o repositório for privado, o `git clone` pede usuário e um **token de acesso do GitHub** (não a senha da conta).
 - Na primeira subida, o Postgres roda [`postgres/init/01-estrutura.sh`](../infra/postgres/init/01-estrutura.sh), que cria os usuários, os schemas e as permissões. O log mostra `MedicalField: usuários, schemas e permissões criados.`
 - Teste: `http://IP-DA-VM/` no navegador mostra a página provisória do MedicalField. `curl -s http://localhost/api/pessoa` responde `SERVICO_INDISPONIVEL` até o ms-clinico entrar (etapa 3).
-- Dados de demonstração (a partir da etapa 3): `./scripts/popular-demo.sh`.
+- Dados de demonstração: defina `DEMO_SENHA` no `.env` e rode `./scripts/popular-demo.sh` (profissionais desde a etapa 2; dados clínicos a partir da etapa 3). Pode rodar mais de uma vez.
+- Testando de dentro da própria VM (`curl http://localhost/...`), o log de acesso mostra o IP da rede do Docker (`172.x.x.x`). Requisições vindas de fora mostram o IP real de quem chamou.
 
 ---
 

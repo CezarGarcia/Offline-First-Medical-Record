@@ -36,6 +36,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-28](#d-28--testes-coleção-do-postman-e-exe-automático) | Testes, coleção do Postman e .exe automático |
 | [D-29](#d-29--duas-instâncias-do-cliente-no-mesmo-pc) | Duas instâncias do cliente no mesmo PC |
 | [D-30](#d-30--senha-em-bcrypt-por-causa-do-cadastro-manual) | Senha em bcrypt por causa do cadastro manual |
+| [D-31](#d-31--senha-das-contas-de-demonstração-fora-do-repositório) | Senha das contas de demonstração fora do repositório |
 
 ---
 
@@ -212,3 +213,10 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 
 - **Decisão:** a senha do profissional é bcrypt (custo 10), e a extensão `pgcrypto` fica instalada no banco.
 - **Por quê:** o enunciado permite inserir cadastros direto no banco. Com `crypt('senha', gen_salt('bf', 10))`, um profissional pode ser criado no SQL já com uma senha que o ms-auth sabe conferir.
+
+### D-31 — Senha das contas de demonstração fora do repositório
+
+- **Decisão:** a senha das contas de demonstração é definida em `DEMO_SENHA`, no `infra/.env` da VM, e usada pelo `infra/scripts/popular-demo.sh`. Ela não aparece em nenhum documento.
+- **Por quê:** o repositório é público e a VM fica na internet. Com a senha publicada, qualquer pessoa poderia entrar no sistema como administrador e, por exemplo, usar o envio de e-mail do projeto.
+- **Consequências:** na apresentação, usa-se a senha que foi definida no `.env`. O roteiro de testes cita "a de `DEMO_SENHA`".
+

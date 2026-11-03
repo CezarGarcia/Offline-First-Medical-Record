@@ -53,7 +53,7 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 | Etapa | Conteúdo | Situação |
 |---|---|---|
 | 1 | Repositório, documentação e infraestrutura base (PostgreSQL + Nginx) | **Concluída** |
-| 2 | ms-auth: login, sessão, profissionais, logs e o middleware de log | Pendente |
+| 2 | ms-auth: login, sessão, profissionais, logs e o middleware de log | **Concluída** |
 | 3 | ms-clinico: cadastros, idempotência, unificação de duplicados, "receber dados" e dados de demonstração | Pendente |
 | 4 | ms-docs: PDF e e-mail | Pendente |
 | 5 | Portal Admin | Pendente |
@@ -67,12 +67,15 @@ Pré-requisitos: Docker com Compose. Na VM, ver [docs/12-implantacao.md](docs/12
 
 ```bash
 cd infra
-cp .env.example .env    # e troque as senhas
-docker compose up -d
+cp .env.example .env            # e troque as senhas (inclusive a DEMO_SENHA)
+./scripts/gerar-chaves-jwt.sh   # uma vez só
+docker compose up -d --build
+./scripts/popular-demo.sh       # contas de demonstração
 ```
 
 - `http://localhost/` mostra a página provisória do portal.
-- `http://localhost/api/...` responde `503 SERVICO_INDISPONIVEL` até cada serviço ser implantado.
+- `POST http://localhost/api/auth/login` já funciona (ms-auth), com as contas de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
+- As rotas dos serviços que ainda não existem respondem `503 SERVICO_INDISPONIVEL`.
 - `./scripts/psql.sh` abre o banco.
 
 ## Convenções

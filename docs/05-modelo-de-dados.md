@@ -361,7 +361,7 @@ As ações feitas no app cliente (principalmente offline), recebidas pelo `POST 
 | `enviado_por_id` | uuid | Dono do token que enviou o lote |
 | `recebido_em` | timestamptz | padrão `now()` |
 
-**Imutabilidade:** as duas tabelas de auditoria têm um gatilho que recusa `UPDATE` e `DELETE`, e ms-clinico e ms-docs só têm permissão de `INSERT`. Log não se altera nem se apaga.
+**Imutabilidade:** as duas tabelas de auditoria têm um gatilho que recusa qualquer `UPDATE`, `DELETE` ou `TRUNCATE` (até do superusuário), e ms-clinico e ms-docs só têm permissão de `INSERT`. Log não se altera nem se apaga.
 
 ---
 

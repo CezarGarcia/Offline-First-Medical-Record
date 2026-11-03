@@ -65,7 +65,7 @@ Geradas com [`infra/scripts/gerar-chaves-jwt.sh`](../infra/scripts/gerar-chaves-
 
 1. Busca o profissional por tipo + registro.
 2. Se está bloqueado, responde `423 CONTA_BLOQUEADA` (com `bloqueadoAte`).
-3. Confere a senha (bcrypt). Se estiver errada, conta a tentativa; na **5ª seguida, bloqueia por 5 minutos**. Responde `401 CREDENCIAIS_INVALIDAS`. A mensagem é a mesma para registro inexistente e senha errada, para não revelar quem existe.
+3. Confere a senha (bcrypt). Se estiver errada, conta a tentativa e responde `401 CREDENCIAIS_INVALIDAS`. Na **5ª errada seguida, bloqueia por 5 minutos** e já responde `423 CONTA_BLOQUEADA`. Para um registro inexistente, a resposta é igual à da senha errada (e demora o mesmo tempo), para não revelar quem existe.
 4. Se a senha confere: zera as tentativas. Se o profissional estiver inativo, responde `403 PROFISSIONAL_INATIVO`.
 5. Cria a sessão e devolve os tokens e os dados do profissional.
 
