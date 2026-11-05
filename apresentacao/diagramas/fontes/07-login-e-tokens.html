@@ -1,0 +1,28 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Login e tokens</h1><p>um crachá assinado (JWT) em cada requisição</p></header>
+
+<div class="caixa app centro" id="usuario" style="left:80px; top:400px; width:300px; height:200px"><b>App ou Portal</b><span>registro + senha</span></div>
+
+<div class="caixa app" id="auth" style="left:500px; top:340px; width:440px; height:320px">
+  <span class="etiqueta">ms-auth</span><b>Confere a senha</b><span>bcrypt</span><b style="margin-top:14px">Assina o JWT</b><span>com a chave privada</span></div>
+
+<div class="caixa cheia chave centro" id="jwt" style="left:1060px; top:270px; width:330px; height:160px"><b>JWT</b><span>vale 15 min</span></div>
+<div class="caixa chave centro" id="refresh" style="left:1060px; top:590px; width:330px; height:160px"><b>Refresh token</b><span>vale 7 dias</span></div>
+
+<div class="caixa java" id="servicos" style="left:1510px; top:230px; width:330px; height:330px">
+  <span class="etiqueta">os 3 serviços</span><b>Conferem o JWT</b><span>com a chave pública,<br>sem perguntar a ninguém</span></div>
+
+<div class="caixa neutro" style="left:1510px; top:640px; width:330px; height:230px">
+  <b style="font-size:28px">Onde fica</b><span>Portal: sessionStorage<br>App: na memória e no cofre do Windows</span></div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['usuario', 'auth', { cor: 'var(--app)' }],
+  ['auth', 'jwt', { cor: 'var(--chave)', de: 'direita', para: 'esquerda' }],
+  ['auth', 'refresh', { cor: 'var(--chave)', de: 'direita', para: 'esquerda' }],
+  ['jwt', 'servicos', { cor: 'var(--java)', rotulo: 'Bearer JWT', de: 'direita', para: 'esquerda', posicao: 0.4, desvioY: -36 }],
+  ['refresh', 'auth', { cor: 'var(--chave)', rotulo: 'a cada 15 min: JWT novo', tracejada: true, de: 'baixo', para: 'baixo', curva: 140 }],
+]);
+</script>
+</body></html>

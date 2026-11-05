@@ -49,7 +49,7 @@ sudo apt install -y docker.io docker-compose-v2 docker-buildx git
   Na linha da porta 5432: `127.0.0.1:5432` quer dizer que só a própria VM acessa. `0.0.0.0:5432`, `*:5432` ou `[::]:5432` quer dizer que ele aceita conexões de fora (se nenhum firewall bloquear).
 - Teste de fora, no PowerShell do PC: `Test-NetConnection IP-DA-VM -Port 5432`. `TcpTestSucceeded : True` = aberto para fora.
 
-**Para o projeto isso não importa:** o MedicalField usa um Postgres próprio, num container, aberto só em `127.0.0.1:5433` (D-03). O Postgres que já existe na VM não é usado nem alterado.
+**Para o projeto isso não importa:** o MedicalField usa um Postgres próprio, num container, aberto só em `127.0.0.1:5433` (D-03). Se existir outro Postgres na VM, ele não é usado nem alterado. Na VM do projeto não existe nenhum.
 
 ### As portas 80 e 443 chegam até a VM?
 
@@ -88,7 +88,7 @@ O que cada resultado permite:
 
 | Verificação | Resultado | O que isso quer dizer |
 |---|---|---|
-| `sudo ss -tlnp` | Só o SSH (porta 22) escuta para fora. O Postgres que já existe atende só pelo socket local | Nada da VM fica exposto além do SSH. As portas 80, 443 e 5433 estão livres |
+| `sudo ss -tlnp` | Só o SSH (porta 22) escuta para fora. Não há Postgres instalado na VM (nem o `psql`) | Nada da VM fica exposto além do SSH. As portas 80, 443 e 5433 estão livres |
 | Porta 80 vista de fora | Pelo navegador do PC do aluno, pela internet, a página de teste abriu (o servidor registrou `GET / 200`) | O portal e a API vão funcionar pela porta 80 |
 | Porta 443 vista de fora | Ainda não testada | Só importa se formos ligar HTTPS |
 | `nslookup IP-DA-VM` | Existe um nome reverso (`…univates.br`), mas a consulta do nome não volta para o IP | A VM não tem um domínio utilizável para certificado |
@@ -157,10 +157,10 @@ Usuário `postgres`, senha `postgres`, banco `medicalfield`, porta **5433** (os 
 |---|---|---|
 | Na VM, pelo script (mais fácil) | `./infra/scripts/psql.sh` (a partir da pasta do repositório) | não pede |
 | Na VM, pelo Docker | `sudo docker compose exec db psql -U postgres -d medicalfield` (na pasta `infra/`) | não pede |
-| Na VM, com o `psql` do sistema | `psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield` | `postgres` |
+| Na VM, com o `psql` do sistema (instale antes: `sudo apt install -y postgresql-client`) | `psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield` | `postgres` |
 | No PC, pelo DBeaver (túnel SSH) | ver abaixo | `postgres` + a do SSH |
 
-Atenção: `psql -U postgres` **sem** `-h 127.0.0.1 -p 5433` entra no Postgres que já existia na VM, não no do MedicalField.
+Atenção: `psql -U postgres` **sem** `-h 127.0.0.1 -p 5433` procura um Postgres instalado na própria VM (pelo socket local), e não o do container. Na VM do projeto não existe nenhum, então dá erro. O `psql` também não vem instalado: use o `./infra/scripts/psql.sh`, que usa o `psql` de dentro do container, ou instale o cliente com `sudo apt install -y postgresql-client`.
 
 **DBeaver com túnel SSH** (o banco continua fechado para a internet):
 
@@ -307,7 +307,8 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 | Trocou senha do banco no `.env` e nada mudou | O script de inicialização só roda na primeira subida | Recriar o banco com `./infra/scripts/zerar.sh` (**apaga todos os dados** e recarrega os de demonstração) |
 | `no configuration file provided: not found` | O `docker compose` foi rodado fora da pasta `infra/` | `cd ~/offline-first-medical-record/infra` (os scripts funcionam de qualquer pasta) |
 | Mudou o `.env` e o serviço continua igual | `docker compose restart` não relê o `.env` | `docker compose up -d <serviço>`: recria o container com os valores novos |
-| O DBeaver não conecta no banco | Sem o túnel SSH, ou com a porta 5432 (a do Postgres que já existia na VM) | Ver [12.6](#126-acessar-o-banco): aba SSH marcada, porta `5433` |
+| O DBeaver não conecta no banco | Sem o túnel SSH, ou com a porta padrão 5432 em vez da 5433 | Ver [12.6](#126-acessar-o-banco): aba SSH marcada, porta `5433` |
+| `Command 'psql' not found` | O cliente do Postgres não vem instalado na VM | `./infra/scripts/psql.sh` (não precisa instalar nada) ou `sudo apt install -y postgresql-client` |
 | Cliente diz "servidor inacessível" | Endereço errado, porta bloqueada ou VM fora do ar | Abrir `http://IP-DA-VM` no navegador do mesmo PC. O endereço do app fica em **Sobre** |
 | Cliente pede "Faça login online para sincronizar" | A sessão do servidor venceu (7 dias), foi encerrada, ou o app foi reaberto depois de um login offline | Clicar em **Entrar online** na barra e digitar a senha. Nada se perde (D-46) |
 | Ao abrir o atalho, a janela que já estava aberta vem para a frente | Cada perfil abre uma janela só | Para outra ambulância, use o atalho do outro perfil |

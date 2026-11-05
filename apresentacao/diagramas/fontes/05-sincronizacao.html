@@ -1,0 +1,29 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Sincronizar</h1><p>enviar a fila, receber o que mudou</p></header>
+
+<div class="caixa cheia app centro" id="app" style="left:80px; top:260px; width:320px; height:600px"><b>App</b><span>SQLite</span></div>
+<div class="caixa cheia gateway centro" id="vm" style="left:1520px; top:260px; width:320px; height:600px"><b>Servidor</b><span>VM</span></div>
+
+<div style="position:absolute; left:470px; top:250px; font-size:30px; font-weight:800; color:var(--app)">1 · Enviar, em ordem, um por vez</div>
+<div class="caixa app centro" id="e1" style="left:470px; top:320px; width:280px; height:110px"><b style="font-size:32px">Pessoa</b></div>
+<div class="caixa app centro" id="e2" style="left:820px; top:320px; width:280px; height:110px"><b style="font-size:32px">Prontuário</b></div>
+<div class="caixa app centro" id="e3" style="left:1170px; top:320px; width:280px; height:110px"><b style="font-size:32px">Atendimento</b></div>
+
+<div style="position:absolute; left:470px; top:560px; font-size:30px; font-weight:800; color:var(--banco)">2 · Receber o que mudou desde a última vez</div>
+<div class="caixa banco centro" id="r1" style="left:470px; top:630px; width:980px; height:130px"><span style="font-size:30px; opacity:1">pacientes · atendimentos · medicamentos · credenciais</span></div>
+
+<div class="caixa neutro" style="left:470px; top:880px; width:980px; height:110px; flex-direction:row; align-items:center; gap:18px">
+  <b style="font-size:28px">Quando:</b><span style="font-size:26px">chave volta para Online · botão Sincronizar · abrir o app · login</span></div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['app', 'e1', { cor: 'var(--app)', de: 'direita', para: 'esquerda', curva: 40 }],
+  ['e1', 'e2', { cor: 'var(--app)', curva: 30 }],
+  ['e2', 'e3', { cor: 'var(--app)', curva: 30 }],
+  ['e3', 'vm', { cor: 'var(--app)', de: 'direita', para: 'esquerda', curva: 40 }],
+  ['vm', 'r1', { cor: 'var(--banco)', de: 'esquerda', para: 'direita', curva: 40 }],
+  ['r1', 'app', { cor: 'var(--banco)', de: 'esquerda', para: 'direita', curva: 40 }],
+]);
+</script>
+</body></html>

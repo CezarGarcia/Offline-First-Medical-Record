@@ -1,0 +1,45 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Arquitetura</h1><p>3 microsserviços em 3 linguagens, atrás de uma porta só</p></header>
+
+<div class="caixa app" id="app" style="left:80px; top:250px; width:400px; height:200px">
+  <span class="etiqueta">Electron · SQLite</span><b>App desktop</b><span>funciona sem internet</span></div>
+<div class="caixa app" id="portal" style="left:80px; top:500px; width:400px; height:170px">
+  <span class="etiqueta">React</span><b>Portal Admin</b><span>no navegador</span></div>
+<div class="caixa neutro" id="postman" style="left:80px; top:720px; width:400px; height:140px">
+  <b>Postman</b><span>testes da API</span></div>
+
+<div class="grupo neutro" style="left:580px; top:210px; width:1260px; height:690px"><span class="titulo">VM · Docker</span></div>
+
+<div class="caixa cheia gateway centro" id="nginx" style="left:640px; top:440px; width:290px; height:230px">
+  <div class="icone">⇄</div><b>Nginx</b><span>porta 80<br>a porta de entrada</span></div>
+
+<div class="caixa app" id="auth" style="left:1030px; top:260px; width:380px; height:170px">
+  <span class="etiqueta">TypeScript</span><b>ms-auth</b><span>login e tokens</span></div>
+<div class="caixa java" id="clinico" style="left:1030px; top:475px; width:380px; height:170px">
+  <span class="etiqueta">Java</span><b>ms-clinico</b><span>pacientes e atendimentos</span></div>
+<div class="caixa python" id="docs" style="left:1030px; top:690px; width:380px; height:170px">
+  <span class="etiqueta">Python</span><b>ms-docs</b><span>PDF e e-mail</span></div>
+
+<div class="caixa cheia banco centro" id="pg" style="left:1520px; top:430px; width:280px; height:250px">
+  <b>PostgreSQL</b><span>um schema<br>por serviço</span></div>
+
+<div class="caixa neutro centro" id="gmail" style="left:1520px; top:920px; width:280px; height:110px">
+  <b>Gmail</b></div>
+
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['app', 'nginx', { cor: 'var(--app)', rotulo: 'HTTP + JWT', de: 'direita', para: 'esquerda', posicao: 0.5, desvioX: -40, desvioY: -60 }],
+  ['portal', 'nginx', { cor: 'var(--app)', de: 'direita', para: 'esquerda' }],
+  ['postman', 'nginx', { cor: 'var(--neutro)', de: 'direita', para: 'esquerda' }],
+  ['nginx', 'auth', { cor: 'var(--gateway)', de: 'direita', para: 'esquerda' }],
+  ['nginx', 'clinico', { cor: 'var(--gateway)', de: 'direita', para: 'esquerda' }],
+  ['nginx', 'docs', { cor: 'var(--gateway)', de: 'direita', para: 'esquerda' }],
+  ['auth', 'pg', { cor: 'var(--banco)', de: 'direita', para: 'esquerda' }],
+  ['clinico', 'pg', { cor: 'var(--banco)', de: 'direita', para: 'esquerda' }],
+  ['docs', 'pg', { cor: 'var(--banco)', de: 'direita', para: 'esquerda' }],
+  ['docs', 'gmail', { cor: 'var(--python)', de: 'baixo', para: 'esquerda', curva: 90 }],
+]);
+</script>
+</body></html>

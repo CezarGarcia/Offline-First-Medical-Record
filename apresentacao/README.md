@@ -5,28 +5,29 @@ Material para apresentar o MedicalField: o passo a passo do dia e os diagramas.
 | Arquivo | O que é |
 |---|---|
 | [`ROTEIRO-DA-APRESENTACAO.md`](ROTEIRO-DA-APRESENTACAO.md) | O passo a passo: preparação, os 17 passos do roteiro com os comandos e o que falar, os extras (conflito, login offline, Postman, auditoria, serviço fora do ar), a cola do banco pelo terminal, perguntas prováveis e o que fazer se algo der errado |
-| [`diagramas/`](diagramas) | As imagens (`.png` para slides, `.svg` para ampliar sem perder qualidade) e as fontes de cada uma (`diagramas/fontes/*.mmd`) |
+| [`diagramas/`](diagramas) | As imagens, no formato de slide (16:9, PNG em alta resolução), feitas para ler de longe: poucas palavras e uma cor por parte do sistema |
 
 ## Diagramas
 
-| Imagem | Mostra | Bom para explicar |
+As cores são as mesmas em todas: **azul** = app e TypeScript (ms-auth), **laranja** = Java (ms-clinico), **verde** = Python (ms-docs), **verde-água** = Nginx, **roxo** = bancos, **amarelo** = chaves e tokens.
+
+| Imagem | Mostra | Use para |
 |---|---|---|
-| [`01-arquitetura`](diagramas/01-arquitetura.png) | Todas as partes, com linguagem, frameworks e portas; as rotas que o Nginx distribui; quem chama quem | A visão geral (comece por ela). Cores: azul = TypeScript, laranja = Java, verde = Python, roxo = bancos |
-| [`02-banco-servidor`](diagramas/02-banco-servidor.png) | O PostgreSQL: as tabelas de cada schema (`auth`, `clinico`, `documentos`, `auditoria`), colunas, chaves e relações | Database per Service; ligações cheias = chave estrangeira, pontilhadas = só o ID (entre schemas) |
-| [`03-banco-local-sqlite`](diagramas/03-banco-local-sqlite.png) | O SQLite do app: a cópia dos dados e as tabelas só do aparelho (fila, logs, credenciais, sessão) | Como o app trabalha sem rede |
-| [`04-app-cliente-por-dentro`](diagramas/04-app-cliente-por-dentro.png) | Os dois processos do Electron, o IPC e as peças do núcleo local (Observer, Command, repositórios) | "O que é o núcleo local e o IPC?" |
-| [`05-gravacao-e-envio`](diagramas/05-gravacao-e-envio.png) | Salvar → SQLite + fila numa transação → `POST` → `201 CRIADO` ou `200 JA_EXISTIA` | Offline-first, outbox e idempotência (passos 7, 12 e 14) |
-| [`06-recebimento`](diagramas/06-recebimento.png) | O "receber dados": cursor, margem de 30 s, credenciais e logs | Passos 6 e 11 |
-| [`07-unificacao`](diagramas/07-unificacao.png) | O mesmo paciente em duas ambulâncias: unificação, apelidos e "o mais recente vence" | O extra do conflito (11.4) |
-| [`08-login-e-tokens`](diagramas/08-login-e-tokens.png) | Login, JWT de 15 min, uso nas requisições e renovação pelo refresh token | Autenticação (passos 1 e 5) |
-| [`09-chaves-jwt`](diagramas/09-chaves-jwt.png) | A chave privada assina (só o ms-auth), a pública confere (os três serviços) | "Para que servem as chaves?" |
-| [`10-login-offline`](diagramas/10-login-offline.png) | Como o app decide entre login online, offline pela credencial do aparelho ou pela réplica de credenciais | O extra do login offline (11.5) |
-| [`11-rede-e-portas`](diagramas/11-rede-e-portas.png) | O que fica aberto na VM (80 e 22) e o que não fica (serviços e banco) | Segurança e Nginx |
-| [`12-padroes-de-projeto`](diagramas/12-padroes-de-projeto.png) | Os seis padrões de projeto e os de arquitetura, com onde estão e para quê | A pergunta dos padrões |
+| [`01-arquitetura`](diagramas/01-arquitetura.png) | As partes, a linguagem de cada serviço e o caminho de uma requisição | Abrir a apresentação |
+| [`02-banco-servidor`](diagramas/02-banco-servidor.png) | O PostgreSQL: um schema por serviço e as tabelas de cada um | "Como é o banco?" |
+| [`03-banco-local-sqlite`](diagramas/03-banco-local-sqlite.png) | O SQLite do app: a cópia dos dados e o que é só do aparelho | "O que o app guarda?" |
+| [`04-offline-first`](diagramas/04-offline-first.png) | Salvar: SQLite + fila, e o envio quando há internet | Passos 7, 12 e 14 |
+| [`05-sincronizacao`](diagramas/05-sincronizacao.png) | Enviar a fila em ordem e receber o que mudou | Passos 6, 11 e 14 |
+| [`06-conflito`](diagramas/06-conflito.png) | O mesmo paciente em duas ambulâncias: o servidor junta | Extra do conflito (11.4) |
+| [`07-login-e-tokens`](diagramas/07-login-e-tokens.png) | Login, JWT, refresh token e as chaves privada e pública | Passos 1 e 5 |
+| [`08-login-offline`](diagramas/08-login-offline.png) | Como o app deixa entrar sem internet | Extra do login offline (11.5) |
+| [`09-rede-e-portas`](diagramas/09-rede-e-portas.png) | O que fica aberto na VM (80 e 22) e o que fica fechado | Segurança e o papel do Nginx |
+| [`10-padroes-de-projeto`](diagramas/10-padroes-de-projeto.png) | Os seis padrões de projeto, com onde estão e para quê | A pergunta dos padrões |
+| [`11-app-por-dentro`](diagramas/11-app-por-dentro.png) | As telas e o núcleo do app, e o IPC entre eles | "O que é o IPC e o núcleo local?" |
 
-## Mudar um diagrama
+## Mudar uma imagem
 
-As fontes são texto ([Mermaid](https://mermaid.js.org)): dá para editar e ver na hora em <https://mermaid.live>, e o GitHub desenha os `.mmd` direto. Para gerar as imagens de novo (Node.js 22 ou mais novo):
+Cada imagem é uma página HTML em `diagramas/fontes/` (as caixas e os textos ficam no próprio arquivo; as setas são desenhadas pelo `fontes/base/base.js`). Para ver uma mudança, abra o `.html` no navegador. Para gerar os PNG de novo (Node.js 22 ou mais novo):
 
 ```bash
 cd apresentacao/diagramas
@@ -35,4 +36,4 @@ npx playwright-core install chromium
 npm run gerar
 ```
 
-`npm run gerar -- 07` gera só os que têm `07` no nome.
+`npm run gerar -- 06` gera só as que têm `06` no nome.

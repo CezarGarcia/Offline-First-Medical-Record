@@ -77,9 +77,9 @@ Mostre as imagens nesta ordem (todas em `diagramas/`):
 | Imagem | O que falar |
 |---|---|
 | `01-arquitetura.png` | Um app desktop que grava tudo num SQLite local e sincroniza com três microsserviços na VM, em três linguagens: **ms-auth** em TypeScript (Fastify), **ms-clinico** em Java (Spring Boot), **ms-docs** em Python (FastAPI). Na frente, o **Nginx** como proxy reverso / API Gateway: a única porta pública (80). Atrás, um PostgreSQL só, com um schema por serviço |
-| `11-rede-e-portas.png` | Da internet só chegam a 80 (Nginx) e a 22 (SSH). Os serviços estão só na rede interna do Docker, e o banco só em `127.0.0.1` |
-| `04-app-cliente-por-dentro.png` | O Electron tem dois processos: as telas (isoladas, sem rede nem banco) e o núcleo (Node.js), que conversam por IPC num contrato tipado |
-| `12-padroes-de-projeto.png` | Os três padrões sugeridos (Repository, Strategy, Observer) e os três escolhidos (Command, Adapter, Builder), cada um com onde está e para quê |
+| `09-rede-e-portas.png` | Da internet só chegam a 80 (Nginx) e a 22 (SSH). Os serviços estão só na rede interna do Docker, e o banco só em `127.0.0.1` |
+| `11-app-por-dentro.png` | O Electron tem dois processos: as telas (isoladas, sem rede nem banco) e o núcleo (Node.js), que conversam por IPC num contrato tipado |
+| `10-padroes-de-projeto.png` | Os três padrões sugeridos (Repository, Strategy, Observer) e os três escolhidos (Command, Adapter, Builder), cada um com onde está e para quê |
 
 Os outros diagramas servem para responder perguntas na hora (seção 5).
 
@@ -102,19 +102,19 @@ Abra **Pessoas**, **Profissionais** e **Medicamentos** (os de demonstração); d
 
 No app (**Ambulância 01**), chave em **Online**, entre com a **Dra. Ana**. A barra de cima mostra o profissional e "Online".
 
-> O login gera um JWT de 15 minutos (assinado pelo ms-auth com a chave privada) e um refresh token de 7 dias, guardado cifrado pelo cofre do Windows. E o app guarda um verificador da senha para o login offline. Diagrama `08-login-e-tokens.png`.
+> O login gera um JWT de 15 minutos (assinado pelo ms-auth com a chave privada) e um refresh token de 7 dias, guardado cifrado pelo cofre do Windows. E o app guarda um verificador da senha para o login offline. Diagrama `07-login-e-tokens.png`.
 
 ### Passo 6 · App: receber dados
 
 Clique em **Sincronizar**. Os pacientes e os medicamentos aparecem; "Última sincronização" é atualizada.
 
-> É o `GET /api/sync/pull?desde=<cursor>`: traz só o que mudou desde a última vez. Diagrama `06-recebimento.png`.
+> É o `GET /api/sync/pull?desde=<cursor>`: traz só o que mudou desde a última vez. Diagrama `05-sincronizacao.png`.
 
 ### Passo 7 · App: atendimento online
 
 **Nova ocorrência** → buscar **João da Silva** → **Selecionar** → **Usar este prontuário** → preencher o atendimento (tipo, queixa, triagem, sinais vitais, um medicamento, desfecho) → **Salvar**. Aparece "Salvo no aparelho" e o selo vira **Sincronizado** em instantes. A fila fica vazia.
 
-> Mesmo online, o app grava primeiro no SQLite, com um item na fila (outbox), e a fila sai na hora. É um caminho só para online e offline (D-11). Diagrama `05-gravacao-e-envio.png`.
+> Mesmo online, o app grava primeiro no SQLite, com um item na fila (outbox), e a fila sai na hora. É um caminho só para online e offline (D-11). Diagrama `04-offline-first.png`.
 
 ### Passo 8 · Portal: o atendimento chegou
 
@@ -136,13 +136,13 @@ Pelo Docker (na pasta `infra/`):
 cd ~/offline-first-medical-record/infra && sudo docker compose exec db psql -U postgres -d medicalfield
 ```
 
-Pelo `psql` da própria VM, na porta do projeto (pede a senha: `postgres`):
+Pelo `psql` da própria VM, na porta do projeto (pede a senha: `postgres`). O `psql` não vem instalado na VM; para ter, uma vez: `sudo apt install -y postgresql-client`.
 
 ```bash
 psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield
 ```
 
-> **Atenção:** `psql -U postgres` sozinho (sem `-h 127.0.0.1 -p 5433`) entra no **Postgres que já existia na VM**, e não no do MedicalField. Se o prompt não mostrar `medicalfield=#`, você está no banco errado.
+> **Atenção:** `psql -U postgres` sozinho (sem `-h 127.0.0.1 -p 5433 -d medicalfield`) não acha o banco: ele procura um Postgres instalado direto na VM, e o do projeto está num container. As duas primeiras opções acima funcionam sem instalar nada.
 
 Dentro do psql (o prompt é `medicalfield=#`):
 
@@ -227,7 +227,7 @@ Abra o atendimento da Maria (no portal ou no app) → **Baixar PDF**. Salva `fic
 | A8 | Portal | No prontuário: **dois atendimentos**, um de cada ambulância |
 | A9 | Portal | **Conflitos**: duas entradas (pessoa e prontuário), com cada diferença, o valor mantido e o descartado |
 
-> Diagrama `07-unificacao.png`. A regra é um **Strategy**: para mostrar a outra, na VM, `./infra/scripts/estrategia.sh SERVIDOR_VENCE` (à mão: mudar `ESTRATEGIA_CONFLITO` no `infra/.env` e `sudo docker compose up -d ms-clinico`). Para voltar: `./infra/scripts/estrategia.sh MAIS_RECENTE_VENCE`.
+> Diagrama `06-conflito.png`. A regra é um **Strategy**: para mostrar a outra, na VM, `./infra/scripts/estrategia.sh SERVIDOR_VENCE` (à mão: mudar `ESTRATEGIA_CONFLITO` no `infra/.env` e `sudo docker compose up -d ms-clinico`). Para voltar: `./infra/scripts/estrategia.sh MAIS_RECENTE_VENCE`.
 
 ### 11.5 · Login offline e sessão mantida
 
@@ -240,7 +240,7 @@ Abra o atendimento da Maria (no portal ou no app) → **Baixar PDF**. Salva `fic
 | B5 | Depois do bloqueio: entrar offline, registrar um atendimento, chave em **Online** | O app faz o login online sozinho e sincroniza |
 | B6 | Portal → **Logs dos clientes** | `LOGIN_OFFLINE`, `LOGIN_FALHOU`, `CONECTIVIDADE_ALTERADA`, `ATENDIMENTO_CRIADO`…, cada um com o modo |
 
-> Diagrama `10-login-offline.png`. O app confere a senha offline com um hash: scrypt (o verificador criado no login online deste aparelho) ou bcrypt (o hash que veio do servidor, guardado cifrado pelo cofre do Windows). A senha em si nunca é gravada.
+> Diagrama `08-login-offline.png`. O app confere a senha offline com um hash: scrypt (o verificador criado no login online deste aparelho) ou bcrypt (o hash que veio do servidor, guardado cifrado pelo cofre do Windows). A senha em si nunca é gravada.
 
 ### 11.6 · Postman
 
@@ -345,7 +345,7 @@ INSERT INTO auth.profissional (nome, tipo_registro, registro, perfil, senha_hash
 VALUES ('Dr. Novo', 'CRM', '99999-RS', 'OPERACIONAL', crypt('a-senha-dele', gen_salt('bf', 10)));
 ```
 
-O mapa completo das tabelas: `diagramas/02-banco-servidor.png` (servidor) e `diagramas/03-banco-local-sqlite.png` (app).
+As tabelas, resumidas: `diagramas/02-banco-servidor.png` (servidor) e `diagramas/03-banco-local-sqlite.png` (app). As colunas de cada uma estão em [docs/05](../docs/05-modelo-de-dados.md).
 
 ### Docker pelo terminal (na pasta `infra/`, com `sudo`)
 
@@ -365,17 +365,17 @@ Mais comandos à mão: [docs/12, seção 12.15](../docs/12-implantacao.md#1215-f
 
 | Pergunta | Resposta | Diagrama |
 |---|---|---|
-| Para que serve o Nginx? | Proxy reverso / API Gateway: a única porta pública. Roteia `/api/...` para o serviço certo, entrega o portal, repassa o IP real para a auditoria, responde `503` se um serviço cair e manda os cabeçalhos de segurança (CSP). **Quem confere o JWT são os serviços**, cada um sozinho | 01, 11 |
-| Como funciona o JWT? | O ms-auth assina com a chave **privada** (RS256); os serviços conferem com a **pública**, sem consultar ninguém. Vale 15 min; o refresh token (7 dias) pede outro. Quem não tem a privada não consegue fabricar nem alterar um token | 08, 09 |
-| Onde fica o token? | Portal: `sessionStorage` (some ao fechar a aba). App: o JWT só na memória e o refresh token no SQLite, cifrado pelo cofre do Windows (DPAPI) | 08 |
-| O que é offline-first aqui? | Tudo é gravado primeiro no SQLite, com um item na fila (outbox), numa transação. A fila sai quando há conexão, em ordem, um item por vez | 05 |
-| E se a mesma coisa for enviada duas vezes? | O ID nasce no aparelho (UUID v7); o servidor faz `INSERT ... ON CONFLICT DO NOTHING` e responde `JA_EXISTIA`. Nunca duplica | 05 |
-| E conflitos? | Como registro clínico não é editado, o conflito é criar a mesma coisa duas vezes (mesmo CPF). O servidor unifica campo a campo com a estratégia configurada (Strategy) e guarda as diferenças em Conflitos | 07 |
-| Como entra offline quem nunca usou o aparelho? | A cada sincronização, o app recebe os profissionais ativos com o hash bcrypt da senha, guardado cifrado pelo cofre. Offline, confere a senha com esse hash (D-51) | 10 |
+| Para que serve o Nginx? | Proxy reverso / API Gateway: a única porta pública. Roteia `/api/...` para o serviço certo, entrega o portal, repassa o IP real para a auditoria, responde `503` se um serviço cair e manda os cabeçalhos de segurança (CSP). **Quem confere o JWT são os serviços**, cada um sozinho | 01, 09 |
+| Como funciona o JWT? | O ms-auth assina com a chave **privada** (RS256); os serviços conferem com a **pública**, sem consultar ninguém. Vale 15 min; o refresh token (7 dias) pede outro. Quem não tem a privada não consegue fabricar nem alterar um token | 07 |
+| Onde fica o token? | Portal: `sessionStorage` (some ao fechar a aba). App: o JWT só na memória e o refresh token no SQLite, cifrado pelo cofre do Windows (DPAPI) | 07 |
+| O que é offline-first aqui? | Tudo é gravado primeiro no SQLite, com um item na fila (outbox), numa transação. A fila sai quando há conexão, em ordem, um item por vez | 04 |
+| E se a mesma coisa for enviada duas vezes? | O ID nasce no aparelho (UUID v7); o servidor faz `INSERT ... ON CONFLICT DO NOTHING` e responde `JA_EXISTIA`. Nunca duplica | 04 |
+| E conflitos? | Como registro clínico não é editado, o conflito é criar a mesma coisa duas vezes (mesmo CPF). O servidor unifica campo a campo com a estratégia configurada (Strategy) e guarda as diferenças em Conflitos | 06 |
+| Como entra offline quem nunca usou o aparelho? | A cada sincronização, o app recebe os profissionais ativos com o hash bcrypt da senha, guardado cifrado pelo cofre. Offline, confere a senha com esse hash (D-51) | 08 |
 | Por que um banco só? | Um schema e um usuário por serviço: cada serviço só enxerga o que é seu (Database per Service possível com um servidor de banco). O `ms_auth` recebe "permission denied" se tentar ler o `clinico` | 02 |
 | Os logs podem ser apagados? | Não: um gatilho recusa `UPDATE` e `DELETE` até para o `postgres` (mostrar no psql, seção 3) | 02 |
-| A senha do banco é `postgres`? Não é inseguro? | O banco só escuta em `127.0.0.1` dentro da VM; da internet não se chega nele (D-49). A senha que protege o sistema publicado é a das contas (`DEMO_SENHA`), que não está no repositório | 11 |
-| Quais padrões de projeto? | Repository, Strategy e Observer (sugeridos); Command, Adapter e Builder (escolhidos) | 12 |
+| A senha do banco é `postgres`? Não é inseguro? | O banco só escuta em `127.0.0.1` dentro da VM; da internet não se chega nele (D-49). A senha que protege o sistema publicado é a das contas (`DEMO_SENHA`), que não está no repositório | 09 |
+| Quais padrões de projeto? | Repository, Strategy e Observer (sugeridos); Command, Adapter e Builder (escolhidos) | 10 |
 | Como foi testado? | 196 testes automáticos, a coleção do Postman (51 requisições) e dois passeios automáticos (portal e app). Tudo roda a cada push no GitHub Actions, com o sistema inteiro no Docker | — |
 
 ---
@@ -390,7 +390,7 @@ Mais comandos à mão: [docs/12, seção 12.15](../docs/12-implantacao.md#1215-f
 | Passos 2 a 4 mostram registros a mais | Sobrou do ensaio: `./infra/scripts/zerar.sh` (e o `apagar-dados-locais.cmd` no notebook) |
 | O app diz "Faça login online para sincronizar" | Clique em **Entrar online** na barra e digite a senha. Nada se perde |
 | O e-mail não chega | `./infra/scripts/testar-email.sh <e-mail>` mostra a mensagem do Gmail. Confira o spam |
-| `psql` não mostra `medicalfield=#` | Você está no Postgres da VM: use `./infra/scripts/psql.sh` |
+| `psql: command not found`, ou `psql -U postgres` não conecta | Use `./infra/scripts/psql.sh` (o `psql` de dentro do container), ou instale o cliente: `sudo apt install -y postgresql-client` |
 | `docker compose` diz `no configuration file provided` | Faltou entrar na pasta: `cd ~/offline-first-medical-record/infra` |
 | `permission denied ... docker.sock` | Faltou o `sudo` na frente do `docker` |
 

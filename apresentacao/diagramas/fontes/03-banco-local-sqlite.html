@@ -1,0 +1,27 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Banco do app</h1><p>SQLite: um arquivo no próprio PC, por isso funciona sem internet</p></header>
+
+<div class="caixa cheia gateway centro" id="servidor" style="left:760px; top:200px; width:400px; height:130px"><b>Servidor (VM)</b></div>
+
+<div class="grupo banco" id="copia" style="left:80px; top:440px; width:760px; height:480px"><span class="titulo">Cópia dos dados do servidor</span></div>
+<div class="caixa banco centro" style="left:130px; top:520px; width:310px; height:120px"><b>Pessoas</b></div>
+<div class="caixa banco centro" id="prontuarios" style="left:480px; top:520px; width:310px; height:120px"><b>Prontuários</b></div>
+<div class="caixa banco centro" style="left:130px; top:690px; width:310px; height:120px"><b>Atendimentos</b></div>
+<div class="caixa banco centro" style="left:480px; top:690px; width:310px; height:120px"><b>Medicamentos</b></div>
+<div style="position:absolute; left:130px; top:840px; font-size:24px; color:var(--banco); font-weight:600">+ o que foi criado aqui e ainda não subiu (Pendente)</div>
+
+<div class="grupo app" style="left:1000px; top:440px; width:840px; height:480px"><span class="titulo">Só deste aparelho</span></div>
+<div class="caixa app" style="left:1050px; top:510px; width:340px; height:180px"><b>Credenciais</b><span>para o login offline</span></div>
+<div class="caixa cheia app" id="fila" style="left:1430px; top:510px; width:360px; height:180px"><b>Fila de envio</b><span>o que falta mandar (outbox)</span></div>
+<div class="caixa app centro" style="left:1050px; top:730px; width:240px; height:130px"><b style="font-size:30px">Logs locais</b></div>
+<div class="caixa app centro" style="left:1320px; top:730px; width:220px; height:130px"><b style="font-size:30px">Sessão</b></div>
+<div class="caixa app centro" style="left:1570px; top:730px; width:220px; height:130px"><b style="font-size:30px">Config.</b></div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['servidor', 'prontuarios', { cor: 'var(--banco)', rotulo: 'receber dados', de: 'esquerda', para: 'cima', curva: 120 }],
+  ['fila', 'servidor', { cor: 'var(--app)', rotulo: 'enviar', de: 'cima', para: 'direita', curva: 120 }],
+]);
+</script>
+</body></html>

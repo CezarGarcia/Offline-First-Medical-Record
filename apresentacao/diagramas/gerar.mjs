@@ -1,76 +1,39 @@
 /**
- * Gera as imagens da pasta apresentacao/diagramas a partir das fontes em fontes/*.mmd (Mermaid):
- * um .svg (escala sem perder qualidade) e um .png em alta resolução (para colar em slides).
+ * Gera as imagens da apresentação (PNG 16:9, 3840x2160) a partir das páginas em fontes/*.html.
+ * Cada página é um "slide" de 1920x1080 com caixas posicionadas e setas desenhadas por fontes/base/base.js.
  *
  *   cd apresentacao/diagramas && npm ci && npx playwright-core install chromium && npm run gerar
  *
- * As fontes também abrem direto no GitHub (que desenha Mermaid) e em https://mermaid.live.
+ * `npm run gerar -- 01` gera só as que têm 01 no nome. Para editar, abra o .html no navegador.
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { readdirSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const FONTES = join(AQUI, 'fontes');
-const MERMAID = createRequire(import.meta.url).resolve('mermaid/dist/mermaid.min.js');
 const so = process.argv.slice(2);
 
-const CONFIG = {
-  startOnLoad: false,
-  theme: 'base',
-  securityLevel: 'loose',
-  fontFamily: '"Segoe UI", "DejaVu Sans", Arial, sans-serif',
-  themeVariables: {
-    fontSize: '16px',
-    primaryColor: '#eef4fb',
-    primaryBorderColor: '#3b6ea8',
-    primaryTextColor: '#13233a',
-    lineColor: '#4b5d73',
-    secondaryColor: '#f6f8fa',
-    tertiaryColor: '#ffffff',
-    clusterBkg: '#f7f9fc',
-    clusterBorder: '#9fb3c8',
-    noteBkgColor: '#fff7d6',
-    noteBorderColor: '#d4b106',
-    actorBkg: '#eef4fb',
-    actorBorder: '#3b6ea8',
-    signalColor: '#13233a',
-    labelBoxBkgColor: '#eef4fb',
-  },
-  // useMaxWidth: false = o desenho no tamanho real (senão ele encolhe para caber na página)
-  flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis', padding: 14, nodeSpacing: 40, rankSpacing: 55, wrappingWidth: 320 },
-  sequence: { useMaxWidth: false, actorMargin: 80, messageMargin: 38, mirrorActors: false, noteMargin: 14, wrap: false, width: 230 },
-  er: { useMaxWidth: false, fontSize: 14, layoutDirection: 'TB' },
-  state: { useMaxWidth: false },
-};
-
 const navegador = await chromium.launch();
-const pagina = await navegador.newPage({ deviceScaleFactor: 2, viewport: { width: 2400, height: 1600 } });
-await pagina.setContent('<!doctype html><html><body style="margin:0;background:#ffffff"><div id="saida"></div></body></html>');
-await pagina.addScriptTag({ path: MERMAID });
-await pagina.evaluate((config) => window.mermaid.initialize(config), CONFIG);
-
+const pagina = await navegador.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2 });
+const erros = [];
+pagina.on('pageerror', (e) => erros.push(e.message));
 let falhas = 0;
-for (const arquivo of readdirSync(FONTES).filter((a) => a.endsWith('.mmd')).sort()) {
-  const nome = basename(arquivo, '.mmd');
+for (const arquivo of readdirSync(FONTES).filter((a) => a.endsWith('.html')).sort()) {
+  const nome = basename(arquivo, '.html');
   if (so.length && !so.some((s) => nome.includes(s))) continue;
-  const fonte = readFileSync(join(FONTES, arquivo), 'utf8');
-  try {
-    const svg = await pagina.evaluate(async ({ id, fonte }) => {
-      const { svg } = await window.mermaid.render(id, fonte);
-      const saida = document.getElementById('saida');
-      saida.innerHTML = `<div id="moldura" style="display:inline-block;padding:28px;background:#ffffff">${svg}</div>`;
-      return svg;
-    }, { id: `d${nome.replace(/[^a-z0-9]/gi, '')}`, fonte });
-    writeFileSync(join(AQUI, `${nome}.svg`), svg);
-    await pagina.locator('#moldura').screenshot({ path: join(AQUI, `${nome}.png`) });
-    console.log(`✓ ${nome}`);
-  } catch (erro) {
+  erros.length = 0;
+  await pagina.goto(pathToFileURL(join(FONTES, arquivo)).href);
+  await pagina.evaluate(() => document.fonts.ready);
+  await pagina.waitForSelector('body[data-pronto="1"]', { timeout: 10_000 }).catch(() => {});
+  if (erros.length) {
     falhas += 1;
-    console.error(`✗ ${nome}: ${erro.message.split('\n')[0]}`);
+    console.error(`✗ ${nome}: ${erros.join(' | ')}`);
+    continue;
   }
+  await pagina.screenshot({ path: join(AQUI, `${nome}.png`) });
+  console.log(`✓ ${nome}`);
 }
 await navegador.close();
 process.exitCode = falhas ? 1 : 0;

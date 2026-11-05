@@ -1,0 +1,27 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>O que fica aberto na VM</h1><p>só duas portas chegam de fora</p></header>
+
+<div class="caixa cheia neutro centro" id="internet" style="left:80px; top:420px; width:300px; height:200px"><b>Internet</b></div>
+
+<div class="grupo neutro" style="left:500px; top:210px; width:1340px; height:740px"><span class="titulo">VM</span></div>
+<div class="caixa cheia python" id="p80" style="left:560px; top:280px; width:420px; height:190px"><b>porta 80 · Nginx</b><span>portal e API</span></div>
+<div class="caixa cheia python" id="p22" style="left:560px; top:620px; width:420px; height:190px"><b>porta 22 · SSH</b><span>administração</span></div>
+
+<div class="grupo alerta" style="left:1100px; top:270px; width:700px; height:620px"><span class="titulo">fechado para a internet</span></div>
+<div class="caixa app centro" id="auth" style="left:1150px; top:320px; width:290px; height:100px"><b style="font-size:32px">ms-auth</b></div>
+<div class="caixa java centro" id="clinico" style="left:1150px; top:440px; width:290px; height:100px"><b style="font-size:32px">ms-clinico</b></div>
+<div class="caixa python centro" id="docs" style="left:1150px; top:560px; width:290px; height:100px"><b style="font-size:32px">ms-docs</b></div>
+<div class="caixa cheia banco centro" id="pg" style="left:1500px; top:580px; width:260px; height:260px"><b>PostgreSQL</b><span>só 127.0.0.1</span></div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['internet', 'p80', { cor: 'var(--python)', de: 'direita', para: 'esquerda' }],
+  ['internet', 'p22', { cor: 'var(--python)', de: 'direita', para: 'esquerda' }],
+  ['p80', 'auth', { cor: 'var(--gateway)', de: 'direita', para: 'esquerda' }],
+  ['p80', 'clinico', { cor: 'var(--gateway)', de: 'direita', para: 'esquerda' }],
+  ['p80', 'docs', { cor: 'var(--gateway)', de: 'direita', para: 'esquerda' }],
+  ['p22', 'pg', { cor: 'var(--banco)', rotulo: 'psql pelo SSH', tracejada: true, de: 'direita', para: 'esquerda', posicao: 0.3, desvioY: 40 }],
+]);
+</script>
+</body></html>

@@ -105,7 +105,7 @@ Internet ──► :80  Nginx ──► rede interna do Docker ──► ms-auth
 127.0.0.1:5433 ──► PostgreSQL (só a própria VM; de fora, via túnel SSH)
 ```
 
-- O Postgres do projeto roda num container próprio, **separado** de qualquer Postgres que já exista na VM (que costuma usar a porta 5432).
+- O Postgres do projeto roda num container próprio, **separado** de qualquer Postgres que exista na máquina (que costuma usar a porta 5432). A VM do projeto não tem nenhum.
 - O Nginx descobre os serviços pelo DNS interno do Docker **na hora da requisição**. Assim ele sobe mesmo se um serviço estiver parado, e responde `503 SERVICO_INDISPONIVEL` para as rotas dele.
 - Mapa de rotas → serviço: [06-api.md](06-api.md#61-visão-geral). A configuração está em [`infra/nginx/conf.d/medicalfield.conf`](../infra/nginx/conf.d/medicalfield.conf).
 

@@ -1,0 +1,26 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Login offline</h1><p>entrar sem internet</p></header>
+
+<div class="caixa chave centro" id="inicio" style="left:80px; top:420px; width:320px; height:200px"><span class="etiqueta">Offline</span><b>Registro + senha</b></div>
+<div class="caixa neutro centro" id="conhece" style="left:510px; top:390px; width:400px; height:260px"><b>O aparelho conhece o profissional?</b></div>
+
+<div class="caixa alerta" id="nao" style="left:1030px; top:200px; width:400px; height:200px"><span class="etiqueta">nunca sincronizou</span><b>Precisa de internet</b><span>uma vez</span></div>
+<div class="caixa app" id="confere" style="left:1030px; top:600px; width:400px; height:230px"><span class="etiqueta">sim</span><b>Confere a senha</b><span>com o hash guardado</span></div>
+<div class="caixa cheia python centro" id="entra" style="left:1540px; top:620px; width:300px; height:190px"><b>Entra offline</b></div>
+
+<div class="caixa chave" style="left:80px; top:700px; width:830px; height:250px">
+  <b style="font-size:30px">De onde vem o hash</b>
+  <span>1. do login online feito neste PC<br>2. da cópia que vem do servidor na sincronização<br>guardado cifrado pelo cofre do Windows · a senha nunca é gravada</span></div>
+<div class="caixa neutro" style="left:1540px; top:240px; width:300px; height:250px">
+  <b style="font-size:28px">Regras</b><span>vale 7 dias<br>5 erros = 5 min bloqueado</span></div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['inicio', 'conhece', { cor: 'var(--chave)' }],
+  ['conhece', 'nao', { cor: 'var(--alerta)', de: 'direita', para: 'esquerda' }],
+  ['conhece', 'confere', { cor: 'var(--app)', de: 'direita', para: 'esquerda' }],
+  ['confere', 'entra', { cor: 'var(--python)', de: 'direita', para: 'esquerda' }],
+]);
+</script>
+</body></html>

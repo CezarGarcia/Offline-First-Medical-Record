@@ -1,0 +1,33 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Banco central</h1><p>um PostgreSQL · um schema por serviço · cada serviço só enxerga o seu</p></header>
+
+<div class="grupo app" style="left:80px; top:240px; width:360px; height:640px"><span class="titulo">auth · ms-auth</span></div>
+<div class="caixa app centro" style="left:110px; top:320px; width:300px; height:120px"><b>Profissionais</b></div>
+<div class="caixa app centro" style="left:110px; top:480px; width:300px; height:120px"><b>Sessões</b></div>
+
+<div class="grupo java" style="left:480px; top:240px; width:740px; height:640px"><span class="titulo">clinico · ms-clinico</span></div>
+<div class="caixa java centro" id="pessoa" style="left:520px; top:310px; width:280px; height:110px"><b style="font-size:32px">Pessoas</b></div>
+<div class="caixa java centro" id="prontuario" style="left:520px; top:480px; width:280px; height:110px"><b style="font-size:32px">Prontuários</b></div>
+<div class="caixa java centro" id="atendimento" style="left:520px; top:650px; width:280px; height:110px"><b style="font-size:32px">Atendimentos</b></div>
+<div class="caixa java centro" id="medicamento" style="left:930px; top:650px; width:270px; height:110px"><b style="font-size:32px">Medicamentos</b></div>
+<div class="caixa java clara centro" style="left:920px; top:330px; width:260px; height:150px"><b style="font-size:30px">Conflitos</b><span>e unificações</span></div>
+
+<div class="grupo python" style="left:1260px; top:240px; width:270px; height:640px"><span class="titulo">documentos</span></div>
+<div class="caixa python centro" style="left:1280px; top:320px; width:230px; height:150px"><b style="font-size:32px">E-mails enviados</b></div>
+
+<div class="grupo banco" style="left:1570px; top:240px; width:270px; height:640px"><span class="titulo">auditoria</span></div>
+<div class="caixa banco centro" style="left:1590px; top:320px; width:230px; height:130px"><b style="font-size:32px">Logs de acesso</b></div>
+<div class="caixa banco centro" style="left:1590px; top:490px; width:230px; height:130px"><b style="font-size:32px">Logs dos apps</b></div>
+<div class="caixa cheia banco centro" style="left:1590px; top:680px; width:230px; height:150px"><b style="font-size:28px">Só INSERT</b><span>ninguém altera nem apaga</span></div>
+
+<div style="position:absolute; left:80px; top:920px; font-size:28px; color:var(--suave); font-weight:600">Setas = chave estrangeira. Entre schemas, só o ID (cada serviço é dono dos seus dados).</div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['pessoa', 'prontuario', { cor: 'var(--java)', rotulo: '1 por pessoa', de: 'baixo', para: 'cima' }],
+  ['prontuario', 'atendimento', { cor: 'var(--java)', rotulo: 'vários', de: 'baixo', para: 'cima' }],
+  ['medicamento', 'atendimento', { cor: 'var(--java)', rotulo: 'aplicados', de: 'esquerda', para: 'direita' }],
+]);
+</script>
+</body></html>

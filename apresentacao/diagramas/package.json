@@ -1,13 +1,13 @@
 {
   "name": "medicalfield-diagramas",
   "private": true,
-  "description": "Gera as imagens dos diagramas da apresentação (PNG e SVG) a partir das fontes em fontes/*.mmd",
+  "description": "Gera as imagens da apresentação (PNG 16:9) a partir das páginas em fontes/*.html",
   "type": "module",
   "scripts": {
     "gerar": "node gerar.mjs"
   },
   "devDependencies": {
-    "mermaid": "12.2.0",
+    "@fontsource-variable/inter": "5.2.8",
     "playwright-core": "1.63.0"
   }
 }

@@ -1,0 +1,22 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>Padrões de projeto</h1><p>3 sugeridos pelo enunciado + 3 escolhidos</p></header>
+
+<div class="caixa app" style="left:80px; top:220px; width:550px; height:300px; justify-content:flex-start; padding-top:36px"><span class="etiqueta">sugerido</span><b>Repository</b><span>App, ms-clinico e ms-docs<br>só o repositório fala SQL</span></div>
+<div class="caixa java" style="left:685px; top:220px; width:550px; height:300px; justify-content:flex-start; padding-top:36px"><span class="etiqueta">sugerido</span><b>Strategy</b><span>ms-clinico<br>a regra de conflito troca por configuração</span></div>
+<div class="caixa app" style="left:1290px; top:220px; width:550px; height:300px; justify-content:flex-start; padding-top:36px"><span class="etiqueta">sugerido</span><b>Observer</b><span>App<br>a internet voltou: sincroniza sozinho</span></div>
+
+<div class="caixa app" style="left:80px; top:570px; width:550px; height:300px; justify-content:flex-start; padding-top:36px"><span class="etiqueta">escolhido</span><b>Command</b><span>App<br>cada item da fila sabe se enviar</span></div>
+<div class="caixa python" style="left:685px; top:570px; width:550px; height:300px; justify-content:flex-start; padding-top:36px"><span class="etiqueta">escolhido</span><b>Adapter</b><span>ms-docs<br>trocar o Gmail sem mexer no resto</span></div>
+<div class="caixa python" style="left:1290px; top:570px; width:550px; height:300px; justify-content:flex-start; padding-top:36px"><span class="etiqueta">escolhido</span><b>Builder</b><span>ms-docs<br>monta o PDF parte por parte</span></div>
+
+<div style="position:absolute; left:80px; top:920px; display:flex; gap:16px; align-items:center">
+  <span style="font-size:28px; font-weight:800; color:var(--suave)">Arquitetura:</span>
+  <span class="pilula gateway" style="--cor:var(--gateway)">API Gateway</span>
+  <span class="pilula" style="--cor:var(--app)">Outbox</span>
+  <span class="pilula" style="--cor:var(--banco)">Database per Service</span>
+  <span class="pilula" style="--cor:var(--chave)">Offline-First</span>
+</div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>desenhar([]);</script>
+</body></html>

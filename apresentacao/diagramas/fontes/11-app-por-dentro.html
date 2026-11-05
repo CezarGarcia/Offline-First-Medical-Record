@@ -1,0 +1,24 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><link rel="stylesheet" href="base/base.css"><script src="base/base.js"></script></head>
+<body>
+<header><h1>O app desktop por dentro</h1><p>Electron: duas partes que conversam por mensagens (IPC)</p></header>
+
+<div class="caixa app" id="telas" style="left:80px; top:300px; width:480px; height:330px">
+  <span class="etiqueta">React</span><b>Telas</b><span>mostram e coletam<br><br>isoladas: sem internet<br>e sem banco</span></div>
+
+<div class="caixa cheia app" id="nucleo" style="left:820px; top:250px; width:560px; height:430px">
+  <span class="etiqueta">Node.js</span><b>Núcleo local</b>
+  <span>regras e dados</span>
+  <div class="pilulas"><span class="pilula" style="--cor:#fff; background:rgba(255,255,255,0.15); color:#fff">fila de envio</span><span class="pilula" style="--cor:#fff; background:rgba(255,255,255,0.15); color:#fff">sincronização</span><span class="pilula" style="--cor:#fff; background:rgba(255,255,255,0.15); color:#fff">login offline</span><span class="pilula" style="--cor:#fff; background:rgba(255,255,255,0.15); color:#fff">chave Online/Offline</span></div>
+</div>
+
+<div class="caixa cheia banco centro" id="sqlite" style="left:900px; top:800px; width:400px; height:170px"><b>SQLite</b></div>
+<div class="caixa cheia gateway centro" id="api" style="left:1520px; top:380px; width:320px; height:170px"><b>API na VM</b></div>
+<div class="rodape">MedicalField · Univates 2026/B</div>
+<script>
+desenhar([
+  ['telas', 'nucleo', { cor: 'var(--app)', rotulo: 'IPC', dupla: true, de: 'direita', para: 'esquerda' }],
+  ['nucleo', 'sqlite', { cor: 'var(--banco)', de: 'baixo', para: 'cima' }],
+  ['nucleo', 'api', { cor: 'var(--gateway)', rotulo: 'só com a chave em Online', de: 'direita', para: 'esquerda', desvioY: 70 }],
+]);
+</script>
+</body></html>

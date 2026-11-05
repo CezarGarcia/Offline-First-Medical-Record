@@ -1,0 +1,80 @@
+/* Base visual das imagens da apresentação: 1920x1080 (16:9), letra grande para ler de longe */
+@import url('../../node_modules/@fontsource-variable/inter/index.css');
+
+:root {
+  --texto: #0f172a;
+  --suave: #475569;
+  --fundo: #ffffff;
+  --linha: #94a3b8;
+  /* uma cor por parte do sistema (iguais em todas as imagens) */
+  --app: #2563eb;      --app-claro: #dbeafe;
+  --java: #ea580c;     --java-claro: #ffedd5;
+  --python: #16a34a;   --python-claro: #dcfce7;
+  --gateway: #0d9488;  --gateway-claro: #ccfbf1;
+  --banco: #7c3aed;    --banco-claro: #ede9fe;
+  --chave: #d97706;    --chave-claro: #fef3c7;
+  --alerta: #dc2626;   --alerta-claro: #fee2e2;
+  --neutro: #64748b;   --neutro-claro: #f1f5f9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  width: 1920px; height: 1080px; overflow: hidden; position: relative;
+  font-family: 'Inter Variable', 'Segoe UI', Arial, sans-serif; color: var(--texto);
+  background: radial-gradient(1200px 700px at 100% 0%, #eef6ff 0%, rgba(238,246,255,0) 60%),
+              radial-gradient(900px 600px at 0% 100%, #f5f0ff 0%, rgba(245,240,255,0) 60%), var(--fundo);
+}
+header { position: absolute; left: 80px; top: 56px; right: 80px; display: flex; align-items: baseline; gap: 28px; }
+h1 { margin: 0; font-size: 60px; font-weight: 800; letter-spacing: -0.02em; }
+header p { margin: 0; font-size: 28px; color: var(--suave); font-weight: 500; }
+.rodape { position: absolute; left: 80px; bottom: 40px; font-size: 20px; color: #94a3b8; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Caixas: posição absoluta (cada imagem define left/top/width) */
+.caixa {
+  position: absolute; border-radius: 22px; padding: 22px 28px; background: #fff;
+  border: 4px solid var(--cor, var(--neutro)); box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
+  display: flex; flex-direction: column; gap: 6px; justify-content: center;
+}
+.caixa.cheia { background: var(--cor, var(--neutro)); color: #fff; border-color: transparent; }
+.caixa.clara { background: var(--claro, var(--neutro-claro)); }
+.caixa b, .caixa .nome { font-size: 36px; font-weight: 800; line-height: 1.1; }
+.caixa span, .caixa .desc { font-size: 26px; font-weight: 500; line-height: 1.25; color: inherit; opacity: 0.85; }
+.caixa .etiqueta {
+  align-self: flex-start; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 4px 12px; border-radius: 999px; background: var(--cor); color: #fff; opacity: 1;
+}
+.caixa.cheia .etiqueta { background: rgba(255,255,255,0.25); }
+.centro { text-align: center; align-items: center; }
+
+/* Grupos (uma área com título, ex.: a VM) */
+.grupo {
+  position: absolute; border-radius: 30px; border: 3px dashed var(--cor, var(--linha));
+  background: var(--claro, rgba(241, 245, 249, 0.55));
+}
+.grupo > .titulo {
+  position: absolute; top: -24px; left: 32px; background: var(--cor, var(--neutro)); color: #fff;
+  font-size: 24px; font-weight: 800; padding: 8px 20px; border-radius: 999px; letter-spacing: 0.02em;
+}
+
+/* Cores prontas */
+.app { --cor: var(--app); --claro: var(--app-claro); }
+.java { --cor: var(--java); --claro: var(--java-claro); }
+.python { --cor: var(--python); --claro: var(--python-claro); }
+.gateway { --cor: var(--gateway); --claro: var(--gateway-claro); }
+.banco { --cor: var(--banco); --claro: var(--banco-claro); }
+.chave { --cor: var(--chave); --claro: var(--chave-claro); }
+.alerta { --cor: var(--alerta); --claro: var(--alerta-claro); }
+.neutro { --cor: var(--neutro); --claro: var(--neutro-claro); }
+
+/* Pílulas (itens curtos, ex.: nomes de tabela) */
+.pilulas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.pilula { font-size: 26px; font-weight: 600; padding: 8px 18px; border-radius: 14px; background: #fff; border: 2px solid var(--cor); color: var(--texto); }
+
+/* Setas (desenhadas por base.js) */
+svg.setas { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; overflow: visible; }
+.rotulo-seta {
+  position: absolute; transform: translate(-50%, -50%); white-space: nowrap;
+  font-size: 22px; font-weight: 700; padding: 6px 14px; border-radius: 999px;
+  background: #fff; border: 2px solid currentColor; box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+}
+.icone { font-size: 44px; line-height: 1; }
