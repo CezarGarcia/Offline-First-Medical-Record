@@ -14,6 +14,7 @@ import type {
   Prontuario,
   Sincronizacao,
 } from '@compartilhado/tipos';
+import bcrypt from 'bcryptjs';
 import { Nucleo } from '../src/main/nucleo/nucleo';
 import type { Cofre } from '../src/main/nucleo/sessao';
 
@@ -27,6 +28,16 @@ export const ANA: ProfissionalResumo = {
   registro: '12345-RS',
   perfil: 'OPERACIONAL',
 };
+
+/** Nunca entrou online nos aparelhos dos testes: só entra offline pela réplica de credenciais (D-51). */
+export const CARLOS: ProfissionalResumo = {
+  id: '0193f000-0000-7000-8000-0000000000c4',
+  nome: 'Carlos Pereira',
+  tipoRegistro: 'SOCORRISTA',
+  registro: 'SOC-0001',
+  perfil: 'OPERACIONAL',
+};
+export const SENHA_DO_CARLOS = 'senha-do-carlos';
 
 export const MEDICAMENTO: Medicamento = {
   id: '0193f000-0000-7000-8000-000000000501',
@@ -63,6 +74,11 @@ export class ServidorFalso {
   medicamentos: Medicamento[] = [MEDICAMENTO];
   unificacoes: { entidade: 'PESSOA' | 'PRONTUARIO'; idDescartado: string; idMantido: string }[] = [];
   fora = false;
+  /** Os ativos, com o hash da senha (como em auth.profissional): a réplica do login offline. */
+  ativos = [
+    { ...ANA, senhaHash: bcrypt.hashSync(SENHA, 4) },
+    { ...CARLOS, senhaHash: bcrypt.hashSync(SENHA_DO_CARLOS, 4) },
+  ];
   private tokens = new Set<string>();
   private refreshTokens = new Set<string>();
   private contador = 0;
@@ -153,6 +169,9 @@ export class ServidorFalso {
     if (!this.tokens.has(token)) return erro(401, 'NAO_AUTENTICADO');
 
     if (metodo === 'POST' && caminho === '/api/auth/logout') return json(204, null);
+    if (metodo === 'GET' && caminho === '/api/auth/credenciais-offline') {
+      return json(200, { geradoEm: new Date().toISOString(), profissionais: this.ativos });
+    }
     if (metodo === 'POST' && caminho === '/api/pessoa') return this.criarPessoa(corpo);
     if (metodo === 'POST' && caminho === '/api/prontuario') return this.criarProntuario(corpo);
     if (metodo === 'POST' && caminho === '/api/atendimento') return this.criarAtendimento(corpo);
@@ -271,14 +290,30 @@ export interface Aparelho {
 }
 
 /** Um aparelho novo (banco vazio numa pasta temporária), já configurado. */
-export function novoAparelho(servidor = new ServidorFalso(), pasta = mkdtempSync(join(tmpdir(), 'medicalfield-')), configurar = true): Aparelho {
+/** Um sistema sem cofre de senhas (acontece em alguns Linux): nada que precise de cofre vai para o disco. */
+export const semCofre: Cofre = {
+  disponivel: () => false,
+  cifrar: async () => {
+    throw new Error('sem cofre');
+  },
+  decifrar: async () => {
+    throw new Error('sem cofre');
+  },
+};
+
+export function novoAparelho(
+  servidor = new ServidorFalso(),
+  pasta = mkdtempSync(join(tmpdir(), 'medicalfield-')),
+  configurar = true,
+  cofre: Cofre = cofreFalso,
+): Aparelho {
   const arquivos: { nome: string; conteudo: Uint8Array }[] = [];
   const relogio = { deslocamentoMs: 0 };
   const nucleo = new Nucleo({
     caminhoDoBanco: join(pasta, 'medicalfield.db'),
     perfil: 'teste',
     versao: '1.0.0-teste',
-    cofre: cofreFalso,
+    cofre,
     buscar: servidor.buscar as typeof fetch,
     agora: () => new Date(Date.now() + relogio.deslocamentoMs),
     salvarArquivo: async (nome, conteudo) => {
@@ -298,7 +333,7 @@ export function novoAparelho(servidor = new ServidorFalso(), pasta = mkdtempSync
     relogio,
     async reabrir() {
       await nucleo.encerrar();
-      return novoAparelho(servidor, pasta, false);
+      return novoAparelho(servidor, pasta, false, cofre);
     },
     async fechar() {
       await nucleo.encerrar();

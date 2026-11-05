@@ -113,6 +113,10 @@ export class RepositorioCredenciais {
     );
   }
 
+  idsGuardados(): string[] {
+    return this.banco.todos<{ profissional_id: string }>('SELECT profissional_id FROM credencial_offline').map((l) => l.profissional_id);
+  }
+
   /** Profissional desativado no servidor: não entra mais offline neste aparelho. */
   apagar(profissionalId: string): void {
     this.banco.executar('DELETE FROM credencial_offline WHERE profissional_id = :id', { id: profissionalId });

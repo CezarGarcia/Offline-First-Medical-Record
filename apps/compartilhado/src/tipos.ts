@@ -51,6 +51,16 @@ export interface RespostaLogin {
   profissional: ProfissionalResumo;
 }
 
+/** Um profissional ativo com o hash bcrypt da senha: a réplica para o login offline (D-51). */
+export interface CredencialDoServidor extends ProfissionalResumo {
+  senhaHash: string;
+}
+
+export interface RespostaCredenciaisOffline {
+  geradoEm: DataHoraIso;
+  profissionais: CredencialDoServidor[];
+}
+
 export interface RespostaRefresh {
   tokenDeAcesso: string;
   tokenDeAcessoExpiraEm: DataHoraIso;

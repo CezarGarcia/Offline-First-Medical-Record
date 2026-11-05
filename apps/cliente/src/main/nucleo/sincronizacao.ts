@@ -4,7 +4,7 @@
  * roda uma vez logo depois.
  */
 import type { LogLocal } from '../../comum/contrato';
-import type { RespostaDoPull } from '@compartilhado/tipos';
+import type { RespostaCredenciaisOffline, RespostaDoPull } from '@compartilhado/tipos';
 import type { Auditoria } from './auditoria';
 import type { BancoLocal } from './banco';
 import { type Comando, type ContextoDosComandos, comandoPara } from './comandos';
@@ -110,6 +110,7 @@ export class MotorDeSincronizacao {
       const envio = await this.enviarFila();
       if (completo && envio === 'SEGUIR') {
         await this.receber();
+        await this.receberCredenciais();
         await this.enviarLogs();
         tudoCerto = true;
       }
@@ -261,6 +262,15 @@ export class MotorDeSincronizacao {
       this.d.config.gravar('cursor_pull', dados.cursor);
     });
     this.d.aoMudar('dados');
+  }
+
+  /** A réplica de credenciais para o login offline de quem nunca entrou online neste aparelho (D-51). */
+  private async receberCredenciais(): Promise<void> {
+    const resposta = await this.comToken<RespostaCredenciaisOffline>('/auth/credenciais-offline', {});
+    // Servidor de uma versão anterior, sem a rota: o login offline continua só com as credenciais do aparelho
+    if (resposta.status === 404) return;
+    if (resposta.status !== 200) throw new ErroDeRede(`a réplica de credenciais respondeu ${resposta.status}`);
+    await this.d.sessao.receberCredenciais(resposta.corpo.profissionais);
   }
 
   // ------------------------------------------------------------------ logs do aparelho

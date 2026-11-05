@@ -88,7 +88,7 @@ Variação: com `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE`, o mesmo roteiro mantém os
 |---|---|---|
 | B1 | Com a sessão aberta, fechar o app e abrir de novo | Continua logado (sessão mantida) |
 | B2 | **Sair** → na tela de login, chave em Offline → entrar com **Dra. Ana** | Entra em **modo offline** (a credencial ficou guardada no passo 5) |
-| B3 | Sair → tentar entrar offline com **Carlos** (nunca entrou neste aparelho) | "O primeiro acesso neste aparelho precisa de conexão" |
+| B3 | Sair → entrar offline com **Carlos** (ID de Socorrista `SOC-0001`, nunca entrou neste aparelho) | Entra em **modo offline**: o aparelho recebeu as credenciais na sincronização (D-51). Num aparelho que nunca sincronizou, aparece "O primeiro acesso neste aparelho precisa de conexão" |
 | B4 | Errar a senha da Dra. Ana 5 vezes offline | "Bloqueado até HH:MM" (5 minutos) |
 | B5 | Depois do bloqueio, entrar offline, registrar um atendimento e pôr a chave em Online | O app faz o login online sozinho e sincroniza o pendente |
 | B6 | Portal → **Logs dos clientes** | Aparecem `LOGIN_OFFLINE`, `LOGIN_FALHOU`, `CONECTIVIDADE_ALTERADA`, `ATENDIMENTO_CRIADO`… com o modo de cada um |

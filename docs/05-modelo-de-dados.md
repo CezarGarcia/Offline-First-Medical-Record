@@ -465,6 +465,19 @@ Uma linha por profissional que **já entrou online neste dispositivo**. É o que
 | `tentativas_falhas` | INTEGER | Senhas erradas seguidas no modo offline |
 | `bloqueado_ate` | TEXT | Bloqueio de 5 min após 5 erros |
 
+### `credencial_servidor`
+
+A réplica das credenciais do servidor (D-51): uma linha por profissional **ativo**, recebida a cada sincronização completa. Permite o login offline de quem nunca entrou online neste dispositivo ([08](08-seguranca-e-auditoria.md#85-login-offline)). A lista nova substitui a anterior: quem foi desativado sai.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `profissional_id` | TEXT | PK |
+| `tipo_registro` / `registro` | TEXT | Únicos juntos |
+| `nome` / `perfil` | TEXT | Como no servidor |
+| `senha_hash_cifrado` | BLOB | O hash bcrypt de `auth.profissional`, cifrado pelo cofre do sistema (DPAPI no Windows). Sem cofre, a tabela fica vazia |
+| `recebido_em` | TEXT | Última sincronização que trouxe a lista (a validade de 7 dias conta daqui) |
+| `tentativas_falhas` / `bloqueado_ate` | INTEGER / TEXT | Como em `credencial_offline` |
+
 ### `sessao`
 
 No máximo uma linha: quem está logado agora.
@@ -490,7 +503,7 @@ Pares chave/valor: `servidor_url`, `dispositivo_id`, `dispositivo_nome`, `conect
 
 | Dado | Banco central | Banco local |
 |---|---|---|
-| Profissionais | todos (`auth.profissional`) | só quem já logou no aparelho (`credencial_offline`), sem a senha |
+| Profissionais | todos (`auth.profissional`) | os ativos, com o hash da senha cifrado pelo cofre (`credencial_servidor`, D-51), e um verificador próprio de quem já logou no aparelho (`credencial_offline`). A senha nunca |
 | Medicamentos | catálogo completo | cópia completa (recebida do servidor) |
 | Pessoas, prontuários, atendimentos | todos | cópia completa (recebida) + os criados no aparelho ainda pendentes |
 | Fila de pendentes | — | `outbox` |

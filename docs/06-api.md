@@ -229,6 +229,7 @@ Um reenvio de um registro que já tinha sido unificado devolve `UNIFICADO` de no
 | | POST | `/api/auth/refresh` | refresh token | Renova o token de acesso |
 | | POST | `/api/auth/logout` | sim | Encerra a sessão |
 | | GET | `/api/auth/me` | sim | Profissional logado |
+| | GET | `/api/auth/credenciais-offline` | sim | Profissionais ativos com o hash da senha: a réplica do login offline (D-51) |
 | | GET | `/api/profissional` | sim (admin) | Lista profissionais |
 | | POST | `/api/log` | sim | Recebe um lote de logs do cliente (do modo offline) |
 | | GET | `/api/log/acesso` | sim (admin) | Lista o log de acesso dos três serviços |
@@ -300,6 +301,10 @@ Revoga a sessão do token (`sid`). Sem corpo. Resposta `204`.
 ### `GET /api/auth/me`
 
 Resposta `200`: o objeto `profissional` (igual ao do login).
+
+### `GET /api/auth/credenciais-offline`
+
+Qualquer perfil. Resposta `200`: `{ geradoEm, profissionais: [{ id, nome, tipoRegistro, registro, perfil, senhaHash }] }`, só os **ativos**. O `senhaHash` é o hash bcrypt de `auth.profissional` (nunca a senha). O app cliente busca a cada sincronização completa e guarda o hash cifrado pelo cofre do sistema, para conferir offline a senha de quem nunca entrou naquele aparelho (D-51, [08](08-seguranca-e-auditoria.md#85-login-offline)).
 
 ### `GET /api/profissional` (admin)
 

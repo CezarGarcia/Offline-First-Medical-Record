@@ -8,14 +8,14 @@ O que cada serviço testa sozinho, como rodar e o que fica para o roteiro manual
 
 | Serviço | Ferramenta | Testes | Onde ficam | Contra o quê |
 |---|---|---|---|---|
-| ms-auth | Vitest | 26 | [`servicos/ms-auth/test/`](../servicos/ms-auth/test) | O app Fastify de verdade (em memória) e o PostgreSQL do `infra/` |
+| ms-auth | Vitest | 28 | [`servicos/ms-auth/test/`](../servicos/ms-auth/test) | O app Fastify de verdade (em memória) e o PostgreSQL do `infra/` |
 | ms-clinico | JUnit 6 + Spring Boot Test | 35 | [`servicos/ms-clinico/src/test/java/`](../servicos/ms-clinico/src/test/java) | O serviço numa porta aleatória e o PostgreSQL do `infra/`. O `Mesclador` e o CPF também têm testes unitários |
 | ms-docs | pytest | 46 | [`servicos/ms-docs/testes/`](../servicos/ms-docs/testes) | O app FastAPI (`TestClient`), o PostgreSQL do `infra/`, um servidor SMTP de teste local e um ms-clinico falso |
 | Portal Admin | Vitest + Testing Library | 27 | [`apps/portal/testes/`](../apps/portal/testes) | As telas de verdade, num navegador simulado (jsdom), com uma API falsa no lugar do `fetch`. Não precisa de banco nem de serviço no ar |
-| App cliente | Vitest + Testing Library | 49 + 3 | [`apps/cliente/testes/`](../apps/cliente/testes) | O núcleo local de verdade (SQLite numa pasta temporária) com um servidor falso; as telas no jsdom com esse núcleo atrás de uma ponte falsa (D-47). Mais 3 de integração contra o servidor de verdade, que só rodam com o endereço e a senha |
+| App cliente | Vitest + Testing Library | 56 + 4 | [`apps/cliente/testes/`](../apps/cliente/testes) | O núcleo local de verdade (SQLite numa pasta temporária) com um servidor falso; as telas no jsdom com esse núcleo atrás de uma ponte falsa (D-47). Mais 4 de integração contra o servidor de verdade, que só rodam com o endereço e a senha |
 | App cliente (passeio) | Playwright + Electron | 1 roteiro | [`apps/cliente/e2e/`](../apps/cliente/e2e) | O app de verdade, com o *preload*, o IPC e a CSP, contra o servidor de verdade |
 | Portal Admin (passeio) | Playwright + Chromium | 1 roteiro | [`apps/portal/e2e/`](../apps/portal/e2e) | O portal de verdade (a imagem do Nginx), contra o servidor de verdade: os passos do portal no roteiro |
-| Coleção do Postman | Newman | 50 requisições, 86 verificações | [`postman/`](../postman) | O sistema inteiro, pelo Nginx, como o professor vai testar ([11.6](11-roteiro-de-testes.md#116-extra-testes-pelo-postman)) |
+| Coleção do Postman | Newman | 51 requisições, 88 verificações | [`postman/`](../postman) | O sistema inteiro, pelo Nginx, como o professor vai testar ([11.6](11-roteiro-de-testes.md#116-extra-testes-pelo-postman)) |
 
 **Regras comuns às suítes dos três serviços** (o portal não usa banco: a API é falsa):
 
@@ -103,13 +103,13 @@ npx newman run postman/MedicalField.postman_collection.json -e postman/MedicalFi
 
 **E-mail sem conta de e-mail:** o `infra/docker-compose.teste.yml` sobe o Mailpit, um servidor de e-mail de teste que guarda as mensagens (com o PDF anexado) e mostra tudo em `http://localhost:8025`. As linhas do `.env` estão no começo do arquivo. É o que o GitHub Actions usa (13.6).
 
-Resultado da última rodada (etapa 6): **186 testes, todos passando** (26 + 35 + 46 + 27 + 49 + 3 de integração) e o passeio completo pelo app.
+Resultado da última rodada (etapa 8, com a réplica de credenciais): **196 testes, todos passando** (28 + 35 + 46 + 27 + 56 + 4 de integração), a coleção do Postman e os dois passeios.
 
 ---
 
 ## 13.3 O que cada suíte cobre
 
-### ms-auth (26 testes)
+### ms-auth (28 testes)
 
 | Área | O que é conferido |
 |---|---|
@@ -117,6 +117,7 @@ Resultado da última rodada (etapa 6): **186 testes, todos passando** (26 + 35 +
 | Token | Sem token, com outro esquema, adulterado, de outra chave ou vencido: `401`. `GET /api/auth/me` devolve quem está logado |
 | Sessão | O refresh renova o token sem trocar o refresh token nem o fim da sessão. Depois do logout, o refresh token não vale. Sessão vencida não renova. O token renovado nunca passa do fim da sessão. Profissional desativado não renova e perde a sessão. Refresh token desconhecido é recusado |
 | Auditoria | O middleware grava todos os campos do enunciado. Um `X-Dispositivo-Id` que não é UUID é ignorado. Os logs não podem ser alterados nem apagados, nem pelo dono das tabelas. `POST /api/log` ignora IDs repetidos, grava quem enviou e recusa lote grande demais ou ação fora do padrão. Consultas com filtros e paginação |
+| Réplica do login offline (D-51) | `GET /api/auth/credenciais-offline`: exige token, devolve só os ativos, com o hash bcrypt e nunca a senha |
 | Admin e geral | `GET /api/profissional`: só admin, e sem a senha. A especificação OpenAPI exige token. Rota inexistente |
 
 ### ms-clinico (35 testes)
@@ -155,16 +156,16 @@ Resultado da última rodada (etapa 6): **186 testes, todos passando** (26 + 35 +
 
 Além dos testes automáticos, as telas foram conferidas num navegador de verdade (Chromium, pelo Playwright) contra a stack inteira no Docker, passando pelo Nginx: login (inclusive a recusa do perfil operacional), todas as páginas, PDF baixado, e-mail recebido pelo servidor SMTP de teste e as três especificações no Swagger, sem nenhum erro no console. Também em tamanho de celular.
 
-### App cliente (49 testes + 3 de integração + o passeio)
+### App cliente (56 testes + 4 de integração + o passeio)
 
 | Área | O que é conferido |
 |---|---|
-| Chave, login e sessão (16) | Com a chave em Offline, **nenhuma requisição** sai do aparelho (nem de log); a posição fica salva e cada troca vira log local. Primeiro acesso offline recusado. Login offline depois de um online, com o registro escrito de outro jeito. Senha errada, bloqueio na 5ª seguida (5 min) e credencial vencida (7 dias). Servidor inacessível: entra offline com aviso. Sessão mantida ao reabrir, renovação pelo refresh token, login online automático com a senha da memória. Servidor recusou a renovação: segue registrando e pede a senha (D-46). Profissional desativado perde a sessão e a credencial. Sair com e sem rede (a credencial offline continua) |
+| Chave, login e sessão (23) | Com a chave em Offline, **nenhuma requisição** sai do aparelho (nem de log); a posição fica salva e cada troca vira log local. Primeiro acesso offline recusado. Login offline depois de um online, com o registro escrito de outro jeito. Senha errada, bloqueio na 5ª seguida (5 min) e credencial vencida (7 dias). Servidor inacessível: entra offline com aviso. Sessão mantida ao reabrir, renovação pelo refresh token, login online automático com a senha da memória. Servidor recusou a renovação: segue registrando e pede a senha (D-46). Profissional desativado perde a sessão e a credencial. Sair com e sem rede (a credencial offline continua). **Réplica de credenciais (D-51):** quem nunca entrou no aparelho entra offline pelo hash recebido (guardado só cifrado), senha errada e bloqueio, registro desconhecido sem revelar quem existe, validade de 7 dias, sessão mantida ao reabrir, desativado sai da lista e perde o acesso, sem cofre a réplica não vai para o disco |
 | Gravação e fila (16) | Pessoa, prontuário e atendimento numa transação, com o JSON exato da API na fila e o log local. Envio em ordem, um por vez. Respostas do servidor conforme a tabela de [7.4](07-sincronizacao.md#74-envio-push): `401` renova e repete, `422` vira erro definitivo e a fila segue, `500` até a 3ª tentativa, `502 FALHA_ENVIO_EMAIL` não trava a fila (D-39), `503` ou rede fora param a fila e agendam nova tentativa, e a chave indo para Offline no meio do envio devolve o item sem contar tentativa. Unificação aplicada no aparelho (pessoa e prontuário), inclusive a que chega depois, pelo "receber dados". Logs sobem em lote. PDF só depois de sincronizado e com a chave em Online. Pedido de e-mail pela fila, com o ID do pedido como chave de idempotência |
 | Formulário do atendimento (10) | Datas no horário de Brasília em qualquer fuso do computador. A ficha vira o pedido no formato da API (sinal vital em branco é "não medido", não zero). Glasgow completo ou nenhum, destino quando encaminhado, cor do protocolo, faixas e casas decimais dos sinais vitais (como no servidor), regras dos medicamentos e data no futuro |
 | Telas (7) | Primeira vez: configuração, login e a moldura (barra, chave, menu). Primeiro acesso offline. **Nova ocorrência offline** pelas telas, com as alergias em destaque, 3 pendentes e nada saindo do aparelho; com a chave em Online, a fila esvazia sozinha e o PDF fica disponível. O formulário confere antes de salvar, e o erro some quando o campo muda. Item recusado pelo servidor e o **Tentar de novo**. Janela do e-mail só com os destinatários que têm e-mail; offline, o pedido espera na fila e sai quando a chave volta |
-| Integração (3, contra o servidor de verdade) | O lado do cliente do roteiro (passos 5 a 7 e 11 a 17): login, receber dados, atendimento online, ocorrência offline, a chave em Online esvaziando a fila, PDF e e-mail. As duas ambulâncias com o mesmo CPF: o servidor unifica, e cada aparelho termina com uma pessoa só e os dois atendimentos (roteiro 11.4). Login offline e o login online automático ao voltar a conexão (11.5) |
-| Passeio (Electron) | O app de verdade, do zero: configuração, primeiro acesso offline recusado, login online, ocorrência completa offline, e-mail na fila, a chave em Online esvaziando a fila, e-mail enviado, PDF salvo, as telas de apoio e o login offline, sem nenhum erro no console. Uma foto de cada tela |
+| Integração (4, contra o servidor de verdade) | O lado do cliente do roteiro (passos 5 a 7 e 11 a 17): login, receber dados, atendimento online, ocorrência offline, a chave em Online esvaziando a fila, PDF e e-mail. As duas ambulâncias com o mesmo CPF: o servidor unifica, e cada aparelho termina com uma pessoa só e os dois atendimentos (roteiro 11.4). Login offline e o login online automático ao voltar a conexão (11.5) |
+| Passeio (Electron) | O app de verdade, do zero: configuração, primeiro acesso offline recusado, login online, ocorrência completa offline, e-mail na fila, a chave em Online esvaziando a fila, e-mail enviado, PDF salvo, as telas de apoio, o login offline e o do Carlos, que nunca entrou no aparelho (réplica de credenciais), sem nenhum erro no console. Uma foto de cada tela |
 
 ---
 

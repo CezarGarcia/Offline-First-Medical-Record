@@ -1137,6 +1137,53 @@
           "response": []
         },
         {
+          "name": "GET /api/auth/credenciais-offline (réplica do login offline, D-51)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('só os ativos, com o hash bcrypt e nunca a senha', () => {",
+                  "  const corpo = pm.response.json();",
+                  "  pm.expect(corpo.profissionais.length).to.be.above(0);",
+                  "  for (const p of corpo.profissionais) pm.expect(p.senhaHash).to.match(/^\\$2[aby]\\$\\d\\d\\$/);",
+                  "  pm.expect(pm.response.text()).to.not.include(String(pm.variables.get('senha')));",
+                  "  pm.expect(corpo.profissionais.map((p) => p.registro.toUpperCase())).to.include(String(pm.variables.get('registroOperacional')).trim().toUpperCase());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperacional}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/credenciais-offline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "credenciais-offline"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "POST /api/auth/login com registro que não existe → 401",
           "event": [
             {

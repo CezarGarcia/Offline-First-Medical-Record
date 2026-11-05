@@ -164,4 +164,23 @@ export const MIGRACOES: Migracao[] = [
       );
     `,
   },
+  {
+    versao: 2,
+    sql: `
+      -- Réplica das credenciais do servidor (D-51): os profissionais ativos, com o hash bcrypt da senha cifrado
+      -- pelo cofre do sistema. Permite o login offline de quem nunca entrou online neste aparelho.
+      CREATE TABLE credencial_servidor (
+        profissional_id     TEXT PRIMARY KEY,
+        tipo_registro       TEXT NOT NULL,
+        registro            TEXT NOT NULL,
+        nome                TEXT NOT NULL,
+        perfil              TEXT NOT NULL,
+        senha_hash_cifrado  BLOB NOT NULL,
+        recebido_em         TEXT NOT NULL,
+        tentativas_falhas   INTEGER NOT NULL DEFAULT 0,
+        bloqueado_ate       TEXT,
+        UNIQUE (tipo_registro, registro)
+      );
+    `,
+  },
 ];

@@ -56,6 +56,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 | [D-48](#d-48--no-github-actions-o-sistema-inteiro-sobe-junto-com-um-e-mail-de-teste) | No GitHub Actions, o sistema inteiro sobe junto, com um e-mail de teste |
 | [D-49](#d-49--senhas-do-banco-simples-com-o-banco-fechado-para-a-internet) | Senhas do banco simples, com o banco fechado para a internet |
 | [D-50](#d-50--na-vm-o-docker-é-usado-com-sudo) | Na VM, o Docker é usado com `sudo` |
+| [D-51](#d-51--login-offline-também-pela-réplica-de-credenciais) | Login offline também pela réplica de credenciais |
 
 ---
 
@@ -106,7 +107,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 
 - **Decisão:** a cada login online, o app guarda um verificador scrypt da senha. Offline, ele confere a senha contra esse verificador. Validade de 7 dias desde a última validação online; 5 erros seguidos bloqueiam por 5 min; vários profissionais por aparelho; a senha fica só na memória até o login online automático.
 - **Por quê:** o professor pediu login offline e sessão mantida. É o mesmo princípio de desbloquear o celular sem internet.
-- **Consequências:** o primeiro acesso de cada profissional num aparelho precisa ser online. Uma senha trocada no servidor só é aprendida no próximo login online.
+- **Consequências:** o primeiro acesso de cada profissional num aparelho precisava ser online. Isso mudou com a réplica de credenciais (D-51): basta o aparelho ter sincronizado uma vez.
 
 ### D-08 — Registros clínicos imutáveis
 
@@ -392,3 +393,18 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
   - Os scripts continuam rodando como o usuário: o `.env`, as chaves e os backups ficam com ele, e dá para editar o `.env` sem `sudo`.
 - **Alternativas descartadas:** rodar os scripts inteiros com `sudo` (os arquivos criados ficariam do `root`, e o `git pull` passaria a criar arquivos do `root` no repositório); Docker *rootless* (o Ubuntu 26.04 restringe os *namespaces* de que ele precisa, e ele não abre a porta 80 sem mais configuração).
 - **Consequências:** num PC com o usuário no grupo `docker` (ou no GitHub Actions), nada muda: os scripts chamam `docker` direto. As linhas `$ ...` que os scripts mostram já vêm com o `sudo` quando ele é usado. Testado num Ubuntu 26.04 com o mesmo sudo da VM (sudo-rs) e a mesma regra.
+
+### D-51 — Login offline também pela réplica de credenciais
+
+- **Decisão:** a cada sincronização completa, o app recebe do ms-auth (`GET /api/auth/credenciais-offline`) os profissionais ativos com o hash bcrypt da senha, e guarda o hash cifrado pelo cofre do sistema. Offline, ele confere a senha com esse hash quando o profissional nunca entrou online naquele aparelho. A credencial do próprio aparelho (D-07) continua valendo.
+- **Por quê:**
+  - Numa ambulância, quem assume o plantão pode nunca ter usado aquele aparelho, e pode precisar entrar justamente sem sinal.
+  - O app já guarda uma réplica dos dados do servidor (D-26); as credenciais entram no mesmo movimento.
+  - O cofre do sistema (DPAPI) amarra a cifra ao usuário do Windows: copiar o arquivo do banco não entrega os hashes.
+- **Alternativas descartadas:** manter só o login online antes do offline (o caso acima ficaria sem saída); mandar os hashes sem cifrar (qualquer cópia do `.db` daria para tentar adivinhar senhas); um verificador próprio para o offline calculado no servidor (o servidor não tem a senha, só o hash, então não teria como calcular).
+- **Consequências:**
+  - Cada aparelho guarda o hash de todos os profissionais ativos, e qualquer profissional logado baixa a lista (fica no log de acesso). O bcrypt torna o chute lento, mas uma senha fraca continua fraca.
+  - Validade de 7 dias desde a última sincronização, bloqueio de 5 minutos depois de 5 erros seguidos, como na credencial do aparelho.
+  - Quem é desativado sai da lista e perde o acesso offline em todos os aparelhos na próxima sincronização deles.
+  - Num aparelho que nunca sincronizou, ou sem cofre no sistema, vale só a regra antiga.
+  - O passo B3 do roteiro (11.5) mudou: o Carlos, que nunca entrou no aparelho, entra offline.

@@ -169,6 +169,7 @@ A página **Conflitos** lista cada unificação: qual registro ficou, qual foi a
 - **Foto consistente:** a consulta roda numa transação `REPEATABLE READ`, então todas as listas mostram o mesmo instante.
 - **O que muda no servidor:** como registros clínicos não mudam, a coluna `atualizado_em` só se move em três casos: registro novo, unificação e qualquer `INSERT`/`UPDATE` em medicamento. Os medicamentos têm valor padrão e gatilho, então um **insert feito à mão no SQL** (passo 9 do roteiro) já entra no próximo pull.
 - **Pendentes locais não são afetados:** registros que ainda não subiram não existem no servidor, então o pull não toca neles.
+- **Credenciais:** depois do pull, o app busca `GET /api/auth/credenciais-offline` e troca a réplica de credenciais do login offline (D-51, [08](08-seguranca-e-auditoria.md#85-login-offline)). Quem saiu da lista (desativado) perde o acesso offline no aparelho.
 
 ---
 
@@ -182,11 +183,11 @@ Todo o histórico de ações do aparelho vai para a tabela `log_local` (lista de
 
 | Gatilho | O que roda |
 |---|---|
-| Chave vai para **Online** (Observer) | envio → recebimento → logs |
-| Botão **Sincronizar** | envio → recebimento → logs |
+| Chave vai para **Online** (Observer) | envio → recebimento → credenciais → logs |
+| Botão **Sincronizar** | envio → recebimento → credenciais → logs |
 | Algo foi salvo com a chave em Online | envio (é por isso que o atendimento do passo 7 aparece no portal na hora) |
-| App aberto com a chave em Online | envio → recebimento → logs |
-| Login online bem-sucedido | envio → recebimento → logs |
+| App aberto com a chave em Online | envio → recebimento → credenciais → logs |
+| Login online bem-sucedido | envio → recebimento → credenciais → logs |
 | Espera de nova tentativa terminou | envio |
 
 Não existe recebimento periódico automático. Assim, na apresentação, o "receber dados" acontece quando o professor pede (passos 6 e 11).

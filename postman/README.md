@@ -4,7 +4,7 @@ As rotas dos três serviços (docs/06-api.md), com **login automático** e **tes
 
 | Arquivo | O que é |
 |---|---|
-| `MedicalField.postman_collection.json` | A coleção: 50 requisições em 5 pastas |
+| `MedicalField.postman_collection.json` | A coleção: 51 requisições em 5 pastas |
 | `MedicalField.postman_environment.json` | O ambiente: endereço do servidor, contas e senha |
 
 ## Como usar no Postman

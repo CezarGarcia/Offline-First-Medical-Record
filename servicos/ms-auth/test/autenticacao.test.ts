@@ -266,3 +266,37 @@ describe('POST /api/auth/refresh e /api/auth/logout', () => {
     expect((await renovar('curto')).statusCode).toBe(400);
   });
 });
+
+describe('GET /api/auth/credenciais-offline (réplica para o login offline, D-51)', () => {
+  it('sem token: 401', async () => {
+    const resposta = await amb.app.inject({ method: 'GET', url: '/api/auth/credenciais-offline' });
+    expect(resposta.statusCode).toBe(401);
+  });
+
+  it('qualquer perfil logado recebe os ativos com o hash bcrypt da senha; os inativos ficam de fora', async () => {
+    const operacional = await amb.criarProfissional();
+    const outro = await amb.criarProfissional({ tipoRegistro: 'COREN', perfil: 'ADMIN', senha: 'Outra@Senha2' });
+    const inativo = await amb.criarProfissional({ ativo: false });
+    const { tokenDeAcesso } = await amb.sessaoDe(operacional);
+    const resposta = await amb.app.inject({
+      method: 'GET',
+      url: '/api/auth/credenciais-offline',
+      headers: { authorization: `Bearer ${tokenDeAcesso}` },
+    });
+    expect(resposta.statusCode).toBe(200);
+    const corpo = resposta.json() as {
+      geradoEm: string;
+      profissionais: { id: string; tipoRegistro: string; registro: string; perfil: string; senhaHash: string }[];
+    };
+    expect(Number.isNaN(Date.parse(corpo.geradoEm))).toBe(false);
+    const ids = corpo.profissionais.map((p) => p.id);
+    expect(ids).toContain(operacional.id);
+    expect(ids).toContain(outro.id);
+    expect(ids).not.toContain(inativo.id);
+    const doOutro = corpo.profissionais.find((p) => p.id === outro.id);
+    expect(doOutro).toMatchObject({ tipoRegistro: 'COREN', registro: outro.registro, perfil: 'ADMIN' });
+    // O hash é o do banco (bcrypt), nunca a senha
+    expect(doOutro?.senhaHash).toMatch(/^\$2[aby]\$\d\d\$/);
+    expect(JSON.stringify(corpo)).not.toContain(outro.senha);
+  });
+});

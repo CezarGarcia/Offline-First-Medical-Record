@@ -2,14 +2,22 @@
  * Sessão e login, online e offline (docs/08-seguranca-e-auditoria.md, seções 8.5 e 8.6).
  *
  * - Login online: o servidor confere a senha; o app guarda um verificador scrypt para o próximo login offline.
- * - Login offline: confere a senha com o verificador (validade de 7 dias desde a última validação online,
- *   bloqueio de 5 minutos depois de 5 erros seguidos). A senha fica só na memória, para o login online
- *   automático quando a conexão voltar.
+ * - Login offline: confere a senha com o verificador deste aparelho ou, para quem nunca entrou online nele, com o
+ *   hash da réplica de credenciais recebida na sincronização (D-51). Validade de 7 dias desde a última validação
+ *   no servidor, bloqueio de 5 minutos depois de 5 erros seguidos. A senha fica só na memória, para o login
+ *   online automático quando a conexão voltar.
  * - Sessão mantida: guardada no SQLite, com o refresh token cifrado pelo cofre do sistema (safeStorage).
  *   O token de acesso (15 min) fica só na memória e é renovado sozinho.
  */
 import { hora } from '@compartilhado/formatos';
-import type { ProfissionalResumo, RespostaLogin, RespostaRefresh, TipoRegistro } from '@compartilhado/tipos';
+import type {
+  CredencialDoServidor,
+  ProfissionalResumo,
+  RespostaLogin,
+  RespostaRefresh,
+  TipoRegistro,
+} from '@compartilhado/tipos';
+import bcrypt from 'bcryptjs';
 import type { ResultadoDoLogin, SessaoNaTela } from '../../comum/contrato';
 import type { Auditoria } from './auditoria';
 import type { EstadoConectividade } from './conectividade';
@@ -17,6 +25,7 @@ import { criarVerificador, senhaConfere } from './credencial';
 import { ErroDoNucleo } from './erros';
 import { type ClienteHttp, type Dispositivo, ErroDeRede, type RespostaHttp } from './http';
 import { type CredencialOffline, type RepositorioCredenciais, registroNormalizado } from './repositorios/credenciais';
+import type { CredencialDoServidorLocal, RepositorioCredenciaisDoServidor } from './repositorios/credenciais-do-servidor';
 import type { RepositorioSessao, SessaoGuardada } from './repositorios/sessao';
 
 /** Cofre do sistema operacional para guardar o refresh token (no Windows, o DPAPI, pelo safeStorage). */
@@ -50,6 +59,7 @@ interface Dependencias {
   http: ClienteHttp;
   sessoes: RepositorioSessao;
   credenciais: RepositorioCredenciais;
+  credenciaisDoServidor: RepositorioCredenciaisDoServidor;
   auditoria: () => Auditoria;
   conectividade: EstadoConectividade;
   cofre: Cofre;
@@ -58,7 +68,22 @@ interface Dependencias {
   aoMudar: () => void;
 }
 
-const comoProfissional = (c: CredencialOffline): ProfissionalResumo => ({
+/**
+ * De onde vem a conferência offline: o verificador criado no login online deste aparelho, ou o hash da réplica
+ * recebida do servidor (D-51). Cada uma conta as próprias tentativas erradas.
+ */
+interface FonteOffline {
+  profissional: ProfissionalResumo;
+  /** Até quando vale: 7 dias depois da última vez que o servidor confirmou essa credencial. */
+  venceEm: number;
+  bloqueadoAte: string | null;
+  tentativasFalhas: number;
+  confere(senha: string): Promise<boolean>;
+  registrarFalha(tentativas: number, bloqueadoAte: string | null): void;
+  zerarFalhas(): void;
+}
+
+const comoProfissional = (c: CredencialOffline | CredencialDoServidorLocal): ProfissionalResumo => ({
   id: c.profissionalId,
   nome: c.nome,
   tipoRegistro: c.tipoRegistro,
@@ -82,7 +107,8 @@ export class GerenciadorDeSessao {
   restaurar(): void {
     const guardada = this.d.sessoes.ler();
     if (!guardada) return;
-    const credencial = this.d.credenciais.doProfissional(guardada.profissionalId);
+    const credencial =
+      this.d.credenciais.doProfissional(guardada.profissionalId) ?? this.d.credenciaisDoServidor.doProfissional(guardada.profissionalId);
     if (!credencial || Date.parse(guardada.expiraEm) <= this.d.agora().getTime()) {
       this.d.sessoes.apagar();
       this.motivoDoFim = 'A sessão venceu. Entre de novo.';
@@ -146,6 +172,34 @@ export class GerenciadorDeSessao {
       if (erro instanceof ErroDeRede) throw new ErroDoNucleo('SERVIDOR_INACESSIVEL', 'Servidor inacessível. Tente de novo em instantes.');
       throw erro;
     }
+  }
+
+  /**
+   * A réplica de credenciais recebida na sincronização (D-51): os profissionais ativos, com o hash da senha.
+   * O hash vai para o disco cifrado pelo cofre do sistema; sem cofre, a réplica não é guardada. Quem saiu da
+   * lista foi desativado no servidor: perde também a credencial deste aparelho e, se estiver logado, a sessão.
+   */
+  async receberCredenciais(lista: CredencialDoServidor[]): Promise<void> {
+    const ativos = new Set(lista.map((p) => p.id));
+    for (const desativado of this.d.credenciais.idsGuardados().filter((id) => !ativos.has(id))) this.desativado(desativado);
+    if (!this.d.cofre.disponivel()) {
+      this.d.credenciaisDoServidor.limpar();
+      return;
+    }
+    const recebidoEm = this.d.agora().toISOString();
+    const linhas = [];
+    for (const p of lista) {
+      linhas.push({
+        profissionalId: p.id,
+        tipoRegistro: p.tipoRegistro,
+        registro: p.registro,
+        nome: p.nome,
+        perfil: p.perfil,
+        senhaHashCifrado: await this.d.cofre.cifrar(p.senhaHash),
+        recebidoEm,
+      });
+    }
+    this.d.credenciaisDoServidor.substituir(linhas);
   }
 
   async sair(): Promise<void> {
@@ -305,54 +359,104 @@ export class GerenciadorDeSessao {
     const falhou = (motivo: string, profissionalId: string | null = null) =>
       auditoria.registrar('LOGIN_FALHOU', { motivo, tipoRegistro, registro: registroNormalizado(registro), modo: 'OFFLINE' }, profissionalId);
 
-    const credencial = this.d.credenciais.buscar(tipoRegistro, registro);
-    if (!credencial) {
-      falhou('PRIMEIRO_ACESSO');
-      throw new ErroDoNucleo('PRIMEIRO_ACESSO', 'O primeiro acesso neste aparelho precisa de conexão.');
-    }
     const agora = this.d.agora();
-    if (credencial.bloqueadoAte && Date.parse(credencial.bloqueadoAte) > agora.getTime()) {
-      falhou('CONTA_BLOQUEADA', credencial.profissionalId);
-      throw bloqueado(credencial.bloqueadoAte);
+    const fontes = this.fontesOffline(tipoRegistro, registro);
+    if (fontes.length === 0) {
+      if (this.d.credenciaisDoServidor.vazia()) {
+        // O aparelho nunca sincronizou: não tem com que conferir a senha
+        falhou('PRIMEIRO_ACESSO');
+        throw new ErroDoNucleo('PRIMEIRO_ACESSO', 'O primeiro acesso neste aparelho precisa de conexão.');
+      }
+      // A réplica não tem esse registro: a mesma resposta da senha errada, para não revelar quem existe
+      falhou('CREDENCIAIS_INVALIDAS');
+      throw new ErroDoNucleo('CREDENCIAIS_INVALIDAS', 'Registro ou senha incorretos.');
     }
-    const venceEm = Date.parse(credencial.validadoOnlineEm) + VALIDADE_DA_CREDENCIAL_OFFLINE_MS;
-    if (venceEm <= agora.getTime()) {
-      falhou('CREDENCIAL_VENCIDA', credencial.profissionalId);
+    // A confirmação mais recente do servidor vale: se a senha mudou, a réplica nova já tem o hash novo
+    const validas = fontes.filter((f) => f.venceEm > agora.getTime()).sort((a, b) => b.venceEm - a.venceEm);
+    const fonte = validas[0];
+    if (!fonte) {
+      falhou('CREDENCIAL_VENCIDA', fontes[0]?.profissional.id ?? null);
       throw new ErroDoNucleo(
         'CREDENCIAL_VENCIDA',
-        'O login offline deste aparelho venceu (7 dias sem entrar online). Conecte-se e entre online.',
+        'O login offline deste aparelho venceu (7 dias sem falar com o servidor). Conecte-se e entre online.',
       );
     }
-    if (!(await senhaConfere(senha, credencial.verificador, credencial.sal))) {
-      const tentativas = credencial.tentativasFalhas + 1;
+    const profissionalId = fonte.profissional.id;
+    if (fonte.bloqueadoAte && Date.parse(fonte.bloqueadoAte) > agora.getTime()) {
+      falhou('CONTA_BLOQUEADA', profissionalId);
+      throw bloqueado(fonte.bloqueadoAte);
+    }
+    if (!(await fonte.confere(senha))) {
+      const tentativas = fonte.tentativasFalhas + 1;
       if (tentativas >= TENTATIVAS_ATE_BLOQUEAR) {
         const ate = new Date(agora.getTime() + BLOQUEIO_MS).toISOString();
-        this.d.credenciais.registrarFalha(credencial.profissionalId, 0, ate);
-        falhou('CONTA_BLOQUEADA', credencial.profissionalId);
+        fonte.registrarFalha(0, ate);
+        falhou('CONTA_BLOQUEADA', profissionalId);
         throw bloqueado(ate);
       }
-      this.d.credenciais.registrarFalha(credencial.profissionalId, tentativas, null);
-      falhou('CREDENCIAIS_INVALIDAS', credencial.profissionalId);
+      fonte.registrarFalha(tentativas, null);
+      falhou('CREDENCIAIS_INVALIDAS', profissionalId);
       throw new ErroDoNucleo('CREDENCIAIS_INVALIDAS', 'Registro ou senha incorretos.');
     }
 
-    this.d.credenciais.zerarFalhas(credencial.profissionalId);
+    fonte.zerarFalhas();
     this.guardada = {
-      profissionalId: credencial.profissionalId,
+      profissionalId,
       modoLogin: 'OFFLINE',
       iniciadaEm: agora.toISOString(),
-      expiraEm: new Date(venceEm).toISOString(),
+      expiraEm: new Date(fonte.venceEm).toISOString(),
       refreshTokenCifrado: null,
       sessaoServidorExpiraEm: null,
     };
     this.d.sessoes.gravar(this.guardada);
-    this.profissional = comoProfissional(credencial);
+    this.profissional = fonte.profissional;
     this.tokenDeAcesso = null;
     this.senhaEmMemoria = senha;
     this.servidorRecusou = false;
     this.motivoDoFim = null;
-    auditoria.registrar('LOGIN_OFFLINE', { tipoRegistro: credencial.tipoRegistro, registro: credencial.registro }, credencial.profissionalId);
+    auditoria.registrar('LOGIN_OFFLINE', { tipoRegistro: fonte.profissional.tipoRegistro, registro: fonte.profissional.registro }, profissionalId);
     this.d.aoMudar();
+  }
+
+  /** As credenciais com que dá para conferir essa senha sem o servidor (as duas podem existir). */
+  private fontesOffline(tipoRegistro: TipoRegistro, registro: string): FonteOffline[] {
+    const fontes: FonteOffline[] = [];
+    const doAparelho = this.d.credenciais.buscar(tipoRegistro, registro);
+    if (doAparelho) {
+      const id = doAparelho.profissionalId;
+      fontes.push({
+        profissional: comoProfissional(doAparelho),
+        venceEm: Date.parse(doAparelho.validadoOnlineEm) + VALIDADE_DA_CREDENCIAL_OFFLINE_MS,
+        bloqueadoAte: doAparelho.bloqueadoAte,
+        tentativasFalhas: doAparelho.tentativasFalhas,
+        confere: (senha) => senhaConfere(senha, doAparelho.verificador, doAparelho.sal),
+        registrarFalha: (tentativas, ate) => this.d.credenciais.registrarFalha(id, tentativas, ate),
+        zerarFalhas: () => this.d.credenciais.zerarFalhas(id),
+      });
+    }
+    const daReplica = this.d.cofre.disponivel() ? this.d.credenciaisDoServidor.buscar(tipoRegistro, registro) : null;
+    if (daReplica) {
+      const id = daReplica.profissionalId;
+      fontes.push({
+        profissional: comoProfissional(daReplica),
+        venceEm: Date.parse(daReplica.recebidoEm) + VALIDADE_DA_CREDENCIAL_OFFLINE_MS,
+        bloqueadoAte: daReplica.bloqueadoAte,
+        tentativasFalhas: daReplica.tentativasFalhas,
+        confere: async (senha) => {
+          let hash: string;
+          try {
+            hash = await this.d.cofre.decifrar(daReplica.senhaHashCifrado);
+          } catch {
+            return false; // o cofre não abre mais (ex.: outro usuário do Windows)
+          }
+          // Como o ms-auth confere no login online: a senha exatamente como foi digitada
+          return bcrypt.compare(senha, hash);
+        },
+        registrarFalha: (tentativas, ate) => this.d.credenciaisDoServidor.registrarFalha(id, tentativas, ate),
+        zerarFalhas: () => this.d.credenciaisDoServidor.zerarFalhas(id),
+      });
+    }
+    return fontes;
   }
 
   private refreshTokenDisponivel(): boolean {
@@ -362,6 +466,7 @@ export class GerenciadorDeSessao {
   /** Desativado no servidor: perde a credencial offline e a sessão neste aparelho (docs/08, seção 8.5). */
   private desativado(profissionalId: string): void {
     this.d.credenciais.apagar(profissionalId);
+    this.d.credenciaisDoServidor.apagar(profissionalId);
     if (this.profissional?.id === profissionalId) this.limpar('Este profissional foi desativado no servidor.');
   }
 

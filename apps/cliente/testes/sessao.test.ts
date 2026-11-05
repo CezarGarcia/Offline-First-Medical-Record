@@ -1,7 +1,7 @@
 /** Login online e offline, sessão mantida e a chave Online/Offline (docs/08, seções 8.5 e 8.6; docs/07, 7.2). */
 import { afterEach, describe, expect, it } from 'vitest';
 import { ErroOffline } from '../src/main/nucleo/http';
-import { ANA, type Aparelho, SENHA, json, novoAparelho } from './servidor-falso';
+import { ANA, type Aparelho, CARLOS, SENHA, SENHA_DO_CARLOS, json, novoAparelho, semCofre } from './servidor-falso';
 
 const abertos: Aparelho[] = [];
 function aparelho(...argumentos: Parameters<typeof novoAparelho>): Aparelho {
@@ -132,6 +132,84 @@ describe('login offline (D-07)', () => {
   });
 });
 
+describe('login offline pela réplica de credenciais (D-51)', () => {
+  const doCarlos = (senha = SENHA_DO_CARLOS) => ({ tipoRegistro: 'SOCORRISTA' as const, registro: 'soc-0001', senha });
+
+  /** Um aparelho onde só a Dra. Ana entrou online (e sincronizou); depois, sem rede. */
+  async function sincronizadoPelaAna(cofre = undefined as Parameters<typeof novoAparelho>[3]) {
+    const a = aparelho(undefined, undefined, true, cofre);
+    await a.nucleo.entrar(login());
+    await a.nucleo.motor.sincronizar('COMPLETO');
+    await a.nucleo.sair();
+    await a.nucleo.mudarConectividade('OFFLINE');
+    return a;
+  }
+
+  it('quem nunca entrou neste aparelho entra offline, com a senha conferida pelo hash da réplica', async () => {
+    const { nucleo, servidor } = await sincronizadoPelaAna();
+    expect(servidor.chamadasPara('GET', '/api/auth/credenciais-offline').length).toBeGreaterThanOrEqual(1);
+    const antes = servidor.chamadas.length;
+    expect(await nucleo.entrar(doCarlos())).toEqual({ modo: 'OFFLINE', aviso: null });
+    expect(nucleo.estadoAtual().sessao).toMatchObject({ modoLogin: 'OFFLINE', profissional: { id: CARLOS.id, nome: CARLOS.nome } });
+    expect(servidor.chamadas.length).toBe(antes);
+    // O hash fica no disco só cifrado pelo cofre do sistema
+    const linha = nucleo.banco.um<{ senha_hash_cifrado: Uint8Array }>(
+      'SELECT senha_hash_cifrado FROM credencial_servidor WHERE profissional_id = :id',
+      { id: CARLOS.id },
+    );
+    expect(new TextDecoder().decode(linha?.senha_hash_cifrado)).toMatch(/^cifrado:\$2[aby]\$/);
+  });
+
+  it('senha errada conta tentativas na réplica; 5 seguidas bloqueiam por 5 minutos', async () => {
+    const { nucleo, relogio } = await sincronizadoPelaAna();
+    for (let i = 1; i <= 4; i += 1) expect((await erroDe(nucleo.entrar(doCarlos('errada')))).codigo).toBe('CREDENCIAIS_INVALIDAS');
+    expect((await erroDe(nucleo.entrar(doCarlos('errada')))).codigo).toBe('CONTA_BLOQUEADA');
+    expect((await erroDe(nucleo.entrar(doCarlos()))).codigo).toBe('CONTA_BLOQUEADA');
+    relogio.deslocamentoMs = 5 * 60_000 + 1_000;
+    expect((await nucleo.entrar(doCarlos())).modo).toBe('OFFLINE');
+  });
+
+  it('registro fora da réplica responde como senha errada, sem revelar quem existe', async () => {
+    const { nucleo } = await sincronizadoPelaAna();
+    const erro = await erroDe(nucleo.entrar({ tipoRegistro: 'CRM', registro: '99999-RS', senha: 'qualquer' }));
+    expect(erro.codigo).toBe('CREDENCIAIS_INVALIDAS');
+  });
+
+  it('a réplica vence 7 dias depois da sincronização', async () => {
+    const { nucleo, relogio } = await sincronizadoPelaAna();
+    relogio.deslocamentoMs = 7 * 24 * 3_600_000 + 1_000;
+    expect((await erroDe(nucleo.entrar(doCarlos()))).codigo).toBe('CREDENCIAL_VENCIDA');
+  });
+
+  it('a sessão aberta pela réplica continua depois de fechar e abrir o app', async () => {
+    const a = await sincronizadoPelaAna();
+    await a.nucleo.entrar(doCarlos());
+    const reaberto = await a.reabrir();
+    abertos.push(reaberto);
+    expect(reaberto.nucleo.estadoAtual().sessao?.profissional.id).toBe(CARLOS.id);
+  });
+
+  it('desativado no servidor (fora da lista): perde o acesso offline neste aparelho, inclusive a credencial própria', async () => {
+    const a = await sincronizadoPelaAna();
+    await a.nucleo.mudarConectividade('ONLINE');
+    await a.nucleo.entrar(login());
+    a.servidor.ativos = a.servidor.ativos.filter((p) => p.id !== CARLOS.id);
+    await a.nucleo.motor.sincronizar('COMPLETO');
+    await a.nucleo.sair();
+    await a.nucleo.mudarConectividade('OFFLINE');
+    expect((await erroDe(a.nucleo.entrar(doCarlos()))).codigo).toBe('CREDENCIAIS_INVALIDAS');
+    // A Ana continua na lista: entra normalmente
+    expect((await a.nucleo.entrar(login())).modo).toBe('OFFLINE');
+  });
+
+  it('sem cofre no sistema, a réplica não vai para o disco e vale só a credencial do próprio aparelho', async () => {
+    const { nucleo } = await sincronizadoPelaAna(semCofre);
+    expect(nucleo.banco.um('SELECT 1 FROM credencial_servidor')).toBeUndefined();
+    expect((await erroDe(nucleo.entrar(doCarlos()))).codigo).toBe('PRIMEIRO_ACESSO');
+    expect((await nucleo.entrar(login())).modo).toBe('OFFLINE');
+  });
+});
+
 describe('sessão mantida (docs/08, 8.6)', () => {
   it('fechar e abrir o app mantém o login; o token é renovado pelo refresh token', async () => {
     const a = aparelho();
@@ -179,8 +257,10 @@ describe('sessão mantida (docs/08, 8.6)', () => {
     await reaberto.nucleo.motor.sincronizar('COMPLETO');
     expect(reaberto.nucleo.estadoAtual()).toMatchObject({ sessao: null, motivoDoFimDaSessao: 'Este profissional foi desativado no servidor.' });
     expect(reaberto.nucleo.banco.um('SELECT * FROM credencial_offline')).toBeUndefined();
+    expect(reaberto.nucleo.banco.um('SELECT * FROM credencial_servidor WHERE profissional_id = :id', { id: ANA.id })).toBeUndefined();
     await reaberto.nucleo.mudarConectividade('OFFLINE');
-    await expect(reaberto.nucleo.entrar(login())).rejects.toMatchObject({ codigo: 'PRIMEIRO_ACESSO' });
+    // O aparelho ainda conhece outros profissionais (a réplica): responde como senha errada, sem revelar quem existe
+    await expect(reaberto.nucleo.entrar(login())).rejects.toMatchObject({ codigo: 'CREDENCIAIS_INVALIDAS' });
   });
 
   it('sair com a chave em Offline apaga a sessão sem falar com o servidor', async () => {

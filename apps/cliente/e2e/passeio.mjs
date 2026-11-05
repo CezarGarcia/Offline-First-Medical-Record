@@ -226,6 +226,17 @@ try {
   await foto('login-offline');
   passo(`login offline (${await textoDaBarra()})`);
 
+  // Quem nunca entrou neste aparelho também entra offline: a réplica de credenciais veio na sincronização (D-51)
+  await pagina.getByText('Sair', { exact: true }).click();
+  await campoRegistro().waitFor();
+  await pagina.getByText('ID de Socorrista', { exact: true }).click();
+  await campoRegistro().fill('SOC-0001');
+  await pagina.getByLabel('Senha').fill(SENHA);
+  await pagina.getByRole('button', { name: 'Entrar' }).click();
+  await pagina.getByText('Carlos Pereira').first().waitFor();
+  await foto('login-offline-pela-replica');
+  passo('login offline de quem nunca entrou neste aparelho (réplica de credenciais)');
+
   if (errosNoConsole.length) throw new Error(`erros no console das telas:\n${errosNoConsole.join('\n')}`);
   console.log(`\nPasseio completo: ${fotos} telas em ${SAIDA}`);
 } catch (erro) {

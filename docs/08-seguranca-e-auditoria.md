@@ -73,27 +73,33 @@ Geradas com [`infra/scripts/gerar-chaves-jwt.sh`](../infra/scripts/gerar-chaves-
 
 ## 8.5 Login offline
 
-O professor pediu que o login funcione sem conexão. Funciona assim:
+O professor pediu que o login funcione sem conexão. O app confere a senha com uma de duas fontes, guardadas no SQLite:
 
-**Pré-requisito:** o profissional precisa ter entrado **online pelo menos uma vez naquele aparelho**. É nesse momento que o app aprende a reconhecer a senha dele. Antes disso, aparece "O primeiro acesso neste aparelho precisa de conexão".
+| Fonte | De onde vem | Como confere |
+|---|---|---|
+| **Credencial do aparelho** (`credencial_offline`) | A cada login online **neste aparelho**: o app calcula um verificador da senha digitada | scrypt com sal aleatório (N=2¹⁵, r=8, p=1, 32 bytes). Lento de propósito: testar senhas no chute a partir de uma cópia do banco fica muito caro |
+| **Réplica de credenciais** (`credencial_servidor`, D-51) | A cada sincronização completa: `GET /api/auth/credenciais-offline` traz todos os profissionais **ativos**, com o hash bcrypt da senha (o mesmo de `auth.profissional`) | bcrypt, como o ms-auth faz no login online. O hash fica no disco **cifrado pelo cofre do sistema** (DPAPI no Windows, pelo `safeStorage`): um `.db` copiado para outro PC ou outro usuário não serve para nada |
 
-**O que o app guarda a cada login online** (tabela `credencial_offline`): nome, perfil e um **verificador da senha**. O verificador é um hash scrypt com sal aleatório (scrypt N=2¹⁵, r=8, p=1, 32 bytes). Ele é lento de calcular de propósito: se alguém copiar o arquivo do banco, testar senhas no chute fica muito caro. A senha em si nunca é gravada.
+A réplica é o que deixa entrar offline **quem nunca entrou online naquele aparelho** (ex.: o socorrista que assumiu o plantão sem sinal). A senha em si nunca é gravada.
 
-**Validade:** a credencial offline vale **7 dias desde a última validação online**. Conta como validação um login online ou uma renovação de sessão bem-sucedida. Passado o prazo, o app pede um login online. Assim, um profissional desativado no servidor não usa o aparelho para sempre.
+**Pré-requisito:** o aparelho precisa ter **sincronizado pelo menos uma vez**, com qualquer profissional. Num aparelho que nunca falou com o servidor, aparece "O primeiro acesso neste aparelho precisa de conexão".
+
+**Validade:** cada fonte vale **7 dias** desde a última vez que o servidor a confirmou: um login online ou uma renovação de sessão (credencial do aparelho), ou a última sincronização (réplica). Se as duas valem, vale a confirmada mais recentemente; assim, uma senha trocada no servidor passa a valer offline na próxima sincronização. Passado o prazo, o app pede conexão.
 
 ```mermaid
 flowchart TD
     A[Profissional informa registro e senha] --> B{Chave em Online?}
     B -- sim --> C[POST /api/auth/login]
-    C -- 200 --> D[Atualiza a credencial offline e abre sessão ONLINE]
+    C -- 200 --> D[Atualiza a credencial do aparelho e abre sessão ONLINE]
     C -- 401, 403 ou 423 --> E[Mostra o erro. Não tenta offline]
     C -- sem resposta --> F[Avisa que o servidor está inacessível]
     B -- não --> G
-    F --> G{Existe credencial offline deste profissional?}
-    G -- não --> H[Primeiro acesso neste aparelho precisa de conexão]
+    F --> G{O aparelho conhece esse registro? credencial do aparelho ou réplica}
+    G -- não, e nunca sincronizou --> H[Primeiro acesso neste aparelho precisa de conexão]
+    G -- não, mas já sincronizou --> H2[Registro ou senha incorretos: não revela quem existe]
     G -- sim --> I{Bloqueada ou vencida?}
     I -- sim --> J[Mostra o motivo]
-    I -- não --> K{A senha confere com o verificador?}
+    I -- não --> K{A senha confere? scrypt ou bcrypt}
     K -- não --> L[Conta a tentativa. Na 5ª seguida, bloqueia por 5 min]
     K -- sim --> M[Abre sessão OFFLINE e guarda a senha só na memória]
 ```
@@ -101,9 +107,11 @@ flowchart TD
 Regras complementares:
 
 - **Login automático ao voltar a conexão.** Depois de um login offline, a senha fica **só na memória** do app (nunca em disco). Quando a conexão volta, o app faz o login online sozinho para conseguir os tokens e sincronizar. Se o app for fechado antes disso, ele pede a senha de novo na hora de sincronizar.
-- **Vários profissionais por aparelho** (a equipe da ambulância): cada um tem a sua credencial offline. Trocar de usuário é sair e entrar com outro registro.
-- **Senha trocada no servidor:** o aparelho aprende a nova no próximo login online. Até lá (no máximo 7 dias), a senha antiga ainda funciona offline. É uma limitação conhecida.
-- **Profissional desativado:** quando o servidor responde `403 PROFISSIONAL_INATIVO` (no login ou na renovação), o app apaga a credencial offline dele.
+- **Vários profissionais por aparelho** (a equipe da ambulância): com a réplica, qualquer profissional ativo entra. Trocar de usuário é sair e entrar com outro registro.
+- **Senha trocada no servidor:** vale offline depois da próxima sincronização (a réplica traz o hash novo). Até lá, no máximo 7 dias, a senha antiga ainda funciona offline.
+- **Profissional desativado:** sai da réplica na próxima sincronização, e o app apaga também a credencial do aparelho dele (e encerra a sessão, se for quem está logado). O `403 PROFISSIONAL_INATIVO` no login ou na renovação faz o mesmo na hora.
+- **Sem cofre no sistema** (acontece em alguns Linux): a réplica não é guardada, porque o hash não pode ir para o disco sem cifra. Vale só a credencial do aparelho.
+- **O que a réplica expõe:** cada aparelho guarda o hash bcrypt de todos os profissionais ativos, e qualquer profissional logado consegue baixar a lista pela API (cada download fica no log de acesso). É a troca para permitir o login offline de quem nunca usou o aparelho (D-51).
 - Todo login, online ou offline, bem-sucedido ou não, vira log local (`LOGIN_ONLINE`, `LOGIN_OFFLINE`, `LOGIN_FALHOU`).
 
 ---

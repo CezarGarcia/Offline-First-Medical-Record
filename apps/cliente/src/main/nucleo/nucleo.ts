@@ -36,6 +36,7 @@ import { ServicoDeRegistros } from './registros';
 import { RepositorioAtendimentos } from './repositorios/atendimentos';
 import { RepositorioConfig } from './repositorios/config';
 import { RepositorioCredenciais } from './repositorios/credenciais';
+import { RepositorioCredenciaisDoServidor } from './repositorios/credenciais-do-servidor';
 import { RepositorioLogs } from './repositorios/logs';
 import { RepositorioMedicamentos } from './repositorios/medicamentos';
 import { RepositorioOutbox } from './repositorios/outbox';
@@ -105,6 +106,7 @@ export class Nucleo implements ApiDoNucleo {
       http: this.http,
       sessoes: new RepositorioSessao(this.banco),
       credenciais: new RepositorioCredenciais(this.banco),
+      credenciaisDoServidor: new RepositorioCredenciaisDoServidor(this.banco),
       auditoria: () => this.auditoria,
       conectividade: this.conectividade,
       cofre: opcoes.cofre,

@@ -22,6 +22,7 @@ const EMAIL_TESTE = process.env.MEDICALFIELD_EMAIL_TESTE;
 
 const ANA = { tipoRegistro: 'CRM' as TipoRegistro, registro: '12345-RS' };
 const BRUNO = { tipoRegistro: 'COREN' as TipoRegistro, registro: '543210-RS' };
+const CARLOS = { tipoRegistro: 'SOCORRISTA' as TipoRegistro, registro: 'SOC-0001' };
 
 interface AparelhoReal {
   nucleo: Nucleo;
@@ -250,5 +251,16 @@ describe.skipIf(!URL_DO_SERVIDOR || !SENHA)(`integração com o servidor real ($
     await sincronizar(a);
     expect((await a.nucleo.atendimento(registrado.id))?.estadoSync).toBe('SINCRONIZADO');
     expect((await a.nucleo.estado()).sessao?.precisaLoginOnline).toBe(false);
+  });
+
+  it('quem nunca entrou neste aparelho entra offline pela réplica de credenciais (D-51, roteiro 11.5 B3)', async () => {
+    const a = await aparelho('Ambulância 01 (integração)');
+    await entrarOnline(a, ANA);
+    await a.nucleo.sair();
+    await a.nucleo.mudarConectividade('OFFLINE');
+    // O Carlos nunca entrou online aqui: a senha é conferida com o hash bcrypt que veio do ms-auth
+    await expect(a.nucleo.entrar({ ...CARLOS, senha: `${SENHA}x` })).rejects.toMatchObject({ codigo: 'CREDENCIAIS_INVALIDAS' });
+    expect((await a.nucleo.entrar({ ...CARLOS, senha: SENHA })).modo).toBe('OFFLINE');
+    expect((await a.nucleo.estado()).sessao?.profissional.nome).toBe('Carlos Pereira');
   });
 });

@@ -62,6 +62,14 @@ export class RepositorioProfissionais {
     );
   }
 
+  /** Os ativos, com o hash da senha: a réplica para o login offline nos aparelhos (D-51). */
+  async listarAtivos(): Promise<LinhaProfissional[]> {
+    const { rows } = await this.pool.query<LinhaProfissional>(
+      `SELECT ${COLUNAS} FROM auth.profissional WHERE ativo ORDER BY nome, registro`,
+    );
+    return rows;
+  }
+
   async listar(): Promise<LinhaProfissional[]> {
     const { rows } = await this.pool.query<LinhaProfissional>(
       `SELECT ${COLUNAS} FROM auth.profissional ORDER BY nome, registro`,
