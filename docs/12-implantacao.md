@@ -255,15 +255,27 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 ## 12.10 App cliente no Windows
 
 - **Instalar:** baixar `MedicalField-Setup-<versão>.exe` na página **Releases** do repositório (o GitHub Actions gera a cada versão, D-28) e executar. Na primeira vez aparece "O Windows protegeu o computador": clicar em **Mais informações** → **Executar assim mesmo** (o `.exe` não tem assinatura digital). O instalador é por usuário (não pede administrador) e deixa escolher a pasta.
-- **Publicar uma versão:** criar uma tag de versão e mandar para o GitHub. O workflow **Instalador do Windows** gera o `.exe` numa máquina Windows, instala, abre o app para conferir e cria a versão em **Releases** com o instalador anexado (uns 10 minutos). A versão do app passa a ser a da tag:
+- **Publicar uma versão:** criar uma tag de versão e mandar para o GitHub. O workflow **Instaladores do app cliente** gera o `.exe` numa máquina Windows (instala e abre o app para conferir) e o AppImage numa máquina Linux (abre o app para conferir), e cria a versão em **Releases** com os dois anexados (uns 10 minutos). A versão do app passa a ser a da tag:
 
   ```bash
   git tag v1.0.0
   git push origin v1.0.0
   ```
 
-  Sem tag, cada push que muda o app cliente na `main` também gera o instalador: ele fica na execução do workflow (aba **Actions** → a execução → **Artifacts** → `MedicalField-Setup`), por 30 dias.
+  Sem tag, cada push que muda o app cliente na `main` também gera o instalador: ele fica na execução do workflow (aba **Actions** → a execução → **Artifacts** → `MedicalField-Setup` e `MedicalField-AppImage`), por 30 dias.
 - **Gerar o instalador no próprio Windows** (sem esperar o GitHub Actions): Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci`, `npm run build` e `npm run instalador`. O `.exe` sai em `apps/cliente/release/`.
+- **Num PC com Linux:** baixar o `MedicalField-<versão>.AppImage` (Releases ou o artefato `MedicalField-AppImage`). É um arquivo único, que roda sem instalar. No terminal, na pasta do arquivo:
+
+  ```bash
+  chmod +x MedicalField-*.AppImage
+  ./MedicalField-*.AppImage --no-sandbox
+  ```
+
+  - O `--no-sandbox` é para o Ubuntu 24.04 em diante, que restringe um recurso que o sandbox do Chromium usa. Sem ele, o app pode fechar logo ao abrir.
+  - Se aparecer um erro de **FUSE** (`libfuse.so.2`), rode com `APPIMAGE_EXTRACT_AND_RUN=1` antes do comando.
+  - Para a segunda ambulância, acrescente `--perfil=ambulancia-02`.
+  - O banco local fica em `~/.config/MedicalField/<perfil>/`. Num Linux sem cofre de senhas, o app pede a senha de novo ao ser reaberto, e o login offline vale só para quem já entrou online nele (D-51).
+  - Para gerar no próprio Linux: Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci`, `npm run build` e `npm run pacote:linux`. O arquivo sai em `apps/cliente/release/`.
 - **Primeira abertura:** informar o endereço do servidor (`http://IP-DA-VM`) e o nome do dispositivo (ex.: `Ambulância 01`). Os dois podem ser trocados depois, na tela **Sobre**.
 - **Segunda ambulância** (D-29): o instalador já cria o atalho **MedicalField (Ambulância 02)** na área de trabalho e no menu Iniciar. Ele abre o mesmo programa com `--perfil=ambulancia-02`, ou seja, outra instância, com banco e configuração próprios (na primeira abertura, configure o nome `Ambulância 02`). Para mais aparelhos, copie o atalho e troque o perfil em Propriedades → Destino (ex.: ` --perfil=ambulancia-03`, depois das aspas).
 - **Onde fica o banco local:** `%APPDATA%\MedicalField\<perfil>\medicalfield.db` (o perfil padrão é `padrao`). O caminho exato aparece na tela **Sobre**.

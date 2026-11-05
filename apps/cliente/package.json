@@ -20,7 +20,7 @@
     "test:integracao": "vitest run testes/integracao.test.ts",
     "e2e": "node e2e/passeio.mjs",
     "instalador": "electron-builder --win",
-    "pacote:linux": "electron-builder --linux dir",
+    "pacote:linux": "electron-builder --linux AppImage --publish never",
     "fumaca": "node e2e/fumaca.mjs"
   },
   "devDependencies": {

@@ -29,6 +29,10 @@ nsis:
   artifactName: MedicalField-Setup-${version}.exe
   # Também cria o atalho da segunda ambulância (--perfil=ambulancia-02, D-29)
   include: recursos/instalador.nsh
+# Linux: um AppImage, arquivo único que roda sem instalar (gerado no GitHub Actions; no Linux: npm run pacote:linux)
 linux:
-  target: dir
+  target: AppImage
   icon: recursos/icon.png
+  category: Utility
+  executableName: medicalfield
+  artifactName: MedicalField-${version}.AppImage
