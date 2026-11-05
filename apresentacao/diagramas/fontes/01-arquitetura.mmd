@@ -1,0 +1,49 @@
+%% Visão geral: quem conversa com quem, em que linguagem e por onde passa
+flowchart TB
+  subgraph PC["PC do profissional (Windows ou Linux) · app cliente Electron 45"]
+    direction LR
+    TELAS["<b>Telas</b><br/>React 19 + Mantine<br/><i>processo de renderização (isolado)</i>"]
+    NUCLEO["<b>Núcleo local</b><br/>Node.js 24 + TypeScript<br/>repositórios · fila (outbox) · sincronização<br/>sessão · login offline · logs locais"]
+    SQLITE[("<b>SQLite</b><br/>node:sqlite<br/>cópia dos dados + fila")]
+    TELAS -- "IPC<br/>(contrato ApiDoNucleo)" --> NUCLEO
+    NUCLEO --> SQLITE
+  end
+
+  NAV["<b>Portal Admin</b> no navegador<br/>React 19 + BoardUI<br/>(Tailwind v4 + React Aria)"]
+  PM["<b>Postman</b> / Newman"]
+
+  subgraph VM["VM da Univates · Ubuntu 26.04 · Docker Compose"]
+    direction LR
+    NGX["<b>Nginx :80</b><br/>proxy reverso / API Gateway<br/>roteia /api/... · entrega o portal<br/>IP real · 503 · cabeçalhos e CSP"]
+    AUTH["<b>ms-auth</b><br/>TypeScript · Node.js 24<br/>Fastify · bcrypt · jose (JWT RS256)<br/><i>:3000 (interna)</i>"]
+    CLIN["<b>ms-clinico</b><br/>Java 21 · Spring Boot 4<br/>JdbcClient · Flyway · Nimbus JOSE<br/><i>:8080 (interna)</i>"]
+    DOCS["<b>ms-docs</b><br/>Python 3.13 · FastAPI<br/>WeasyPrint · SQLAlchemy Core · Alembic<br/><i>:8000 (interna)</i>"]
+    PG[("<b>PostgreSQL 18</b><br/>schemas: auth · clinico<br/>documentos · auditoria<br/><i>127.0.0.1:5433</i>")]
+    NGX -- "/api/auth, /api/log,<br/>/api/profissional" --> AUTH
+    NGX -- "/api/pessoa, /api/prontuario,<br/>/api/atendimento, /api/sync..." --> CLIN
+    NGX -- "/api/documentos" --> DOCS
+    AUTH --> PG
+    CLIN --> PG
+    DOCS --> PG
+    DOCS -- "busca o atendimento<br/>(com o token de quem pediu)" --> CLIN
+  end
+
+  GMAIL["<b>Gmail</b><br/>SMTP 587 (STARTTLS)"]
+
+  NUCLEO -- "HTTP + JWT<br/>só com a chave em Online" --> NGX
+  NAV -- "HTTP + JWT" --> NGX
+  PM -- "HTTP + JWT" --> NGX
+  DOCS -- "ficha em PDF anexada" --> GMAIL
+
+  classDef ts fill:#dbeafe,stroke:#2563eb,color:#0b1f44
+  classDef java fill:#ffedd5,stroke:#c2410c,color:#3b1404
+  classDef py fill:#dcfce7,stroke:#15803d,color:#05300f
+  classDef infra fill:#eef2f6,stroke:#475569,color:#111827
+  classDef banco fill:#ede9fe,stroke:#6d28d9,color:#21094d
+  classDef fora fill:#ffffff,stroke:#94a3b8,color:#111827,stroke-dasharray:4 3
+  class TELAS,NUCLEO,NAV,AUTH ts
+  class CLIN java
+  class DOCS py
+  class NGX infra
+  class PG,SQLITE banco
+  class PM,GMAIL fora

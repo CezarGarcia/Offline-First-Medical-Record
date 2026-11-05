@@ -84,6 +84,8 @@ Os scripts de operação ficam em [`infra/scripts/`](infra/scripts): `verificar.
 - O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
 - `./infra/scripts/psql.sh` abre o banco (ou o DBeaver, pelo túnel SSH: usuário `postgres`, senha `postgres`, porta 5433; [docs/12, seção 12.6](docs/12-implantacao.md#126-acessar-o-banco)). Os comandos para fazer tudo à mão, sem os scripts, estão na [seção 12.15](docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
 
+**Apresentação:** o passo a passo do dia e os diagramas (arquitetura, bancos, sincronização, login, padrões) estão em [`apresentacao/`](apresentacao).
+
 **Postman:** importe a coleção e o ambiente da pasta [`postman/`](postman) e preencha o endereço e a senha ([README da coleção](postman/README.md)).
 
 **App cliente** (no PC, com Node.js 22.22 ou mais novo): na pasta `apps/cliente`, `npm ci` e `npm run dev`. Na primeira vez, ele pede o endereço do servidor (`http://localhost`, ou com a porta do `HTTP_PORTA`) e o nome do dispositivo. O instalador do Windows e a segunda ambulância estão em [docs/12, seção 12.10](docs/12-implantacao.md#1210-app-cliente-no-windows); os testes, em [docs/13](docs/13-testes-automatizados.md).

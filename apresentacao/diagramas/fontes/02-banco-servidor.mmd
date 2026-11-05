@@ -1,0 +1,130 @@
+%% Banco central (PostgreSQL): um banco "medicalfield", um schema e um usuário por serviço.
+%% Linhas cheias = chave estrangeira. Pontilhadas = referência só pelo ID (entre schemas não há FK).
+erDiagram
+  AUTH_PROFISSIONAL["auth.profissional  (ms-auth)"] {
+    uuid id PK
+    text nome
+    text tipo_registro "CRM | COREN | SOCORRISTA"
+    text registro "único com o tipo"
+    text perfil "ADMIN | OPERACIONAL"
+    text senha_hash "bcrypt"
+    bool ativo
+    int tentativas_falhas "5 erros = bloqueio"
+    timestamptz bloqueado_ate
+    timestamptz criado_em
+  }
+  AUTH_SESSAO["auth.sessao  (ms-auth)"] {
+    uuid id PK "o sid do JWT"
+    uuid profissional_id FK
+    text refresh_token_hash "SHA-256"
+    uuid dispositivo_id
+    text dispositivo_nome
+    timestamptz expira_em "7 dias"
+    timestamptz revogada_em "logout"
+  }
+  CLINICO_PESSOA["clinico.pessoa  (ms-clinico)"] {
+    uuid id PK "criado no aparelho"
+    text nome
+    text cpf "único"
+    date data_nascimento
+    text sexo
+    text telefone
+    text email
+    text contato_nome "familiar"
+    text contato_email
+    jsonb carimbos "hora de cada campo"
+    text origem "criado_por, dispositivo, modo..."
+  }
+  CLINICO_PRONTUARIO["clinico.prontuario  (ms-clinico)"] {
+    uuid id PK
+    uuid pessoa_id FK "único: 1 por pessoa"
+    text tipo_sanguineo
+    text alergias
+    text comorbidades
+    text medicamentos_uso_continuo
+    jsonb carimbos
+    text origem "criado_por, dispositivo, modo..."
+  }
+  CLINICO_ATENDIMENTO["clinico.atendimento  (ms-clinico)"] {
+    uuid id PK "ficha Nº = 8 últimos"
+    uuid prontuario_id FK
+    timestamptz data_hora
+    text tipo_ocorrencia
+    text queixa_principal
+    text triagem_cor "Manchester"
+    int glasgow_total "ocular+verbal+motora"
+    int sinais_vitais "PA, FC, FR, SpO2..."
+    text desfecho
+    text origem "criado_por, modo ONLINE|OFFLINE"
+    timestamptz recebido_em "chegou no servidor"
+  }
+  CLINICO_ATENDIMENTO_MEDICAMENTO["clinico.atendimento_medicamento"] {
+    uuid id PK
+    uuid atendimento_id FK
+    uuid medicamento_id FK
+    numeric dose
+    text unidade
+    text via
+    timestamptz horario
+  }
+  CLINICO_MEDICAMENTO["clinico.medicamento  (ms-clinico)"] {
+    uuid id PK
+    text nome
+    text apresentacao
+    text unidade_padrao
+    bool ativo
+    timestamptz atualizado_em "entra no pull"
+  }
+  CLINICO_CONFLITO["clinico.conflito  (ms-clinico)"] {
+    uuid id PK
+    text entidade "PESSOA | PRONTUARIO"
+    text motivo "CPF_DUPLICADO..."
+    uuid id_mantido
+    uuid id_descartado
+    text estrategia "MAIS_RECENTE_VENCE..."
+    jsonb diferencas "mantido x descartado"
+  }
+  CLINICO_UNIFICACAO["clinico.unificacao  (ms-clinico)"] {
+    uuid id_descartado PK "apelido"
+    uuid id_mantido "para onde aponta"
+    text entidade
+    uuid conflito_id FK
+  }
+  DOCUMENTOS_ENVIO_EMAIL["documentos.envio_email  (ms-docs)"] {
+    uuid id PK "id do pedido (idempotência)"
+    uuid atendimento_id
+    text destinatario_tipo "PACIENTE | FAMILIAR | OUTRO"
+    text destinatario_email
+    text status "ENVIADO | FALHOU"
+    int tentativas
+  }
+  AUDITORIA_LOG_ACESSO["auditoria.log_acesso  (só INSERT)"] {
+    uuid id PK
+    timestamptz data_hora
+    text servico
+    text ip_cliente
+    uuid profissional_id
+    text metodo
+    text rota
+    int status_code
+    int tempo_ms
+  }
+  AUDITORIA_LOG_CLIENTE["auditoria.log_cliente  (só INSERT)"] {
+    uuid id PK "criado no aparelho"
+    uuid profissional_id
+    text dispositivo_nome
+    text acao "LOGIN_OFFLINE..."
+    text modo "ONLINE | OFFLINE"
+    jsonb detalhes
+  }
+
+  AUTH_PROFISSIONAL ||--o{ AUTH_SESSAO : "tem sessões"
+  CLINICO_PESSOA ||--o| CLINICO_PRONTUARIO : "tem um"
+  CLINICO_PRONTUARIO ||--o{ CLINICO_ATENDIMENTO : "tem vários"
+  CLINICO_ATENDIMENTO ||--o{ CLINICO_ATENDIMENTO_MEDICAMENTO : "aplicou"
+  CLINICO_MEDICAMENTO ||--o{ CLINICO_ATENDIMENTO_MEDICAMENTO : "é"
+  CLINICO_CONFLITO ||--o| CLINICO_UNIFICACAO : "gera o apelido"
+  CLINICO_ATENDIMENTO ||..o{ DOCUMENTOS_ENVIO_EMAIL : "ficha enviada (só o ID)"
+  AUTH_PROFISSIONAL ||..o{ CLINICO_ATENDIMENTO : "criado_por_id (só o ID)"
+  AUTH_PROFISSIONAL ||..o{ AUDITORIA_LOG_ACESSO : "quem chamou (só o ID)"
+  AUTH_PROFISSIONAL ||..o{ AUDITORIA_LOG_CLIENTE : "quem fez (só o ID)"

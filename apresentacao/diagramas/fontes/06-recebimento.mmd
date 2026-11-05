@@ -1,0 +1,17 @@
+%% Receber dados (pull): traz o que mudou no servidor desde a última vez
+sequenceDiagram
+  autonumber
+  participant Nucleo as Núcleo local
+  participant SQLite
+  participant Clin as ms-clinico
+  participant Auth as ms-auth
+  Note over Nucleo,SQLite: gatilhos: chave → Online, botão Sincronizar,<br/>abrir o app, login online
+  Nucleo->>SQLite: lê config.cursor_pull (ex.: 10:00:01)
+  Nucleo->>Clin: GET /api/sync/pull?desde=10:00:01
+  Note over Clin,Auth: devolve o que mudou desde cursor − 30 s<br/>(pega a gravação que começou antes e terminou depois)<br/>numa transação REPEATABLE READ (foto consistente)
+  Clin-->>Nucleo: medicamentos, pessoas, prontuários,<br/>atendimentos, unificações + cursor novo
+  Nucleo->>SQLite: upsert de tudo (repetido não faz mal)<br/>aplica as unificações · grava o cursor novo
+  Nucleo->>Auth: GET /api/auth/credenciais-offline
+  Auth-->>Nucleo: profissionais ativos + hash bcrypt
+  Nucleo->>SQLite: troca a réplica de credenciais (hash cifrado pelo cofre)
+  Nucleo->>Auth: POST /api/log (os logs locais ainda não enviados)

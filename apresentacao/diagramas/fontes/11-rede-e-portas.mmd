@@ -1,0 +1,29 @@
+%% O que fica aberto na VM: só a 80 (Nginx) e a 22 (SSH). Serviços e banco não são alcançáveis de fora.
+flowchart LR
+  NET(("Internet"))
+  subgraph VM["VM da Univates"]
+    direction LR
+    P80["porta 80 → <b>Nginx</b>"]
+    P22["porta 22 → <b>SSH</b><br/>(administração)"]
+    subgraph DOCKER["rede interna do Docker (medicalfield_interna)"]
+      direction TB
+      AUTH["ms-auth :3000"]
+      CLIN["ms-clinico :8080"]
+      DOCS["ms-docs :8000"]
+      DB[("db :5432")]
+    end
+    LOCAL["127.0.0.1:5433<br/>(só de dentro da VM)"]
+    P80 --> AUTH
+    P80 --> CLIN
+    P80 --> DOCS
+    LOCAL --> DB
+  end
+  PC["Seu PC"]
+  NET -- "portal e API" --> P80
+  NET -- "ssh univates@IP-DA-VM" --> P22
+  PC -. "túnel SSH (DBeaver)<br/>ssh -L 5433:127.0.0.1:5433" .-> P22
+  P22 -. "dentro da VM" .-> LOCAL
+  classDef aberto fill:#dcfce7,stroke:#15803d,color:#05300f
+  classDef fechado fill:#f1f5f9,stroke:#64748b,color:#111827
+  class P80,P22 aberto
+  class AUTH,CLIN,DOCS,DB,LOCAL fechado

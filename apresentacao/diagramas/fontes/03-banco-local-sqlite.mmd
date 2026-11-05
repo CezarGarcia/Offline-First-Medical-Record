@@ -1,0 +1,81 @@
+%% Banco local do app cliente (SQLite, um arquivo por perfil: %APPDATA%\MedicalField\<perfil>\medicalfield.db).
+%% Em cima: a cópia dos dados do servidor (+ os criados aqui, ainda pendentes). Embaixo: o que é só do aparelho.
+erDiagram
+  PESSOA["pessoa  (cópia + pendentes)"] {
+    text id PK "UUID v7 criado aqui"
+    text nome
+    text cpf
+    text origem "criado_por, dispositivo, modo"
+    text estado_sync "PENDENTE | SINCRONIZADO"
+  }
+  PRONTUARIO["prontuario  (cópia + pendentes)"] {
+    text id PK
+    text pessoa_id
+    text alergias
+    text estado_sync
+  }
+  ATENDIMENTO["atendimento  (cópia + pendentes)"] {
+    text id PK
+    text prontuario_id
+    text data_hora
+    text triagem_cor
+    text desfecho
+    text modo_registro "ONLINE | OFFLINE"
+    text estado_sync
+  }
+  ATENDIMENTO_MEDICAMENTO["atendimento_medicamento"] {
+    text id PK
+    text atendimento_id
+    text medicamento_id
+    real dose
+  }
+  MEDICAMENTO["medicamento  (cópia do catálogo)"] {
+    text id PK
+    text nome
+    text unidade_padrao
+    int ativo
+  }
+  OUTBOX["outbox  (a fila de envio)"] {
+    int ordem PK "ordem de envio"
+    text id "único"
+    text tipo "CRIAR_PESSOA | CRIAR_PRONTUARIO | CRIAR_ATENDIMENTO | ENVIAR_EMAIL"
+    text entidade_id "o registro"
+    text payload "o JSON exato do POST"
+    text status "PENDENTE | ENVIANDO | CONCLUIDO | ERRO"
+    int tentativas
+    text proxima_tentativa_em "espera crescente"
+  }
+  LOG_LOCAL["log_local"] {
+    text id PK "sobe pelo POST /api/log"
+    text acao "LOGIN_OFFLINE, ATENDIMENTO_CRIADO..."
+    text modo "ONLINE | OFFLINE"
+    text enviado_em "vazio = ainda não subiu"
+  }
+  CREDENCIAL_OFFLINE["credencial_offline"] {
+    text profissional_id PK
+    text registro
+    text verificador "scrypt (quem entrou online aqui)"
+    text sal
+    text validado_online_em "vale 7 dias"
+  }
+  CREDENCIAL_SERVIDOR["credencial_servidor  (réplica, D-51)"] {
+    text profissional_id PK
+    text registro
+    blob senha_hash_cifrado "bcrypt cifrado pelo cofre"
+    text recebido_em "vale 7 dias"
+  }
+  SESSAO["sessao  (no máximo 1 linha)"] {
+    text profissional_id
+    text modo_login "ONLINE | OFFLINE"
+    blob refresh_token_cifrado "cofre do Windows"
+  }
+  CONFIG["config  (chave/valor)"] {
+    text chave PK "servidor_url, dispositivo, conectividade, cursor_pull"
+    text valor
+  }
+  PESSOA ||--o| PRONTUARIO : "tem um"
+  PRONTUARIO ||--o{ ATENDIMENTO : "tem vários"
+  ATENDIMENTO ||--o{ ATENDIMENTO_MEDICAMENTO : "aplicou"
+  MEDICAMENTO ||--o{ ATENDIMENTO_MEDICAMENTO : "é"
+  OUTBOX }o..|| PESSOA : "entidade_id"
+  OUTBOX }o..|| ATENDIMENTO : "entidade_id"

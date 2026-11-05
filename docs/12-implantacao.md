@@ -346,6 +346,8 @@ No notebook (Windows): [`apps/cliente/scripts/apagar-dados-locais.cmd`](../apps/
 
 ## 12.14 Antes da apresentação
 
+O passo a passo completo do dia, com os comandos de cada passo do roteiro e os diagramas para mostrar, está em [`apresentacao/ROTEIRO-DA-APRESENTACAO.md`](../apresentacao/ROTEIRO-DA-APRESENTACAO.md). Resumo:
+
 Na VM, no dia (ou na véspera):
 
 1. `./infra/scripts/atualizar.sh`, se houve mudança no código desde a instalação.

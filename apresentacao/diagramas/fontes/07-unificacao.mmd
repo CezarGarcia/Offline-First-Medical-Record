@@ -1,0 +1,20 @@
+%% O mesmo paciente cadastrado offline em dois aparelhos: o servidor unifica
+sequenceDiagram
+  autonumber
+  participant A2 as Ambulância 02 (online)
+  participant Clin as ms-clinico
+  participant A1 as Ambulância 01 (estava offline)
+  A2->>Clin: POST /api/pessoa id=P2, CPF 123, tel. 51922220000 (registrado HOJE)
+  Clin-->>A2: 201 CRIADO
+  Note over Clin,A1: ONTEM, offline: criou P1 (CPF 123, tel. 51911110000)<br/>+ prontuário R1 (pessoa P1) + atendimento A1 (prontuário R1)
+  A1->>Clin: POST /api/pessoa id=P1, CPF 123
+  Note over Clin,A1: CPF 123 já existe (P2) → unificação<br/>fica o que estava no servidor (P2)<br/>campo vazio de um lado: completa com o outro<br/>valores diferentes: MAIS_RECENTE_VENCE (por campo)<br/>→ telefone de HOJE (51922220000)
+  Clin->>Clin: grava clinico.conflito (as diferenças)<br/>e clinico.unificacao (apelido P1 → P2)
+  Clin-->>A1: 200 UNIFICADO (idEnviado P1, id P2, dados mesclados)
+  A1->>Clin: POST /api/prontuario id=R1, pessoa_id=P1
+  Note over Clin,A1: P1 é apelido → traduz para P2<br/>P2 já tem prontuário R2 → unifica R1 em R2 (apelido R1 → R2)
+  Clin-->>A1: 200 UNIFICADO
+  A1->>Clin: POST /api/atendimento id=A1, prontuario_id=R1
+  Note over Clin,A1: R1 → R2: o atendimento é criado no prontuário R2<br/>(atendimento nunca é unificado: são dois)
+  Clin-->>A1: 201 CRIADO
+  Note over Clin,A1: no SQLite, troca P1→P2 e R1→R2 e apaga P1 e R1

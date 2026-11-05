@@ -1,0 +1,27 @@
+%% As chaves RSA: a privada ASSINA o JWT (só o ms-auth), a pública CONFERE (os três serviços)
+flowchart TB
+  PRIV["<b>jwt-privada.pem</b><br/>infra/secrets · só o ms-auth tem"]
+  PUB["<b>jwt-publica.pem</b><br/>infra/secrets · os três serviços têm"]
+  AUTH["<b>ms-auth</b><br/>no login e no refresh:<br/>ASSINA o JWT"]
+  JWT["<b>JWT</b> = cabeçalho . dados . assinatura<br/>dados legíveis: sub, nome, perfil, sid, exp<br/>ninguém altera sem invalidar a assinatura"]
+  CLI["App / Portal / Postman<br/>só CARREGA o JWT<br/>Authorization: Bearer ..."]
+  V1["ms-auth CONFERE"]
+  V2["ms-clinico CONFERE"]
+  V3["ms-docs CONFERE"]
+  PRIV --> AUTH --> JWT --> CLI
+  CLI --> V1
+  CLI --> V2
+  CLI --> V3
+  PUB --> V1
+  PUB --> V2
+  PUB --> V3
+  classDef chave fill:#fef3c7,stroke:#b45309,color:#3b2203
+  classDef ts fill:#dbeafe,stroke:#2563eb,color:#0b1f44
+  classDef java fill:#ffedd5,stroke:#c2410c,color:#3b1404
+  classDef py fill:#dcfce7,stroke:#15803d,color:#05300f
+  classDef neutro fill:#f8fafc,stroke:#64748b,color:#111827
+  class PRIV,PUB chave
+  class AUTH,V1 ts
+  class V2 java
+  class V3 py
+  class JWT,CLI neutro
