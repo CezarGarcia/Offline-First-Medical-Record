@@ -43,10 +43,26 @@ E, pelo portal, mandar uma ficha por e-mail para a caixa que você vai abrir na 
 
 ### No notebook
 
-1. **Instalar o app:** baixar o `MedicalField-Setup-1.0.0.exe` na página **Releases** do GitHub e instalar ("Mais informações" → "Executar assim mesmo"). Se o PC for Linux, o `MedicalField-1.0.0.AppImage` ([docs/12, 12.10](../docs/12-implantacao.md#1210-app-cliente-no-windows)).
-2. **Limpar os ensaios:** rodar `apps/cliente/scripts/apagar-dados-locais.cmd`, com o app fechado (digite `APAGAR`).
+1. **Baixar o app:** em <https://github.com/CezarGarcia/offline-first-medical-record/releases>, na versão mais nova. É **um arquivo só**: as duas ambulâncias são duas instâncias do mesmo programa, cada uma com o seu banco (D-29).
+   - **Windows:** `MedicalField-Setup-1.0.0.exe`. Instalar ("Mais informações" → "Executar assim mesmo"). Ele cria dois atalhos: **MedicalField** (Ambulância 01) e **MedicalField (Ambulância 02)**.
+   - **Linux:** `MedicalField-1.0.0.AppImage`. Não instala: é só dar permissão e abrir, uma vez para cada ambulância (em dois terminais):
+
+     ```bash
+     chmod +x MedicalField-1.0.0.AppImage
+     ```
+
+     ```bash
+     APPIMAGE_EXTRACT_AND_RUN=1 ./MedicalField-1.0.0.AppImage --no-sandbox
+     ```
+
+     ```bash
+     APPIMAGE_EXTRACT_AND_RUN=1 ./MedicalField-1.0.0.AppImage --no-sandbox --perfil=ambulancia-02
+     ```
+
+     O `APPIMAGE_EXTRACT_AND_RUN=1` dispensa o FUSE (que nem todo Linux tem); o `--no-sandbox` é para o Ubuntu 24.04 em diante.
+2. **Limpar os ensaios** (só se o app já foi usado neste PC): no Windows, `apps/cliente/scripts/apagar-dados-locais.cmd`, com o app fechado (digite `APAGAR`); no Linux, `rm -rf ~/.config/MedicalField`.
 3. **Ambulância 01:** abrir o **MedicalField**, servidor `http://IP-DA-VM`, nome `Ambulância 01`. Chave em **Online**, entrar com a **Dra. Ana** (CRM `12345-RS`). Isso libera o login offline dela e já traz a réplica de credenciais (o Carlos vai poder entrar offline no B3).
-4. **Ambulância 02** (para o conflito, 11.4): abrir o atalho **MedicalField (Ambulância 02)**, nome `Ambulância 02`, entrar online com o **Enf. Bruno** (COREN `543210-RS`).
+4. **Ambulância 02** (para o conflito, 11.4): abrir o atalho **MedicalField (Ambulância 02)** (no Linux, o comando com `--perfil=ambulancia-02`), nome `Ambulância 02`, entrar online com o **Enf. Bruno** (COREN `543210-RS`).
 5. **Postman:** importar `postman/MedicalField.postman_collection.json` e `postman/MedicalField.postman_environment.json`; no ambiente, `baseUrl` = `http://IP-DA-VM`, `senha` = `<DEMO_SENHA>`, `emailDeTeste` = o seu e-mail.
 6. **Abrir antes de começar:**
    - o navegador no portal, já na tela de login;
