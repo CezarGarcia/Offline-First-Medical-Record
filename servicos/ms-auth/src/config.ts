@@ -43,8 +43,13 @@ export function configBanco(env: NodeJS.ProcessEnv = process.env): ConfigBanco {
 async function lerChave(caminho: string, qual: string): Promise<string> {
   try {
     return await readFile(caminho, 'utf8');
-  } catch {
-    throw new Error(`Não foi possível ler a chave ${qual} do JWT em ${caminho}. ${COMO_GERAR_CHAVES}`);
+  } catch (erro) {
+    // O Docker Desktop (Windows) cria uma PASTA no lugar da chave quando o arquivo não existe na máquina
+    const motivo =
+      (erro as NodeJS.ErrnoException).code === 'EISDIR'
+        ? 'é uma pasta, não um arquivo: as chaves não tinham sido geradas quando o container subiu'
+        : 'o arquivo não existe ou não pode ser lido: as chaves não foram geradas';
+    throw new Error(`Não foi possível ler a chave ${qual} do JWT em ${caminho} (${motivo}). ${COMO_GERAR_CHAVES}`);
   }
 }
 
