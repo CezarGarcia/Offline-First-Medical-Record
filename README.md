@@ -75,7 +75,7 @@ Numa VM com Ubuntu, um comando só instala tudo (Docker, código, banco, serviç
 curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-record/main/infra/scripts/instalar.sh | bash
 ```
 
-Num repositório já clonado, o mesmo: `./infra/scripts/instalar.sh`. Os outros scripts ([`infra/scripts/`](infra/scripts)) são `atualizar.sh` (versão nova, mantendo os dados), `zerar.sh` (volta ao começo do roteiro) e `verificar.sh` (confere tudo).
+Num repositório já clonado, o mesmo: `./infra/scripts/instalar.sh`. No Windows (Docker Desktop, PowerShell), o passo a passo está em [docs/12, seção 12.11](docs/12-implantacao.md#1211-desenvolvimento-local). Os outros scripts ([`infra/scripts/`](infra/scripts)) são `atualizar.sh` (versão nova, mantendo os dados), `zerar.sh` (volta ao começo do roteiro) e `verificar.sh` (confere tudo).
 
 - `http://localhost/` abre o Portal Admin (entre com o administrador de demonstração).
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).

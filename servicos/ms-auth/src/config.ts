@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { COMO_GERAR_CHAVES, conferirChaves } from './seguranca/chaves.js';
 
 export const SERVICO = 'ms-auth';
 export const EMISSOR_TOKEN = 'medicalfield-auth';
@@ -43,18 +44,24 @@ async function lerChave(caminho: string, qual: string): Promise<string> {
   try {
     return await readFile(caminho, 'utf8');
   } catch {
-    throw new Error(
-      `Não foi possível ler a chave ${qual} do JWT em ${caminho}. ` +
-        'Gere as chaves com infra/scripts/gerar-chaves-jwt.sh.',
-    );
+    throw new Error(`Não foi possível ler a chave ${qual} do JWT em ${caminho}. ${COMO_GERAR_CHAVES}`);
   }
 }
 
 export async function carregarConfig(env: NodeJS.ProcessEnv = process.env): Promise<Config> {
+  const arquivos = {
+    privada: env.JWT_CHAVE_PRIVADA_ARQUIVO ?? '/run/secrets/jwt-privada.pem',
+    publica: env.JWT_CHAVE_PUBLICA_ARQUIVO ?? '/run/secrets/jwt-publica.pem',
+  };
+  const chaves = conferirChaves(
+    await lerChave(arquivos.privada, 'privada'),
+    await lerChave(arquivos.publica, 'pública'),
+    arquivos,
+  );
   return {
     porta: Number(env.PORTA ?? 3000),
     banco: configBanco(env),
-    chavePrivadaPem: await lerChave(env.JWT_CHAVE_PRIVADA_ARQUIVO ?? '/run/secrets/jwt-privada.pem', 'privada'),
-    chavePublicaPem: await lerChave(env.JWT_CHAVE_PUBLICA_ARQUIVO ?? '/run/secrets/jwt-publica.pem', 'pública'),
+    chavePrivadaPem: chaves.privadaPem,
+    chavePublicaPem: chaves.publicaPem,
   };
 }

@@ -294,6 +294,24 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 ## 12.11 Desenvolvimento local
 
 - O mesmo `docker compose` funciona no PC com o Docker Desktop (Windows). Para não brigar com outros programas, dá para mudar `HTTP_PORTA` no `.env` (ex.: `8088`).
+- **No Windows, sem o `instalar.sh`** (ele é bash e usa o `openssl`), no PowerShell, de dentro da pasta `infra`:
+
+  ```powershell
+  Copy-Item .env.example .env       # depois, no .env, defina a DEMO_SENHA (notepad .env)
+  powershell -ExecutionPolicy Bypass -File scripts\gerar-chaves-jwt.ps1
+  docker compose up -d --build --wait
+  ```
+
+  O [`gerar-chaves-jwt.ps1`](../infra/scripts/gerar-chaves-jwt.ps1) cria as chaves dos tokens em `infra/secrets` com um container do Node, sem precisar de `openssl`. **Não gere as chaves com `openssl ... > arquivo` no PowerShell:** ele grava o arquivo em UTF-16 ou com BOM, os serviços não conseguem ler e o `docker compose up` termina em `dependency failed to start: container medicalfield-ms-auth is unhealthy` (o motivo aparece em `docker compose logs ms-auth`).
+
+  Os dados de demonstração (o PowerShell não tem o `<` do bash, então os arquivos vão primeiro para dentro do container do banco; troque `SUA_DEMO_SENHA`):
+
+  ```powershell
+  docker compose cp seed/01-profissionais.sql db:/tmp/01.sql
+  docker compose cp seed/02-clinico.sql db:/tmp/02.sql
+  docker compose exec db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -q -v senha=SUA_DEMO_SENHA -f /tmp/01.sql
+  docker compose exec db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -q -f /tmp/02.sql
+  ```
 - Portal direto do código, com recarga automática: Node.js 22.22 ou mais novo e, na pasta `apps/portal`, `npm ci` e `MEDICALFIELD_API=http://localhost npm run dev` (abre em `http://localhost:5173`; ver o [README do portal](../apps/portal/README.md)).
 - App cliente direto do código: Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci` e `npm run dev` (abre a janela do app com recarga automática das telas). Para usar outro perfil: `npm run dev -- -- --perfil=ambulancia-02`. Os testes, a integração e o passeio estão em [13.2](13-testes-automatizados.md#132-como-rodar); o resto, no [README do app](../apps/cliente/README.md).
 - **E-mail sem conta de e-mail:** com o `infra/docker-compose.teste.yml`, o ms-docs manda para o Mailpit, um servidor de e-mail de teste que guarda as mensagens e mostra tudo em `http://localhost:8025`, com o PDF anexado. As linhas do `.env` e o comando estão no começo desse arquivo. Não use na VM da apresentação.
@@ -305,6 +323,7 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 
 | Sintoma | Causa provável | Solução |
 |---|---|---|
+| `dependency failed to start: container medicalfield-ms-auth is unhealthy` | O ms-auth parou logo ao subir; quase sempre são as chaves dos tokens (geradas no PowerShell, com BOM ou em UTF-16, ou uma que não é par da outra) | `docker compose logs ms-auth` mostra o motivo. Apagar as duas chaves de `infra/secrets` e gerar de novo: `instalar.sh` no Linux, `scripts\gerar-chaves-jwt.ps1` no Windows ([12.11](#1211-desenvolvimento-local)). Depois, `docker compose up -d --wait` |
 | `bad interpreter: /bin/bash^M` | Script salvo com CRLF (Windows) | O `.gitattributes` evita. Se acontecer: `git config core.autocrlf false`, apagar o arquivo e `git checkout` de novo |
 | `permission denied ... docker.sock` | Usuário fora do grupo `docker` (na VM do projeto, sempre: D-50) | À mão, `sudo` na frente do `docker`. Os scripts já usam o `sudo` sozinhos. Fora da VM do projeto: `sudo usermod -aG docker $USER` e entrar de novo no SSH |
 | PDF ou e-mail respondem `503 SERVICO_INDISPONIVEL` | O ms-docs está no ar, mas não conseguiu falar com o ms-clinico | `docker compose ps` e `docker compose logs ms-clinico` |

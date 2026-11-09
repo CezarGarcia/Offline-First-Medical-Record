@@ -69,7 +69,7 @@ public class LeitorDeToken {
             return (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(der));
         } catch (IOException e) {
             throw new IllegalStateException("Não foi possível ler a chave pública do JWT em " + arquivo
-                    + ". Gere as chaves com infra/scripts/gerar-chaves-jwt.sh.", e);
+                    + ". Gere as chaves com infra/scripts/instalar.sh (Linux) ou infra/scripts/gerar-chaves-jwt.ps1 (Windows).", e);
         } catch (Exception e) {
             throw new IllegalStateException("A chave pública do JWT em " + arquivo + " é inválida.", e);
         }

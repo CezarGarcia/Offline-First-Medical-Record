@@ -19,4 +19,6 @@ curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-r
 
 O resto (logs, derrubar um serviço, entrar no banco, o SQL do passo 9) se faz à mão: [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
 
+No Windows (Docker Desktop, sem bash), o `gerar-chaves-jwt.ps1` gera as chaves dos tokens; o resto do passo a passo está em [docs/12, seção 12.11](../../docs/12-implantacao.md#1211-desenvolvimento-local).
+
 No notebook (Windows), o [`apps/cliente/scripts/apagar-dados-locais.cmd`](../../apps/cliente/scripts/apagar-dados-locais.cmd) apaga os dados do app cliente. Rode depois do `zerar.sh`, senão o app continua com os registros do ensaio.

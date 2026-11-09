@@ -125,7 +125,7 @@ def _ler_chave(caminho: str) -> str:
     except OSError:
         raise ErroDeConfiguracao(
             f"Não foi possível ler a chave pública do JWT em {caminho}. "
-            "Gere as chaves com infra/scripts/gerar-chaves-jwt.sh."
+            "Gere as chaves com infra/scripts/instalar.sh (Linux) ou infra/scripts/gerar-chaves-jwt.ps1 (Windows)."
         ) from None
 
 
