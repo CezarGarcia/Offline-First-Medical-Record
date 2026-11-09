@@ -31,17 +31,15 @@ Voltar ao começo do roteiro: apaga os registros dos ensaios e recarrega os dado
 ./infra/scripts/zerar.sh
 ```
 
-Mandar uma ficha de verdade para a caixa que você vai abrir na apresentação:
-
-```bash
-./infra/scripts/testar-email.sh seu-email@gmail.com
-```
-
 Conferir tudo (tem de terminar em "Tudo pronto"):
 
 ```bash
 ./infra/scripts/verificar.sh
 ```
+
+E, pelo portal, mandar uma ficha por e-mail para a caixa que você vai abrir na apresentação (confere o Gmail de ponta a ponta).
+
+> Se for preciso reinstalar do zero (VM nova ou apagada), um comando só faz tudo e pergunta a `DEMO_SENHA` e o Gmail: `curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-record/main/infra/scripts/instalar.sh | bash`
 
 ### No notebook
 
@@ -122,29 +120,19 @@ Clique em **Sincronizar**. Os pacientes e os medicamentos aparecem; "Última sin
 
 ### Passo 9 · Banco: inserir um medicamento direto no SQL
 
-No **segundo terminal SSH**, entre no banco **do projeto**. Use uma destas três opções (todas abrem o mesmo banco):
-
-Pelo script (mais fácil, a partir da pasta do projeto):
+No **segundo terminal SSH**, entre no banco **do projeto**. O jeito mais simples usa o `psql` de dentro do container (não precisa instalar nada):
 
 ```bash
-./infra/scripts/psql.sh
+cd ~/offline-first-medical-record/infra
 ```
-
-Pelo Docker (na pasta `infra/`):
 
 ```bash
-cd ~/offline-first-medical-record/infra && sudo docker compose exec db psql -U postgres -d medicalfield
+sudo docker compose exec db psql -U postgres -d medicalfield
 ```
 
-Pelo `psql` da própria VM, na porta do projeto (pede a senha: `postgres`). O `psql` não vem instalado na VM; para ter, uma vez: `sudo apt install -y postgresql-client`.
+Se preferir o `psql` da própria VM: instale uma vez (`sudo apt install -y postgresql-client`) e conecte com `psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield` (senha `postgres`). Sem o `-h 127.0.0.1 -p 5433`, ele procura um Postgres instalado direto na VM, que não existe: o do projeto está num container.
 
-```bash
-psql -h 127.0.0.1 -p 5433 -U postgres -d medicalfield
-```
-
-> **Atenção:** `psql -U postgres` sozinho (sem `-h 127.0.0.1 -p 5433 -d medicalfield`) não acha o banco: ele procura um Postgres instalado direto na VM, e o do projeto está num container. As duas primeiras opções acima funcionam sem instalar nada.
-
-Dentro do psql (o prompt é `medicalfield=#`):
+Dentro do psql (o prompt é `medicalfield=#`), `\dt` lista as tabelas dos quatro schemas. O insert:
 
 ```sql
 INSERT INTO clinico.medicamento (nome, apresentacao, unidade_padrao)
@@ -159,7 +147,7 @@ SELECT nome, apresentacao, criado_em FROM clinico.medicamento ORDER BY criado_em
 
 Deixe o psql aberto (vai usar no extra de auditoria). Para sair: `\q`.
 
-> Alternativa num comando só: `./infra/scripts/medicamento.sh` (mostra o SQL e o `INSERT 0 1`). Se o Cetoprofeno já existir (num segundo ensaio), o `INSERT` normal dá certo do mesmo jeito, mas cria um segundo. Por isso o `zerar.sh` antes da apresentação.
+> Num segundo ensaio sem zerar, o `INSERT` cria um segundo Cetoprofeno. Por isso o `zerar.sh` antes da apresentação.
 
 ### Passo 10 · Portal: atendimentos e medicamentos
 
@@ -227,7 +215,7 @@ Abra o atendimento da Maria (no portal ou no app) → **Baixar PDF**. Salva `fic
 | A8 | Portal | No prontuário: **dois atendimentos**, um de cada ambulância |
 | A9 | Portal | **Conflitos**: duas entradas (pessoa e prontuário), com cada diferença, o valor mantido e o descartado |
 
-> Diagrama `06-conflito.png`. A regra é um **Strategy**: para mostrar a outra, na VM, `./infra/scripts/estrategia.sh SERVIDOR_VENCE` (à mão: mudar `ESTRATEGIA_CONFLITO` no `infra/.env` e `sudo docker compose up -d ms-clinico`). Para voltar: `./infra/scripts/estrategia.sh MAIS_RECENTE_VENCE`.
+> Diagrama `06-conflito.png`. A regra é um **Strategy**: para mostrar a outra, na VM, na pasta `infra/`: `nano .env` (linha `ESTRATEGIA_CONFLITO=SERVIDOR_VENCE`) e `sudo docker compose up -d ms-clinico`. Para voltar, o mesmo com `MAIS_RECENTE_VENCE`.
 
 ### 11.5 · Login offline e sessão mantida
 
@@ -273,13 +261,11 @@ Resultado: **erro** nos dois ("Registros de auditoria não podem ser alterados n
 
 ### 11.8 · Um serviço fora do ar
 
-No primeiro terminal:
+No primeiro terminal, na pasta `infra/`:
 
 ```bash
-./infra/scripts/servico.sh parar ms-docs
+sudo docker compose stop ms-docs
 ```
-
-(à mão: `cd infra && sudo docker compose stop ms-docs`)
 
 - Portal: **Baixar PDF** responde "O serviço responsável por esta rota está fora do ar" (`503`). Atendimentos, prontuários e logs continuam abrindo.
 - App (Online): registrar um atendimento e pedir o e-mail. O atendimento sincroniza; o pedido de e-mail fica na fila, com nova tentativa marcada.
@@ -287,10 +273,10 @@ No primeiro terminal:
 Para voltar:
 
 ```bash
-./infra/scripts/servico.sh iniciar ms-docs
+sudo docker compose start ms-docs
 ```
 
-(à mão: `sudo docker compose start ms-docs`). Na próxima tentativa (ou em **Sincronizar**), o e-mail sai.
+Na próxima tentativa (ou em **Sincronizar**), o e-mail sai.
 
 ---
 
@@ -385,12 +371,13 @@ Mais comandos à mão: [docs/12, seção 12.15](../docs/12-implantacao.md#1215-f
 | Sintoma | O que fazer |
 |---|---|
 | Qualquer coisa estranha | `./infra/scripts/verificar.sh`: ele diz o que está fora e como resolver |
-| Um serviço não responde | `./infra/scripts/servico.sh logs ms-clinico` (ou o serviço da vez), depois `./infra/scripts/servico.sh reiniciar ms-clinico` |
-| Login das contas recusado | `./infra/scripts/popular-demo.sh` (regrava a senha do `.env`, desbloqueia e reativa) |
+| Um serviço não responde | Na pasta `infra/`: `sudo docker compose logs --tail 50 ms-clinico` (ou o serviço da vez), depois `sudo docker compose restart ms-clinico` |
+| Login das contas recusado | `./infra/scripts/instalar.sh` (regrava a senha do `.env`, desbloqueia e reativa; não apaga dados) |
 | Passos 2 a 4 mostram registros a mais | Sobrou do ensaio: `./infra/scripts/zerar.sh` (e o `apagar-dados-locais.cmd` no notebook) |
 | O app diz "Faça login online para sincronizar" | Clique em **Entrar online** na barra e digite a senha. Nada se perde |
-| O e-mail não chega | `./infra/scripts/testar-email.sh <e-mail>` mostra a mensagem do Gmail. Confira o spam |
-| `psql: command not found`, ou `psql -U postgres` não conecta | Use `./infra/scripts/psql.sh` (o `psql` de dentro do container), ou instale o cliente: `sudo apt install -y postgresql-client` |
+| O e-mail não chega | Confira o spam. A página **E-mails enviados** do portal mostra a mensagem de erro do Gmail |
+| `psql: command not found`, ou `psql -U postgres` não conecta | Use o do container: `cd infra && sudo docker compose exec db psql -U postgres -d medicalfield` |
+| `\dt` não mostra tabelas | Confira se o prompt é `medicalfield=#` (senão, `\c medicalfield`); se for, `\dt *.*` |
 | `docker compose` diz `no configuration file provided` | Faltou entrar na pasta: `cd ~/offline-first-medical-record/infra` |
 | `permission denied ... docker.sock` | Faltou o `sudo` na frente do `docker` |
 

@@ -69,20 +69,18 @@ Comece por [`docs/README.md`](docs/README.md). Os principais:
 
 ## Como rodar (etapa atual)
 
-Pré-requisitos: Docker com Compose. Na VM, ver [docs/12-implantacao.md](docs/12-implantacao.md).
+Numa VM com Ubuntu, um comando só instala tudo (Docker, código, banco, serviços e dados de demonstração) e pergunta a senha das contas de demonstração e o Gmail ([docs/12, seção 12.4](docs/12-implantacao.md#124-primeira-instalação)):
 
 ```bash
-./infra/scripts/instalar.sh     # 1ª vez: cria o infra/.env (cópia do .env.example) e para
-nano infra/.env                 # defina a DEMO_SENHA (e o e-mail, docs/12 seção 12.8)
-./infra/scripts/instalar.sh     # constrói, sobe, carrega os dados de demonstração e confere
+curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-record/main/infra/scripts/instalar.sh | bash
 ```
 
-Os scripts de operação ficam em [`infra/scripts/`](infra/scripts): `verificar.sh` (checklist antes da apresentação), `zerar.sh` (volta ao começo do roteiro), `testar-email.sh`, `medicamento.sh` (passo 9), `estrategia.sh`, `servico.sh` (derrubar e religar uma parte), `backup.sh` e `restaurar.sh`, `atualizar.sh`. Ver [docs/12, seção 12.13](docs/12-implantacao.md#1213-scripts-de-operação).
+Num repositório já clonado, o mesmo: `./infra/scripts/instalar.sh`. Os outros scripts ([`infra/scripts/`](infra/scripts)) são `atualizar.sh` (versão nova, mantendo os dados), `zerar.sh` (volta ao começo do roteiro) e `verificar.sh` (confere tudo).
 
 - `http://localhost/` abre o Portal Admin (entre com o administrador de demonstração).
 - Todas as rotas dos três serviços já funcionam: login (ms-auth), rotas clínicas (ms-clinico), PDF e e-mail (ms-docs), com as contas e os dados de [docs/11](docs/11-roteiro-de-testes.md#112-contas-e-dados-de-demonstração).
 - O envio de e-mail precisa das variáveis `SMTP_*` no `.env` ([docs/12, seção 12.8](docs/12-implantacao.md#128-e-mail-gmail)). Sem elas, o pedido responde `502` explicando que o SMTP não foi configurado.
-- `./infra/scripts/psql.sh` abre o banco (ou o DBeaver, pelo túnel SSH: usuário `postgres`, senha `postgres`, porta 5433; [docs/12, seção 12.6](docs/12-implantacao.md#126-acessar-o-banco)). Os comandos para fazer tudo à mão, sem os scripts, estão na [seção 12.15](docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
+- O banco: `cd infra && sudo docker compose exec db psql -U postgres -d medicalfield` (ou o DBeaver, pelo túnel SSH: usuário `postgres`, senha `postgres`, porta 5433; [docs/12, seção 12.6](docs/12-implantacao.md#126-acessar-o-banco)). Os comandos para fazer tudo à mão, sem os scripts, estão na [seção 12.15](docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
 
 **Apresentação:** o passo a passo do dia e os diagramas (arquitetura, bancos, sincronização, login, padrões) estão em [`apresentacao/`](apresentacao).
 

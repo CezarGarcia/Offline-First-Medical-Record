@@ -6,7 +6,7 @@
  *   MEDICALFIELD_URL=http://localhost MEDICALFIELD_SENHA=<DEMO_SENHA> npm run e2e
  *
  * Opcional: MEDICALFIELD_EMAIL_TESTE=<endereço> (padrão: portal@exemplo.com) para o envio da ficha.
- * Precisa dos dados de demonstração (infra/scripts/popular-demo.sh). Manda um e-mail de verdade se o SMTP
+ * Precisa dos dados de demonstração (infra/scripts/instalar.sh ou zerar.sh). Manda um e-mail de verdade se o SMTP
  * do servidor for o Gmail: use a pilha local com o Mailpit (infra/docker-compose.teste.yml), não a VM.
  */
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';

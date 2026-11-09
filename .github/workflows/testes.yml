@@ -27,7 +27,8 @@ jobs:
           cp .env.example .env
           # As senhas dos usuários de cada serviço, para as suítes conectarem no banco
           grep -E '^MS_.*_PASSWORD=' .env >> "$GITHUB_ENV"
-          ./scripts/gerar-chaves-jwt.sh
+          # As chaves dos tokens, como o instalar.sh gera
+          bash -c 'source scripts/_comum.sh && gerar_chaves_jwt'
 
       - name: Subir o banco e o ms-auth (as migrations dele criam a auditoria)
         working-directory: infra
@@ -203,26 +204,35 @@ jobs:
           npm run build
           xvfb-run -a -s '-screen 0 1400x1000x24' npm run e2e
 
-      - name: Scripts da apresentação (passo 9, e-mail, backup, zerar e restaurar)
+      - name: Comandos à mão da apresentação e o zerar.sh (docs/12, seção 12.15)
+        working-directory: infra
         run: |
-          contar() { ./infra/scripts/psql.sh -At -c "SELECT count(*) FROM clinico.atendimento"; }
-          # A saída vai para uma variável antes do grep (o bash do Actions roda com pipefail)
-          saida="$(./infra/scripts/medicamento.sh)" && grep -qx 'INSERT 0 1' <<<"$saida"
-          saida="$(./infra/scripts/medicamento.sh)" && grep -qx 'INSERT 0 0' <<<"$saida"
-          ./infra/scripts/testar-email.sh scripts@exemplo.com
-          ./infra/scripts/estrategia.sh SERVIDOR_VENCE
-          ./infra/scripts/estrategia.sh MAIS_RECENTE_VENCE
-          ./infra/scripts/servico.sh parar ms-docs
+          sql() { docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 "$@" </dev/null; }
+          # Passo 9: o medicamento inserido à mão (a saída vai para uma variável antes do grep: pipefail)
+          saida="$(sql -c "INSERT INTO clinico.medicamento (nome, apresentacao, unidade_padrao) VALUES ('Cetoprofeno', 'Frasco-ampola 100 mg', 'MG')")"
+          grep -qx 'INSERT 0 1' <<<"$saida"
+          # O postgres enxerga os schemas sem o prefixo (\dt e SELECT * FROM pessoa)
+          test "$(sql -At -c "SELECT count(*) FROM medicamento WHERE nome = 'Cetoprofeno'")" = 1
+          saida="$(sql -c '\dt')" && grep -q 'clinico.*pessoa' <<<"$saida"
+          # Os logs de auditoria não aceitam UPDATE nem DELETE, nem do postgres (D-04)
+          if sql -c "DELETE FROM auditoria.log_acesso"; then echo "o DELETE na auditoria deveria ser recusado"; exit 1; fi
+          # Trocar a estratégia de conflitos à mão
+          sed -i 's/^ESTRATEGIA_CONFLITO=.*/ESTRATEGIA_CONFLITO=SERVIDOR_VENCE/' .env
+          docker compose up -d --wait ms-clinico
+          docker compose exec -T ms-clinico printenv ESTRATEGIA_CONFLITO </dev/null | grep -qx SERVIDOR_VENCE
+          sed -i 's/^ESTRATEGIA_CONFLITO=.*/ESTRATEGIA_CONFLITO=MAIS_RECENTE_VENCE/' .env
+          docker compose up -d --wait ms-clinico
+          # Um serviço fora do ar: o Nginx responde 503 só para as rotas dele
+          docker compose stop ms-docs
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/documentos/email)" = 503
-          ./infra/scripts/servico.sh iniciar ms-docs
-          antes="$(contar)"
-          ./infra/scripts/backup.sh ci
-          ./infra/scripts/zerar.sh --sim
-          ./infra/scripts/verificar.sh
-          test "$(contar)" = 2
-          ./infra/scripts/restaurar.sh "$(ls -t infra/backups/*-ci.dump | head -1)" --sim
-          test "$(contar)" = "$antes"
-          ./infra/scripts/verificar.sh
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/pessoa)" = 401
+          docker compose start ms-docs
+          docker compose up -d --wait ms-docs
+          # zerar.sh: volta aos dados de demonstração (2 atendimentos), sem o Cetoprofeno
+          ./scripts/zerar.sh --sim
+          test "$(sql -At -c "SELECT count(*) FROM atendimento")" = 2
+          test "$(sql -At -c "SELECT count(*) FROM medicamento WHERE nome = 'Cetoprofeno'")" = 0
+          ./scripts/verificar.sh
 
       - name: Fotos das telas dos passeios
         if: always()

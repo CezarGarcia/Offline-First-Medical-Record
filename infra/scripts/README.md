@@ -1,24 +1,22 @@
 # Scripts de operação
 
-Para instalar, conferir, preparar a apresentação e mostrar o sistema funcionando, sem decorar comandos do Docker. Rodam de qualquer pasta do repositório (ex.: `./infra/scripts/verificar.sh`) e usam o `infra/.env`. Os que apagam dados pedem confirmação. Detalhes em [docs/12, seções 12.13 e 12.14](../../docs/12-implantacao.md#1213-scripts-de-operação).
+São só quatro. Rodam de qualquer pasta do repositório e **sem `sudo` na frente**: quando o Docker só responde com `sudo` (como na VM do projeto), eles chamam `sudo docker` sozinhos (D-50). Cada um mostra, numa linha que começa com `$`, o comando que roda por baixo.
 
-Na VM do projeto o usuário não pode entrar no grupo `docker`: os scripts percebem e chamam `sudo docker` sozinhos (D-50). Rode-os **sem** `sudo` na frente.
-
-Cada script mostra, numa linha que começa com `$`, o comando que roda por baixo (com o `sudo`, quando ele é usado). Para fazer à mão, rode esse comando na pasta `infra/`; a lista completa está em [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
-
-| Script | Para quê | Quando |
+| Script | Quando | O que faz |
 |---|---|---|
-| `instalar.sh` | Primeira instalação: cria o `.env` (cópia do `.env.example`; o banco já vem com `postgres`/`postgres`), as chaves dos tokens, constrói as imagens uma de cada vez, sobe tudo, carrega os dados de demonstração e confere | Uma vez, na VM |
-| `atualizar.sh` | Baixa a versão nova do repositório, reconstrói, sobe de novo e confere. Os dados ficam | Depois de cada mudança no código |
-| `verificar.sh` | Checklist: containers, rotas pelo Nginx, login das contas de demonstração, dados, e-mail, disco e memória. Não muda nada | Antes da apresentação, e sempre que algo parecer errado |
-| `zerar.sh` | Apaga todos os dados e recarrega os de demonstração: volta ao começo do roteiro (com backup antes) | Antes da apresentação e entre ensaios |
-| `popular-demo.sh` | Carrega os dados de demonstração; também regrava a senha das contas, desbloqueia e reativa | Depois de trocar a `DEMO_SENHA`, ou com uma conta bloqueada |
-| `testar-email.sh <e-mail>` | Manda de verdade uma ficha para o endereço, pelo mesmo caminho do portal | Depois de configurar o Gmail, antes da apresentação |
-| `medicamento.sh` | Passo 9 do roteiro: insere o Cetoprofeno direto no banco (mostra o `INSERT 0 1`) | Na apresentação |
-| `estrategia.sh [SERVIDOR_VENCE]` | Mostra ou troca a estratégia de unificação e reinicia o ms-clinico | Na variação do roteiro do conflito (11.4) |
-| `servico.sh parar\|iniciar\|logs <serviço>` | Derruba e religa um serviço, ou mostra os logs | Para mostrar o sistema com uma parte fora do ar (11.8) |
-| `backup.sh [nome]` / `restaurar.sh <arquivo>` | Guarda o banco inteiro em `infra/backups/` e volta para ele | Depois de um ensaio que deu certo |
-| `psql.sh` | Abre o banco central no psql (`-c "..."` para um comando só) | Para mostrar tabelas e o passo 9 à mão |
-| `gerar-chaves-jwt.sh` | Gera as chaves dos tokens (o `instalar.sh` já roda) | Uma vez |
+| `instalar.sh` | VM nova, ou para deixar tudo no ar de novo | Do zero até o portal no ar: Docker (se faltar), o código, o `.env` (pergunta a `DEMO_SENHA` e o Gmail), as chaves dos tokens, as imagens, o banco com os dados de demonstração e a conferência. Pode rodar de novo: não apaga dados |
+| `atualizar.sh` | Depois de uma mudança no código | `git pull`, reconstrói as imagens e sobe a versão nova. Os dados ficam |
+| `zerar.sh` | Antes da apresentação e entre ensaios | Apaga **todos** os dados e recarrega os de demonstração (o começo do roteiro). Pede para digitar `ZERAR` |
+| `verificar.sh` | Antes de começar, ou se algo parecer errado | Confere containers, rotas, login das contas, dados, e-mail, disco e memória. Não muda nada |
 
-No notebook da apresentação (Windows), o [`apps/cliente/scripts/apagar-dados-locais.cmd`](../../apps/cliente/scripts/apagar-dados-locais.cmd) apaga os dados do app cliente (os dois perfis). Rode depois do `zerar.sh`, senão o app continua com os registros do ensaio.
+O `_comum.sh` só guarda as funções que os quatro usam.
+
+Numa VM nova, sem nada, o `instalar.sh` roda direto pela URL (ele clona o repositório em `~/offline-first-medical-record`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-record/main/infra/scripts/instalar.sh | bash
+```
+
+O resto (logs, derrubar um serviço, entrar no banco, o SQL do passo 9) se faz à mão: [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
+
+No notebook (Windows), o [`apps/cliente/scripts/apagar-dados-locais.cmd`](../../apps/cliente/scripts/apagar-dados-locais.cmd) apaga os dados do app cliente. Rode depois do `zerar.sh`, senão o app continua com os registros do ensaio.

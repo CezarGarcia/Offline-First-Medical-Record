@@ -57,7 +57,7 @@ Autenticação (online e offline), sessão, autorização, proteção de rede e 
 
 ### Chaves
 
-Geradas com [`infra/scripts/gerar-chaves-jwt.sh`](../infra/scripts/gerar-chaves-jwt.sh) e guardadas em `infra/secrets/` (fora do Git). A privada vai só para o ms-auth; a pública vai para os três. Gerar chaves novas invalida todos os tokens: todo mundo precisa entrar de novo.
+Geradas pelo [`infra/scripts/instalar.sh`](../infra/scripts/instalar.sh) (com o `openssl`) e guardadas em `infra/secrets/` (fora do Git). A privada vai só para o ms-auth; a pública vai para os três. Gerar chaves novas invalida todos os tokens: todo mundo precisa entrar de novo.
 
 ---
 

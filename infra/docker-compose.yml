@@ -7,10 +7,8 @@
 # Etapa 5: Portal Admin (React), servido pelo Nginx.
 # Etapa 7: testes no GitHub Actions; o Mailpit (e-mail de teste) fica em docker-compose.teste.yml.
 #
-# Uso (dentro desta pasta infra/):
-#   cp .env.example .env            # e defina a DEMO_SENHA
-#   ./scripts/gerar-chaves-jwt.sh   # uma vez só
-#   docker compose up -d --build
+# Uso: ./scripts/instalar.sh (prepara o .env, as chaves e os dados de demonstração e sobe tudo).
+# Depois, dentro desta pasta infra/: docker compose ps, logs, stop, start... (docs/12, seção 12.15)
 #
 # Detalhes: docs/12-implantacao.md. Scripts de operação (instalar, verificar, zerar...): infra/scripts/
 name: medicalfield
@@ -193,7 +191,7 @@ volumes:
 networks:
   interna:
 
-# Chaves dos tokens JWT, geradas por scripts/gerar-chaves-jwt.sh (fora do Git).
+# Chaves dos tokens JWT, geradas pelo scripts/instalar.sh (fora do Git).
 # A privada só vai para o ms-auth; a pública vai para os três serviços.
 secrets:
   jwt_privada:

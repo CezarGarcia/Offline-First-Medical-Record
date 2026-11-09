@@ -82,7 +82,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 - **Decisão:** um container PostgreSQL 18 só do projeto, com um schema e um usuário de banco por serviço. Ele é publicado em `127.0.0.1:5433`.
 - **Por quê:** fica isolado de qualquer Postgres que já exista na VM (sem risco de mexer em outros bancos), e o mesmo `docker compose` funciona igual na VM e no desenvolvimento. Um schema por serviço é o *database per service* possível com um servidor só: cada serviço só enxerga o que é seu.
 - **Alternativas descartadas:** usar o Postgres já instalado na VM (mais configuração manual e diferença entre desenvolvimento e VM); um servidor de banco por serviço (pesado demais para a VM).
-- **Consequências:** para entrar no banco usa-se `infra/scripts/psql.sh`, `psql -p 5433` na VM ou DBeaver com túnel SSH. Não há chave estrangeira entre schemas.
+- **Consequências:** para entrar no banco usa-se o psql do container (`docker compose exec db psql -U postgres -d medicalfield`), `psql -h 127.0.0.1 -p 5433` na VM ou o DBeaver com túnel SSH. Não há chave estrangeira entre schemas.
 
 ### D-04 — Log de acesso gravado direto no banco, só com INSERT
 
@@ -238,7 +238,7 @@ Formato: **Decisão** · **Por quê** · **Alternativas descartadas** · **Conse
 
 ### D-31 — Senha das contas de demonstração fora do repositório
 
-- **Decisão:** a senha das contas de demonstração é definida em `DEMO_SENHA`, no `infra/.env` da VM, e usada pelo `infra/scripts/popular-demo.sh`. Ela não aparece em nenhum documento.
+- **Decisão:** a senha das contas de demonstração é definida em `DEMO_SENHA`, no `infra/.env` da VM, e usada pelo `infra/scripts/instalar.sh` para carregar as contas. Ela não aparece em nenhum documento.
 - **Por quê:** o repositório é público e a VM fica na internet. Com a senha publicada, qualquer pessoa poderia entrar no sistema como administrador e, por exemplo, usar o envio de e-mail do projeto.
 - **Consequências:** na apresentação, usa-se a senha que foi definida no `.env`. O roteiro de testes cita "a de `DEMO_SENHA`".
 
