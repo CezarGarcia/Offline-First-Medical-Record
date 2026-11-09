@@ -3,7 +3,7 @@ import { createPrivateKey, createPublicKey } from 'node:crypto';
 /** Onde procurar quando uma chave do JWT não serve (aparece no log do container). */
 export const COMO_GERAR_CHAVES =
   'Apague as duas chaves da pasta infra/secrets e gere de novo: no Linux, com o infra/scripts/instalar.sh; ' +
-  'no Windows, com o infra/scripts/gerar-chaves-jwt.ps1 (docs/12-implantacao.md, seção 12.11).';
+  'no Windows, com o infra/scripts/instalar.ps1 ou o gerar-chaves-jwt.ps1 (docs/12-implantacao.md, seção 12.11).';
 
 type Cabecalho = 'PRIVATE KEY' | 'PUBLIC KEY';
 
