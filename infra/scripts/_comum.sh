@@ -51,24 +51,32 @@ ler_env() {
   printf '%s' "$valor"
 }
 
-# Troca (ou acrescenta) uma variável no infra/.env
+# Troca (ou acrescenta) uma variável no infra/.env. Valores com espaço ou símbolo vão entre aspas simples.
 gravar_env() {
+  local valor="$2" linha novo
+  [[ "$valor" =~ ^[A-Za-z0-9_@.:/+=-]*$ ]] || valor="'$valor'"
+  novo="$(mktemp)"
   if grep -qE "^$1=" .env; then
-    sed -i "s|^$1=.*|$1=$2|" .env
+    while IFS= read -r linha || [[ -n "$linha" ]]; do
+      if [[ "$linha" == "$1="* ]]; then printf '%s=%s\n' "$1" "$valor"; else printf '%s\n' "$linha"; fi
+    done <.env >"$novo"
   else
-    printf '%s=%s\n' "$1" "$2" >>.env
+    cat .env >"$novo"
+    printf '%s=%s\n' "$1" "$valor" >>"$novo"
   fi
+  cat "$novo" >.env
+  rm -f "$novo"
 }
 
 exigir_env() {
-  [[ -f .env ]] || erro "falta o infra/.env. Rode ./infra/scripts/instalar.sh (ou, na pasta infra: cp .env.example .env, e defina a DEMO_SENHA)."
+  [[ -f .env ]] || erro "falta o infra/.env. Rode ./infra/scripts/instalar.sh."
 }
 
 exigir_docker() {
   command -v docker >/dev/null || erro "o Docker não está instalado (docs/12, seção 12.2)."
   docker compose version >/dev/null 2>&1 || erro "falta o Docker Compose v2 (pacote docker-compose-v2, docs/12, seção 12.2)."
   if ! docker info >/dev/null 2>&1; then
-    erro "sem permissão para usar o Docker. Rode: sudo usermod -aG docker \$USER, saia do SSH e entre de novo (se o usermod for bloqueado, como na VM do projeto, os scripts usam o sudo sozinhos quando ele não pede senha; senão, rode o script com sudo na frente)."
+    erro "sem permissão para usar o Docker. Rode: sudo usermod -aG docker \$USER, saia do SSH e entre de novo (se o usermod for bloqueado, como na VM do projeto, os scripts usam o sudo sozinhos quando ele não pede senha)."
   fi
 }
 
@@ -140,4 +148,53 @@ avisar_memoria_para_build() {
   if ((memoria > 0 && memoria + swap < 3000)); then
     aviso "A VM tem ${memoria} MB de memória e ${swap} MB de swap. Se o build parar com \"killed\", crie um swap de 2 GB (docs/12, seção 12.12) e rode de novo."
   fi
+}
+
+# Chaves RSA dos tokens (D-06): a privada só o ms-auth usa (assina); a pública, os três serviços (conferem).
+# Ficam em infra/secrets (fora do Git). Gerar de novo invalida os tokens já emitidos.
+gerar_chaves_jwt() {
+  local pasta="$INFRA/secrets"
+  if [[ -f "$pasta/jwt-privada.pem" && -f "$pasta/jwt-publica.pem" ]]; then
+    ok "Chaves dos tokens: já existem (infra/secrets)."
+    return
+  fi
+  command -v openssl >/dev/null || erro "falta o openssl (sudo apt install -y openssl)."
+  mkdir -p "$pasta"
+  chmod 700 "$pasta"
+  por_baixo "openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt-privada.pem"
+  openssl genpkey -quiet -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$pasta/jwt-privada.pem"
+  openssl pkey -in "$pasta/jwt-privada.pem" -pubout -out "$pasta/jwt-publica.pem"
+  # Legíveis dentro dos containers; a pasta (700) é que fica restrita ao usuário da máquina
+  chmod 644 "$pasta/jwt-privada.pem" "$pasta/jwt-publica.pem"
+  ok "Chaves dos tokens geradas em infra/secrets."
+}
+
+# O psql como postgres enxerga as tabelas dos quatro schemas sem o prefixo (\dt lista tudo; SELECT * FROM pessoa)
+mostrar_schemas_no_psql() {
+  consultar "ALTER ROLE postgres IN DATABASE medicalfield SET search_path = clinico, auth, documentos, auditoria, public" >/dev/null
+}
+
+# Dados de demonstração (docs/11, seção 11.2): contas com a DEMO_SENHA, medicamentos, pessoas e atendimentos.
+# Pode rodar de novo: não duplica, e regrava a senha das contas (também desbloqueia e reativa).
+carregar_demo() {
+  local senha tabelas
+  senha="$(ler_env DEMO_SENHA)"
+  [[ -n "$senha" && "$senha" != troque-esta-senha* ]] || erro "defina a DEMO_SENHA no infra/.env."
+  por_baixo "docker compose exec -T db psql -U postgres -d medicalfield -f - < seed/01-profissionais.sql"
+  docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -q -v senha="$senha" -f - <seed/01-profissionais.sql >/dev/null
+  # </dev/null: sem isso, o "docker compose exec" fica esperando o que se digita no terminal
+  tabelas="$(consultar "SELECT to_regclass('clinico.pessoa') IS NOT NULL")"
+  [[ "$tabelas" == t ]] || erro "o ms-clinico ainda não criou as tabelas dele (veja: cd infra && sudo docker compose logs ms-clinico)."
+  por_baixo "docker compose exec -T db psql -U postgres -d medicalfield -f - < seed/02-clinico.sql"
+  docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -q -f - <seed/02-clinico.sql >/dev/null
+  mostrar_schemas_no_psql
+}
+
+# Endereço desta máquina, para mostrar no fim (o primeiro IP da máquina)
+endereco_da_maquina() {
+  local ip porta
+  ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  porta="$(ler_env HTTP_PORTA)"
+  [[ "$porta" =~ ^(80|)$ ]] && porta="" || porta=":$porta"
+  printf 'http://%s%s/' "${ip:-<endereço desta máquina>}" "$porta"
 }

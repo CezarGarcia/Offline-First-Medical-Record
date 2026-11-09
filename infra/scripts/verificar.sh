@@ -27,7 +27,7 @@ for servico in db ms-auth ms-clinico ms-docs nginx; do
     "running healthy") ok "$servico: no ar" ;;
     "running starting") atencao "$servico: subindo (espere uns segundos e rode de novo)" ;;
     "running ") ok "$servico: no ar" ;;
-    *) problema "$servico: ${estado} (logs: ./infra/scripts/servico.sh logs $servico)" ;;
+    *) problema "$servico: ${estado} (logs: cd infra && sudo docker compose logs $servico)" ;;
   esac
 done
 
@@ -56,11 +56,11 @@ else
       200) ok "login do $quem" ;;
       401)
         # Não tenta a outra conta: cada senha errada conta para o bloqueio (5 seguidas = 5 minutos)
-        problema "login do $quem recusado: a DEMO_SENHA do .env não é a gravada no banco. Rode ./infra/scripts/popular-demo.sh para gravar a do .env"
+        problema "login do $quem recusado: a DEMO_SENHA do .env não é a gravada no banco. Rode ./infra/scripts/instalar.sh para gravar a do .env"
         break
         ;;
-      403) problema "login do $quem: conta desativada. ./infra/scripts/popular-demo.sh reativa as contas de demonstração" ;;
-      423) problema "login do $quem: conta bloqueada por senhas erradas. ./infra/scripts/popular-demo.sh desbloqueia (ou espere 5 minutos)" ;;
+      403) problema "login do $quem: conta desativada. ./infra/scripts/instalar.sh reativa as contas de demonstração" ;;
+      423) problema "login do $quem: conta bloqueada por senhas erradas. ./infra/scripts/instalar.sh desbloqueia (ou espere 5 minutos)" ;;
       *) problema "login do $quem respondeu $codigo (o ms-auth está no ar?)" ;;
     esac
   done
@@ -73,8 +73,8 @@ if banco_no_ar; then
       || ' ' || (SELECT count(*) FROM clinico.atendimento) || ' ' || (SELECT count(*) FROM documentos.envio_email)" 2>/dev/null)"; then
     read -r profissionais medicamentos pessoas prontuarios atendimentos emails <<<"$contagem"
     ok "$profissionais profissionais, $medicamentos medicamentos, $pessoas pessoas, $prontuarios prontuários, $atendimentos atendimentos, $emails e-mails enviados"
-    ((profissionais >= 4)) || problema "faltam as contas de demonstração: ./infra/scripts/popular-demo.sh"
-    ((medicamentos > 0 && pessoas >= 2 && atendimentos >= 2)) || problema "faltam os dados clínicos de demonstração (medicamentos, pessoas, atendimentos): ./infra/scripts/popular-demo.sh"
+    ((profissionais >= 4)) || problema "faltam as contas de demonstração: ./infra/scripts/instalar.sh"
+    ((medicamentos > 0 && pessoas >= 2 && atendimentos >= 2)) || problema "faltam os dados clínicos de demonstração (medicamentos, pessoas, atendimentos): ./infra/scripts/instalar.sh"
     if ((pessoas > 2 || atendimentos > 2)); then
       atencao "há registros além dos de demonstração (de ensaios?). O roteiro espera 2 prontuários e 2 atendimentos nos passos 3 e 4: para recomeçar, ./infra/scripts/zerar.sh"
     fi
@@ -91,16 +91,16 @@ fi
 titulo "E-mail"
 smtp="$(ler_env SMTP_HOST)"
 if [[ -z "$smtp" ]]; then
-  problema "envio de e-mail desligado (SMTP_HOST vazio no infra/.env): o passo 17 vai falhar. Ver docs/12, seção 12.8"
+  atencao "envio de e-mail desligado (SMTP_HOST vazio no infra/.env): o passo 17 vai falhar. Ver docs/12, seção 12.8"
 elif [[ "$smtp" == smtp-teste ]]; then
   atencao "os e-mails vão para o Mailpit (servidor de teste), não para uma caixa de verdade: http://localhost:8025"
 else
-  ok "envio pelo $smtp:$(ler_env SMTP_PORTA) (para testar de verdade: ./infra/scripts/testar-email.sh <seu e-mail>)"
+  ok "envio pelo $smtp:$(ler_env SMTP_PORTA) (para testar de verdade: mande uma ficha pelo portal)"
 fi
 ok "estratégia de conflitos: $(ler_env ESTRATEGIA_CONFLITO | grep . || echo MAIS_RECENTE_VENCE)"
 
 titulo "Máquina"
-[[ -f secrets/jwt-privada.pem && -f secrets/jwt-publica.pem ]] && ok "chaves dos tokens em infra/secrets/" || problema "faltam as chaves dos tokens: ./infra/scripts/gerar-chaves-jwt.sh"
+[[ -f secrets/jwt-privada.pem && -f secrets/jwt-publica.pem ]] && ok "chaves dos tokens em infra/secrets/" || problema "faltam as chaves dos tokens: ./infra/scripts/instalar.sh"
 # As senhas do banco são simples e estão no repositório (D-49): a porta dele não pode ficar aberta para fora
 porta_banco="$(docker port medicalfield-db 5432/tcp 2>/dev/null | head -1 || true)"
 case "$porta_banco" in

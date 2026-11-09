@@ -21,5 +21,7 @@ docker compose up -d --wait --remove-orphans
 por_baixo "docker image prune -f"
 docker image prune -f >/dev/null
 
+mostrar_schemas_no_psql
+
 titulo "Conferindo"
 "$INFRA/scripts/verificar.sh"

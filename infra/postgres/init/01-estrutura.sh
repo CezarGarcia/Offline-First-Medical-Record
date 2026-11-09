@@ -45,6 +45,10 @@ ALTER ROLE ms_docs    SET search_path = documentos, public;
 -- crypt() e gen_salt(): permitem cadastrar um profissional direto no SQL,
 -- já com a senha em bcrypt (o mesmo formato que o ms-auth confere no login)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- No psql, o postgres enxerga as tabelas dos quatro schemas sem o prefixo: \dt lista tudo e
+-- "SELECT * FROM pessoa" funciona (os serviços continuam com o caminho de busca de cada um)
+ALTER ROLE postgres IN DATABASE medicalfield SET search_path = clinico, auth, documentos, auditoria, public;
 SQL
 
 echo "MedicalField: usuários, schemas e permissões criados."
