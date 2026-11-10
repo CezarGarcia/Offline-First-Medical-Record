@@ -4,7 +4,7 @@ Material para apresentar o MedicalField: o passo a passo do dia e os diagramas.
 
 | Arquivo | O que é |
 |---|---|
-| [`GUIA-DE-DEMONSTRACAO.md`](GUIA-DE-DEMONSTRACAO.md) | **Para projetar na apresentação:** o essencial, na ordem: baixar o app (Windows ou Linux), preparar a VM, os 17 passos em uma tabela, os comandos do banco e do Docker, e o que fazer se algo der errado |
+| [`GUIA-DE-DEMONSTRACAO.md`](GUIA-DE-DEMONSTRACAO.md) | **O documento da apresentação**, em duas partes. **I · O sistema:** cada peça (app, portal, Nginx, ms-auth, ms-clinico, ms-docs, PostgreSQL e SQLite), como funciona e onde fica no código; os fluxos (login e tokens, login offline, outbox, chave Online/Offline, envio, idempotência, conflitos, pull, PDF, e-mail, auditoria); padrões de projeto, segurança e testes. **II · A demonstração:** preparação, os 17 passos com o que acontece por trás de cada um, cenários complementares, comandos do banco e do Docker e solução de problemas |
 | [`ROTEIRO-DA-APRESENTACAO.md`](ROTEIRO-DA-APRESENTACAO.md) | O passo a passo: preparação, os 17 passos do roteiro com os comandos e o que falar, os extras (conflito, login offline, Postman, auditoria, serviço fora do ar), a cola do banco pelo terminal, perguntas prováveis e o que fazer se algo der errado |
 | [`diagramas/`](diagramas) | As imagens, no formato de slide (16:9, PNG em alta resolução), feitas para ler de longe: poucas palavras e uma cor por parte do sistema |
 
