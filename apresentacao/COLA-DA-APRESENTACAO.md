@@ -71,6 +71,30 @@ Mostrar `diagramas/01-arquitetura.png` e `diagramas/10-padroes-de-projeto.png`: 
 
 ---
 
+## 3.1 Padrões de projeto (se o professor pedir para ver no código)
+
+Os caminhos são a partir da raiz do repositório. Para mostrar, abra o arquivo no GitHub (botão **Go to file**, tecla `t`) ou no VS Code (`Ctrl+P` e o nome do arquivo).
+
+| Padrão | Em uma frase | Onde está | O que mostrar no código |
+|---|---|---|---|
+| **Repository** (sugerido) | Só o repositório fala com o banco; telas e regras pedem os dados sem saber de onde vêm | App: `apps/cliente/src/main/nucleo/repositorios/` (um por tabela, ex.: `pessoas.ts` → `RepositorioPessoas`). Servidor: `servicos/ms-clinico/.../pessoa/RepositorioPessoas.java` e `servicos/ms-docs/ms_docs/envios/repositorio.py` (`RepositorioEnvios`) | O SQL fica todo dentro dessas classes; o resto do código só chama métodos como `buscar()` e `gravarDoServidor()` |
+| **Strategy** (sugerido) | A regra de conflito é uma peça trocável: "o mais recente vence" ou "o servidor vence", escolhida pelo `.env` | `servicos/ms-clinico/.../unificacao/`: a interface `EstrategiaDeMesclagem.java` e as duas regras `MaisRecenteVence.java` e `ServidorVence.java` | A interface tem um método só, `decidir(carimboDoExistente, carimboDoRecebido)`. O `Mesclador.java` chama `estrategia.decidir(...)` para cada campo, sem saber qual regra é. A escolha está em `config/ConfiguracaoGeral.java` (lê `ESTRATEGIA_CONFLITO`) |
+| **Observer** (sugerido) | A chave Online/Offline avisa quem estiver "inscrito" quando muda; voltou a rede, a fila sai sozinha | `apps/cliente/src/main/nucleo/conectividade.ts` (`EstadoConectividade`) | `mudar()` avisa todos os ouvintes; `assinar()` inscreve um. Os inscritos: `sincronizacao.ts` (Online → sincroniza), `http.ts` (Offline → cancela o que está saindo) e `nucleo.ts` (grava a posição e avisa as telas) |
+| **Command** (escolhido) | Cada item da fila de envio é um objeto que sabe se enviar e o que fazer com a resposta | `apps/cliente/src/main/nucleo/comandos.ts` | A interface `Comando` com `requisicao()`, `aplicar()`, `aoFalhar()` e `descrever()`; as classes `CriarPessoa`, `CriarProntuario`, `CriarAtendimento` e `EnviarEmail`. Em `sincronizacao.ts`, o motor faz `comandoPara(item)` e trata todos do mesmo jeito |
+| **Adapter** (escolhido) | O envio de e-mail fica atrás de uma interface própria; o Gmail (SMTP) é só uma implementação | `servicos/ms-docs/ms_docs/correio/`: `envio.py` (`EnvioDeEmail` e `EnvioDesativado`) e `smtp.py` (`EnvioPorSmtp`) | As rotas só chamam `enviar(mensagem)`. O `EnvioPorSmtp` adapta o `smtplib` do Python. Em `ms_docs/__main__.py`, sem SMTP no `.env` entra o `EnvioDesativado`; com SMTP, o `EnvioPorSmtp` |
+| **Builder** (escolhido) | O PDF da ficha é montado parte por parte, numa ordem fixa | `servicos/ms-docs/ms_docs/ficha/construtor.py` | `FichaPdfBuilder` com um método por parte (`cabecalho()`, `paciente()`...) e o `construir()` no fim, que gera o PDF. O `MontadorDaFicha.montar()` é o "diretor": encadeia as partes na ordem |
+
+Padrões de arquitetura (citar, se perguntarem):
+
+| Padrão | Onde |
+|---|---|
+| **API Gateway** | O Nginx: `infra/nginx/conf.d/medicalfield.conf` (cada `location /api/...` manda para um serviço) |
+| **Outbox** | A fila de envio do app: tabela `outbox` (`apps/cliente/src/main/nucleo/migracoes.ts`) e `repositorios/outbox.ts` |
+| **Database per Service** | Um schema e um usuário por serviço: `infra/postgres/init/01-estrutura.sh` |
+| **Offline-First** | Salvar grava no SQLite + fila numa transação: `apps/cliente/src/main/nucleo/registros.ts` |
+
+---
+
 ## 4. Roteiro do enunciado
 
 | # | Onde | Fazer | Mostrar |
