@@ -11,6 +11,14 @@ São só quatro. Rodam de qualquer pasta do repositório e **sem `sudo` na frent
 
 O `_comum.sh` só guarda as funções que os quatro usam.
 
+**No Windows** (Docker Desktop aberto), cada um tem a sua versão PowerShell, com o mesmo nome e `.ps1`: `instalar.ps1`, `atualizar.ps1`, `zerar.ps1` (`-Sim` em vez de `--sim`) e `verificar.ps1`, com as funções no `_comum.ps1`. O `gerar-chaves-jwt.ps1` gera só as chaves dos tokens (o `instalar.ps1` já o chama). Rode da pasta do repositório:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infra\scripts\instalar.ps1
+```
+
+O `-ExecutionPolicy Bypass` é porque o Windows, por padrão, não roda scripts `.ps1`; digitar só `.\instalar.sh` no PowerShell não roda nada (o Windows apenas abre o arquivo). Diferenças das versões `.sh`: não instalam o Docker (instale o Docker Desktop antes), não perguntam o Gmail (as linhas `SMTP_*` vão à mão no `infra\.env`) e o `verificar.ps1` não confere o disco.
+
 Numa VM nova, sem nada, o `instalar.sh` roda direto pela URL (ele clona o repositório em `~/offline-first-medical-record`):
 
 ```bash
@@ -18,7 +26,5 @@ curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-r
 ```
 
 O resto (logs, derrubar um serviço, entrar no banco, o SQL do passo 9) se faz à mão: [docs/12, seção 12.15](../../docs/12-implantacao.md#1215-fazendo-à-mão-sem-os-scripts).
-
-No Windows (Docker Desktop), o `instalar.ps1` faz o mesmo que o `instalar.sh` (ele usa o `gerar-chaves-jwt.ps1` para as chaves dos tokens). No PowerShell, da pasta do repositório: `powershell -ExecutionPolicy Bypass -File infra\scripts\instalar.ps1` ([docs/12, seção 12.11](../../docs/12-implantacao.md#1211-desenvolvimento-local)).
 
 No notebook (Windows), o [`apps/cliente/scripts/apagar-dados-locais.cmd`](../../apps/cliente/scripts/apagar-dados-locais.cmd) apaga os dados do app cliente. Rode depois do `zerar.sh`, senão o app continua com os registros do ensaio.
