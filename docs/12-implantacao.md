@@ -263,12 +263,16 @@ Depende das verificações de [12.3](#123-verificações-iniciais-da-vm). Resumo
 ## 12.10 App cliente no Windows
 
 - **Instalar:** baixar `MedicalField-Setup-<versão>.exe` na página **Releases** do repositório (o GitHub Actions gera a cada versão, D-28) e executar. Na primeira vez aparece "O Windows protegeu o computador": clicar em **Mais informações** → **Executar assim mesmo** (o `.exe` não tem assinatura digital). O instalador é por usuário (não pede administrador) e deixa escolher a pasta.
-- **Publicar uma versão:** criar uma tag de versão e mandar para o GitHub. O workflow **Instaladores do app cliente** gera o `.exe` numa máquina Windows (instala e abre o app para conferir) e o AppImage numa máquina Linux (abre o app para conferir), e cria a versão em **Releases** com os dois anexados (uns 10 minutos). A versão do app passa a ser a da tag:
+- **Publicar uma versão** (uns 10 minutos), de um destes jeitos:
+  - **Pela página do GitHub:** **Releases** → **Draft a new release** → em **Choose a tag**, digitar `v1.0.0` e escolher **Create new tag: v1.0.0 on publish** (alvo: `main`) → título `MedicalField v1.0.0` → **Publish release**. O workflow **Instaladores do app cliente** começa sozinho e anexa os instaladores nessa versão.
+  - **Pelo terminal**, num clone com permissão de push:
 
-  ```bash
-  git tag v1.0.0
-  git push origin v1.0.0
-  ```
+    ```bash
+    git tag v1.0.0
+    git push origin v1.0.0
+    ```
+
+  Nos dois casos, o workflow gera o `.exe` numa máquina Windows (instala e abre o app para conferir) e o AppImage numa máquina Linux (abre o app para conferir). A versão do app passa a ser a da tag.
 
   Sem tag, cada push que muda o app cliente na `main` também gera o instalador: ele fica na execução do workflow (aba **Actions** → a execução → **Artifacts** → `MedicalField-Setup` e `MedicalField-AppImage`), por 30 dias.
 - **Gerar o instalador no próprio Windows** (sem esperar o GitHub Actions): Node.js 22.22 ou mais novo e, na pasta `apps/cliente`, `npm ci`, `npm run build` e `npm run instalador`. O `.exe` sai em `apps/cliente/release/`.

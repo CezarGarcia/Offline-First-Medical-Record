@@ -17,6 +17,9 @@ on:
       - 'apps/cliente/**'
       - 'apps/compartilhado/**'
       - '.github/workflows/instaladores.yml'
+  # Versão criada pela página Releases do GitHub (a tag nasce junto): gera os instaladores e anexa nela
+  release:
+    types: [published]
   workflow_dispatch:
 
 concurrency:
@@ -157,11 +160,16 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: MedicalField-AppImage
-      - name: Criar a versão com os instaladores
+      - name: Criar a versão com os instaladores (ou anexar, se ela foi criada pela página Releases)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" MedicalField-Setup-*.exe MedicalField-*.AppImage \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "MedicalField $GITHUB_REF_NAME" \
-            --notes "App cliente: MedicalField-Setup (Windows) e MedicalField.AppImage (Linux). Ver docs/12-implantacao.md, seção 12.10."
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" MedicalField-Setup-*.exe MedicalField-*.AppImage \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" MedicalField-Setup-*.exe MedicalField-*.AppImage \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "MedicalField $GITHUB_REF_NAME" \
+              --notes "App cliente: MedicalField-Setup (Windows) e MedicalField.AppImage (Linux). Ver docs/12-implantacao.md, seção 12.10."
+          fi
