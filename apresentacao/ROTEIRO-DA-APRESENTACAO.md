@@ -2,7 +2,7 @@
 
 Só o que se usa na hora. A explicação completa do sistema está no [`GUIA-DE-DEMONSTRACAO.md`](GUIA-DE-DEMONSTRACAO.md).
 
-**Ir direto para:** [VM do zero](#1-vm-do-zero-instalar-tudo) · [VM já instalada](#2-vm-já-instalada) · [Banco](#3-banco-de-dados) · [Docker](#4-docker) · [App](#5-app-no-notebook) · [Contas](#6-contas) · [17 passos](#7-os-17-passos) · [Extras](#8-extras) · [Deu errado](#9-deu-errado)
+**Ir direto para:** [VM do zero](#1-vm-do-zero-instalar-tudo) · [VM já instalada](#2-vm-já-instalada) · [Banco](#3-banco-de-dados) · [Docker](#4-docker) · [App](#5-app-no-notebook) · [Contas](#6-contas) · [Padrões de projeto](#7-padrões-de-projeto) · [17 passos](#8-os-17-passos) · [Extras](#9-extras) · [Deu errado](#10-deu-errado)
 
 ---
 
@@ -189,7 +189,71 @@ Todas com a `<DEMO_SENHA>`.
 
 ---
 
-## 7. Os 17 passos
+## 7. Padrões de projeto
+
+Diagrama `diagramas/10-padroes-de-projeto.png`. Os links abrem o arquivo no GitHub já na linha. Para achar pelo nome: no GitHub, tecla `t`; no VS Code, `Ctrl+P`.
+
+| Padrão | Como foi usado | Abrir primeiro |
+|---|---|---|
+| **Repository** (enunciado) | Só os repositórios têm SQL; telas e regras pedem os dados sem saber de onde vêm | [`pessoas.ts`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/repositorios/pessoas.ts#L84) |
+| **Strategy** (enunciado) | Regra de conflito trocável pelo `.env`: "mais recente vence" ou "servidor vence" | [`EstrategiaDeMesclagem.java`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/unificacao/EstrategiaDeMesclagem.java#L10) |
+| **Observer** (enunciado) | A chave Online/Offline avisa os inscritos; voltou a rede, a fila sai sozinha | [`conectividade.ts`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/conectividade.ts#L12) |
+| **Command** (escolhido) | Cada item da fila é um objeto que sabe montar a requisição e tratar a resposta | [`comandos.ts`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L27) |
+| **Adapter** (escolhido) | O e-mail passa por uma interface própria; o Gmail (SMTP) é só uma implementação | [`envio.py`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/correio/envio.py#L26) |
+| **Builder** (escolhido) | O PDF da ficha é montado seção por seção, numa ordem fixa | [`construtor.py`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/ficha/construtor.py#L48) |
+
+### Repository
+
+- App, um repositório por tabela: [`repositorios/`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/repositorios/) → [`RepositorioPessoas`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/repositorios/pessoas.ts#L84) (o SQL fica aqui dentro, ex.: [`linha 102`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/repositorios/pessoas.ts#L102))
+- ms-clinico: [`RepositorioPessoas.java`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/pessoa/RepositorioPessoas.java#L21) (e os outros `Repositorio*` de cada pacote)
+- ms-docs: [`RepositorioEnvios`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/envios/repositorio.py#L75)
+
+### Strategy
+
+- A interface, com um método só, `decidir(...)`: [`EstrategiaDeMesclagem.java`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/unificacao/EstrategiaDeMesclagem.java#L10)
+- As duas regras: [`MaisRecenteVence.java`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/unificacao/MaisRecenteVence.java#L6) e [`ServidorVence.java`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/unificacao/ServidorVence.java#L6)
+- Quem usa sem saber qual é: [`Mesclador.java, linha 66`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/unificacao/Mesclador.java#L66) (`estrategia.decidir(...)` para cada campo)
+- Onde a regra é escolhida pelo `ESTRATEGIA_CONFLITO`: [`ConfiguracaoGeral.java, linha 21`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-clinico/src/main/java/br/univates/medicalfield/clinico/config/ConfiguracaoGeral.java#L21)
+
+### Observer
+
+- O sujeito, `EstadoConectividade`: [`mudar()`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/conectividade.ts#L25) avisa todos; [`assinar()`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/conectividade.ts#L38) inscreve um
+- Os três inscritos:
+  - [`sincronizacao.ts, linha 61`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/sincronizacao.ts#L61): Online → sincroniza tudo
+  - [`http.ts, linha 68`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/http.ts#L68): Offline → cancela o que está saindo
+  - [`nucleo.ts, linha 148`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/nucleo.ts#L148): grava a posição e avisa as telas
+
+### Command
+
+- A interface `Comando` (`requisicao()`, `aplicar()`, `aoFalhar()`, `descrever()`): [`comandos.ts`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L27)
+- Os comandos: [`CriarPessoa`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L51), [`CriarProntuario`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L80), [`CriarAtendimento`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L110), [`EnviarEmail`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L138)
+- A fábrica que transforma o item da fila em comando: [`comandoPara()`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/comandos.ts#L162)
+- O motor tratando todos do mesmo jeito: [`sincronizacao.ts, linha 170`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/sincronizacao.ts#L170)
+
+### Adapter
+
+- A interface `EnvioDeEmail` e o `EnvioDesativado`: [`envio.py`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/correio/envio.py#L26)
+- O adaptador do `smtplib` (Gmail): [`smtp.py, EnvioPorSmtp`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/correio/smtp.py#L15)
+- Onde a implementação é escolhida: [`__main__.py, linha 33`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/__main__.py#L33)
+- Quem usa só chama `enviar(...)`: [`servico.py, linha 101`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/envios/servico.py#L101)
+
+### Builder
+
+- O builder, um método por seção e o `construir()`: [`FichaPdfBuilder`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/ficha/construtor.py#L48)
+- O diretor, encadeando as seções na ordem: [`MontadorDaFicha.montar()`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/servicos/ms-docs/ms_docs/ficha/construtor.py#L228)
+
+### Padrões de arquitetura (se perguntarem)
+
+| Padrão | Onde mostrar |
+|---|---|
+| API Gateway | [`medicalfield.conf`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/infra/nginx/conf.d/medicalfield.conf#L33): uma regra `location` por serviço |
+| Outbox | Tabela `outbox`: [`migracoes.ts, linha 112`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/migracoes.ts#L112); repositório: [`outbox.ts`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/repositorios/outbox.ts#L30) |
+| Offline-First | Registro + item da fila + log na mesma transação: [`registros.ts, linha 179`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/apps/cliente/src/main/nucleo/registros.ts#L179) |
+| Database per Service | Um usuário e um schema por serviço: [`01-estrutura.sh`](https://github.com/CezarGarcia/offline-first-medical-record/blob/main/infra/postgres/init/01-estrutura.sh#L19) |
+
+---
+
+## 8. Os 17 passos
 
 | # | Onde | Fazer | Tem de aparecer |
 |---|---|---|---|
@@ -213,7 +277,7 @@ Todas com a `<DEMO_SENHA>`.
 
 ---
 
-## 8. Extras
+## 9. Extras
 
 **Conflito (duas ambulâncias):** as duas em **Offline** → a mesma pessoa (CPF `286.255.878-87`) nas duas, com telefones diferentes → 01 em **Online**, depois 02 em **Online** → portal: uma pessoa só, dois atendimentos e a página **Conflitos**.
 
@@ -227,7 +291,7 @@ Todas com a `<DEMO_SENHA>`.
 
 ---
 
-## 9. Deu errado
+## 10. Deu errado
 
 | Problema | Fazer |
 |---|---|
