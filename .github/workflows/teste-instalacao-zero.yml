@@ -1,0 +1,64 @@
+# Teste único: segue o roteiro da apresentação, seção 11, numa máquina limpa (sem o projeto, sem imagens).
+# 1) instala pela URL (11.2); 2) apaga tudo (11.1); 3) instala à mão, comando por comando (11.3).
+name: Teste da instalação do zero
+on:
+  push:
+    branches: [teste-instalacao-zero]
+jobs:
+  zero:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: "11.2 · Instalar pelo curl (como na VM: sem o projeto na máquina)"
+        env:
+          DEMO_SENHA: senha-de-teste-123
+        run: |
+          test ! -e ~/offline-first-medical-record
+          curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-record/main/infra/scripts/instalar.sh | bash
+
+      - name: "Conferir: login do admin e dados de demonstração"
+        run: |
+          code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST http://localhost/api/auth/login \
+            -H 'Content-Type: application/json' -d '{"tipoRegistro":"CRM","registro":"10001-RS","senha":"senha-de-teste-123"}')
+          echo "login: $code"; test "$code" = 200
+          cd ~/offline-first-medical-record/infra
+          n=$(sudo docker compose exec -T db psql -U postgres -d medicalfield -At -c "SELECT count(*) FROM clinico.atendimento" </dev/null)
+          echo "atendimentos: $n"; test "$n" = 2
+          curl -fsS -o /dev/null http://localhost/ && echo "portal: ok"
+
+      - name: "11.1 · Apagar tudo da VM"
+        run: |
+          cd ~/offline-first-medical-record/infra
+          sudo docker compose down -v --rmi all
+          cd ~ && rm -rf ~/offline-first-medical-record
+          sudo docker volume ls
+          ! sudo docker volume ls | grep -q medicalfield
+
+      - name: "11.3 · Instalar à mão, sem o script"
+        run: |
+          set -x
+          git clone https://github.com/CezarGarcia/offline-first-medical-record.git ~/offline-first-medical-record
+          cd ~/offline-first-medical-record/infra
+          cp .env.example .env
+          # o que se faz no nano: trocar a DEMO_SENHA
+          sed -i 's/^DEMO_SENHA=.*/DEMO_SENHA=outra-senha-456/' .env
+          mkdir -p secrets && chmod 700 secrets
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt-privada.pem
+          openssl pkey -in secrets/jwt-privada.pem -pubout -out secrets/jwt-publica.pem && chmod 644 secrets/*.pem
+          sudo docker compose up -d --build --wait
+          sudo docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -v senha='outra-senha-456' -f - < seed/01-profissionais.sql
+          sudo docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -f - < seed/02-clinico.sql
+          sudo docker compose ps
+          ./scripts/verificar.sh
+
+      - name: "Conferir: login com a senha nova e dados"
+        run: |
+          code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST http://localhost/api/auth/login \
+            -H 'Content-Type: application/json' -d '{"tipoRegistro":"CRM","registro":"12345-RS","senha":"outra-senha-456"}')
+          echo "login: $code"; test "$code" = 200
+          cd ~/offline-first-medical-record/infra
+          sudo docker compose exec -T db psql -U postgres -d medicalfield -At -c "SELECT (SELECT count(*) FROM auth.profissional) || ' profissionais, ' || (SELECT count(*) FROM clinico.medicamento) || ' medicamentos, ' || (SELECT count(*) FROM clinico.atendimento) || ' atendimentos'" </dev/null
+
+      - name: Logs dos containers (se algo falhou)
+        if: failure()
+        run: cd ~/offline-first-medical-record/infra 2>/dev/null && sudo docker compose logs --tail 80 || true
