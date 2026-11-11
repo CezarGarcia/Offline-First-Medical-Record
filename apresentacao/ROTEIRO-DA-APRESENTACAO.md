@@ -2,7 +2,7 @@
 
 Só o que se usa na hora. A explicação completa do sistema está no [`GUIA-DE-DEMONSTRACAO.md`](GUIA-DE-DEMONSTRACAO.md).
 
-**Ir direto para:** [VM do zero](#1-vm-do-zero-instalar-tudo) · [VM já instalada](#2-vm-já-instalada) · [Banco](#3-banco-de-dados) · [Docker](#4-docker) · [App](#5-app-no-notebook) · [Contas](#6-contas) · [Padrões de projeto](#7-padrões-de-projeto) · [17 passos](#8-os-17-passos) · [Extras](#9-extras) · [Deu errado](#10-deu-errado)
+**Ir direto para:** [VM do zero](#1-vm-do-zero-instalar-tudo) · [VM já instalada](#2-vm-já-instalada) · [Banco](#3-banco-de-dados) · [Docker](#4-docker) · [App](#5-app-no-notebook) · [Contas](#6-contas) · [Padrões de projeto](#7-padrões-de-projeto) · [17 passos](#8-os-17-passos) · [Extras](#9-extras) · [Deu errado](#10-deu-errado) · [Reinstalar do zero](#11-reinstalar-do-zero)
 
 ---
 
@@ -305,3 +305,151 @@ Diagrama `diagramas/10-padroes-de-projeto.png`. Os links abrem o arquivo no GitH
 | App: "Faça login online para sincronizar" | Botão **Entrar online** na barra |
 | E-mail não chegou | Ver o spam; portal → **E-mails enviados** mostra o erro |
 | App no Linux fecha ao abrir | Faltou o `--no-sandbox` |
+
+---
+
+## 11. Reinstalar do zero
+
+Para quando for preciso apagar tudo da VM e instalar de novo, na frente da turma. Primeiro apague ([11.1](#111-apagar-tudo-da-vm)), depois instale com o script ([11.2](#112-instalar-com-o-script)) ou à mão ([11.3](#113-instalar-à-mão-sem-o-script)) e, por fim, prepare o notebook ([11.4](#114-depois-no-notebook)).
+
+### 11.1 Apagar tudo da VM
+
+Apagar só a pasta **não basta**: o banco fica num volume do Docker (`medicalfield_pgdata`), fora da pasta, e a instalação nova reaproveitaria os dados antigos.
+
+**Entrar na pasta `infra`**
+
+```bash
+cd ~/offline-first-medical-record/infra
+```
+
+**Derrubar os containers e apagar o volume do banco e as imagens**
+
+```bash
+sudo docker compose down -v --rmi all
+```
+
+**Sair da pasta e apagar o projeto**
+
+```bash
+cd ~ && rm -rf ~/offline-first-medical-record
+```
+
+**Conferir que o banco sumiu** (não pode aparecer nada com `medicalfield`)
+
+```bash
+sudo docker volume ls
+```
+
+### 11.2 Instalar com o script
+
+**Baixar o projeto, configurar, subir tudo e carregar os dados de demonstração** (pergunta a `DEMO_SENHA` duas vezes, o Gmail e a senha de app; o build leva alguns minutos e termina em "Tudo pronto")
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CezarGarcia/offline-first-medical-record/main/infra/scripts/instalar.sh | bash
+```
+
+### 11.3 Instalar à mão, sem o script
+
+São os mesmos passos que o `instalar.sh` faz. Três deles não podem faltar: o `.env` (não vem no clone, porque fica fora do Git), as chaves do JWT (sem elas o `docker compose up` falha) e os dados de demonstração (sem eles não existe nenhuma conta para entrar).
+
+**0. Instalar Docker, Compose, Git e OpenSSL** (só se a VM não tiver o Docker)
+
+```bash
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 docker-buildx git openssl
+```
+
+**1. Baixar o projeto**
+
+```bash
+git clone https://github.com/CezarGarcia/offline-first-medical-record.git ~/offline-first-medical-record
+```
+
+**2. Entrar na pasta `infra`** (todos os comandos seguintes rodam nela)
+
+```bash
+cd ~/offline-first-medical-record/infra
+```
+
+**3. Criar o `.env` a partir do exemplo**
+
+```bash
+cp .env.example .env
+```
+
+**4. Editar o `.env`**
+
+```bash
+nano .env
+```
+
+No `nano`, troque `DEMO_SENHA=troque-esta-senha-de-demo` pela senha das contas e **tire o `#`** das linhas do e-mail, preenchendo-as:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORTA=587
+SMTP_USUARIO=seuemail@gmail.com
+SMTP_SENHA=asenhadeappde16letras
+SMTP_REMETENTE=seuemail@gmail.com
+```
+
+Salvar: `Ctrl+O`, `Enter`. Sair: `Ctrl+X`.
+
+**5. Criar a pasta das chaves do JWT** (só o seu usuário entra nela)
+
+```bash
+mkdir -p secrets && chmod 700 secrets
+```
+
+**6. Gerar a chave privada** (RSA 2048; vai só para o ms-auth, que assina os tokens)
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt-privada.pem
+```
+
+**7. Gerar a chave pública a partir da privada** (vai para os serviços que conferem os tokens)
+
+```bash
+openssl pkey -in secrets/jwt-privada.pem -pubout -out secrets/jwt-publica.pem && chmod 644 secrets/*.pem
+```
+
+**8. Fazer o build das imagens e subir os 5 containers** (o `--wait` espera todos ficarem saudáveis; na primeira vez, o Postgres cria os usuários e os schemas, e cada serviço roda as próprias migrações)
+
+```bash
+sudo docker compose up -d --build --wait
+```
+
+**9. Criar as contas de demonstração** (troque `SUA_SENHA` pela mesma `DEMO_SENHA` do `.env`; o Postgres transforma a senha em hash bcrypt)
+
+```bash
+sudo docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -v senha='SUA_SENHA' -f - < seed/01-profissionais.sql
+```
+
+**10. Carregar os dados clínicos de demonstração** (medicamentos, 2 pessoas com prontuário e 2 atendimentos)
+
+```bash
+sudo docker compose exec -T db psql -U postgres -d medicalfield -v ON_ERROR_STOP=1 -f - < seed/02-clinico.sql
+```
+
+**11. Conferir os containers** (os 5 como `healthy`: `db`, `ms-auth`, `ms-clinico`, `ms-docs` e `nginx`)
+
+```bash
+sudo docker compose ps
+```
+
+**12. Conferir tudo** (se puder usar o script; termina em "Tudo pronto")
+
+```bash
+./scripts/verificar.sh
+```
+
+O portal fica em `http://IP-DA-VM/`.
+
+### 11.4 Depois: no notebook
+
+Obrigatório depois de reinstalar: as sessões do servidor sumiram, e o app ainda tem os registros dos ensaios.
+
+1. Fechar o app e apagar os dados dele: no Windows, `apagar-dados-locais.cmd` (digitar `APAGAR`); no Linux, `rm -rf ~/.config/MedicalField`.
+2. Abrir a **Ambulância 01**, servidor `http://IP-DA-VM`, nome `Ambulância 01`, e **entrar online com a Dra. Ana**.
+3. Para o conflito: o mesmo na **Ambulância 02**, com o **Enf. Bruno**.
+4. Chave em **Online**, sem pendentes.
+5. No portal, entrar de novo com o **Dr. Ricardo** e mandar uma ficha por e-mail para conferir o Gmail.
